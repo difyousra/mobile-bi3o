@@ -1,0 +1,41 @@
+export const queryKeys = {
+  me: ["users", "me"] as const,
+  profileMe: ["profiles", "me"] as const,
+  taxoTree: ["taxo", "tree"] as const,
+  sousCategories: ["taxo", "sous-categories"] as const,
+  attributs: (id: number) => ["taxo", "attributs", id] as const,
+  publicAds: (page: number, size: number, categorieId?: number | "all") =>
+    ["annonces", "public", page, size, categorieId ?? "all"] as const,
+  adPublic: (id: number | string) => ["annonces", "public", id] as const,
+  searchAds: (
+    titre: string,
+    page: number,
+    categorieId?: number | null,
+    sousCategorieId?: number | null
+  ) =>
+    [
+      "annonces",
+      "search",
+      titre,
+      page,
+      categorieId ?? "all",
+      sousCategorieId ?? "all",
+    ] as const,
+  suggestions: (q: string) => ["annonces", "suggestions", q] as const,
+  sellerPublic: (id: number) => ["users", "public", id] as const,
+  favorites: (page: number) => ["me", "favoris", page] as const,
+  favoriteIds: ["me", "favoris", "ids"] as const,
+  followStatus: (sellerId: number | string) =>
+    ["users", "follow", sellerId] as const,
+  followedSellers: ["users", "follow", "list"] as const,
+  notifications: (page: number) => ["me", "notifications", page] as const,
+  notificationsUnread: ["me", "notifications", "unread"] as const,
+  savedSearches: ["me", "recherches"] as const,
+  myAds: (page: number) => ["annonces", "me", "manage", page] as const,
+  conversations: ["messagerie", "conversations"] as const,
+  messages: (id: number) => ["messagerie", "messages", id] as const,
+  reservationCalendar: (annonceId: number | string) =>
+    ["reservations", "calendar", annonceId] as const,
+  myReservations: (page: number) => ["reservations", "me", page] as const,
+  exchange: ["exchange", "current"] as const,
+};

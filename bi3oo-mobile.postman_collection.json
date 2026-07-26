@@ -1,0 +1,402 @@
+{
+  "info": {
+    "_postman_id": "2bfd4bc1-0ef6-4cc8-8e62-b6d3868e2fc3",
+    "name": "Bi3oo Mobile API",
+    "description": "Collection mobile de référence (mise à jour 2026-07-23). OpenAPI live : {{apiBaseUrl}}/v3/api-docs (OpenAPI 3.1.0 · 111 chemins). Swagger UI : {{apiBaseUrl}}/swagger-ui.html. Auth : Bearer JWT + refresh opaque rotatif. Ne plus envoyer X-User-Id / X-Admin.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "apiBaseUrl", "value": "https://new.bi3oo.com/api" },
+    { "key": "token", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "oauthCode", "value": "" },
+    { "key": "userId", "value": "1" },
+    { "key": "annonceId", "value": "1" },
+    { "key": "conversationId", "value": "1" },
+    { "key": "sellerId", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "OpenAPI et santé",
+      "item": [
+        {
+          "name": "Spécification OpenAPI — GET /v3/api-docs",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{apiBaseUrl}}/v3/api-docs"
+          }
+        },
+        {
+          "name": "Swagger UI",
+          "request": {
+            "method": "GET",
+            "url": "{{apiBaseUrl}}/swagger-ui.html"
+          }
+        },
+        {
+          "name": "Swagger UI index",
+          "request": {
+            "method": "GET",
+            "url": "{{apiBaseUrl}}/swagger-ui/index.html"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Authentification",
+      "item": [
+        {
+          "name": "Login",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "const body = pm.response.json();",
+                "if (body.token) pm.environment.set('token', body.token);",
+                "if (body.refreshToken) pm.environment.set('refreshToken', body.refreshToken);"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"mobile.test@example.com\",\"password\":\"change-me\"}"
+            },
+            "url": "{{apiBaseUrl}}/auth/login"
+          }
+        },
+        {
+          "name": "Refresh token (rotation)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "const body = pm.response.json();",
+                "if (body.token) pm.environment.set('token', body.token);",
+                "if (body.refreshToken) pm.environment.set('refreshToken', body.refreshToken);"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"refreshToken\":\"{{refreshToken}}\"}"
+            },
+            "url": "{{apiBaseUrl}}/auth/refresh"
+          }
+        },
+        {
+          "name": "OAuth exchange (code → session)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "const body = pm.response.json();",
+                "if (body.token) pm.environment.set('token', body.token);",
+                "if (body.refreshToken) pm.environment.set('refreshToken', body.refreshToken);"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"code\":\"{{oauthCode}}\"}"
+            },
+            "url": "{{apiBaseUrl}}/auth/oauth/exchange"
+          }
+        },
+        {
+          "name": "Profil connecté",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "url": "{{apiBaseUrl}}/users/me"
+          }
+        },
+        {
+          "name": "Inscription",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"nom\":\"Test\",\"prenom\":\"Mobile\",\"email\":\"mobile.test@example.com\",\"password\":\"ChangeMe123!\",\"telephone\":\"+213555000000\",\"typeCompte\":\"PARTICULIER\"}"
+            },
+            "url": "{{apiBaseUrl}}/auth/register"
+          }
+        },
+        {
+          "name": "Demande reset mot de passe",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"mobile.test@example.com\"}"
+            },
+            "url": "{{apiBaseUrl}}/auth/password/forgot"
+          }
+        },
+        {
+          "name": "Logout (révoque access + refresh)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"refreshToken\":\"{{refreshToken}}\"}"
+            },
+            "url": "{{apiBaseUrl}}/auth/logout"
+          }
+        },
+        {
+          "name": "Sans JWT — attend 401 JSON",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{apiBaseUrl}}/me/favoris"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Découverte et taxonomie",
+      "item": [
+        {
+          "name": "Arbre de catégories",
+          "request": { "method": "GET", "url": "{{apiBaseUrl}}/taxo/categories-tree" }
+        },
+        {
+          "name": "Liste sous-catégories (DTO)",
+          "request": { "method": "GET", "url": "{{apiBaseUrl}}/taxo/sous-categories" }
+        },
+        {
+          "name": "Attributs sous-catégorie",
+          "request": { "method": "GET", "url": "{{apiBaseUrl}}/taxo/sous-categories/30/attributs" }
+        },
+        {
+          "name": "Annonces publiques",
+          "request": {
+            "method": "GET",
+            "url": "{{apiBaseUrl}}/annonces/public?page=0&size=24&sort=id,desc"
+          }
+        },
+        {
+          "name": "Recherche multi-attributs",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"titre\":\"velo\",\"categorieIds\":[],\"sousCategorieIds\":[],\"attributs\":[]}"
+            },
+            "url": "{{apiBaseUrl}}/annonces/search/all-attributes?page=0&size=24"
+          }
+        },
+        {
+          "name": "Détail annonce publique",
+          "request": {
+            "method": "GET",
+            "url": "{{apiBaseUrl}}/annonces/public/{{annonceId}}?maxPhotos=10"
+          }
+        },
+        {
+          "name": "Profil vendeur public",
+          "request": { "method": "GET", "url": "{{apiBaseUrl}}/users/public/{{sellerId}}" }
+        },
+        {
+          "name": "Suggestions",
+          "request": {
+            "method": "GET",
+            "url": "{{apiBaseUrl}}/annonces/suggestions?q=velo&limit=6"
+          }
+        },
+        {
+          "name": "Taux EUR/DZD",
+          "request": { "method": "GET", "url": "{{apiBaseUrl}}/exchange/current" }
+        }
+      ]
+    },
+    {
+      "name": "Publication d'annonce",
+      "item": [
+        {
+          "name": "Pré-vérification modération",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"titre\":\"Vélo de ville\",\"description\":\"Très bon état\"}"
+            },
+            "url": "{{apiBaseUrl}}/moderation/check"
+          }
+        },
+        {
+          "name": "Créer annonce JSON (owner = JWT)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "const body = pm.response.json();",
+                "if (body.id) pm.environment.set('annonceId', String(body.id));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"titre\":\"Vélo test\",\"description\":\"Annonce de test\",\"type\":\"OFFRE\",\"prix\":25000,\"ville\":\"Alger\",\"codePostal\":\"16000\",\"sousCategorieId\":30,\"valeurs\":[]}"
+            },
+            "url": "{{apiBaseUrl}}/annonces/json"
+          }
+        },
+        {
+          "name": "Mes annonces",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "url": "{{apiBaseUrl}}/annonces/me/manage?page=0&size=20"
+          }
+        },
+        {
+          "name": "Suspendre annonce",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "url": "{{apiBaseUrl}}/annonces/{{annonceId}}/pause"
+          }
+        },
+        {
+          "name": "Réactiver annonce",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "url": "{{apiBaseUrl}}/annonces/{{annonceId}}/reactivate"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Engagement, réservation et messagerie",
+      "item": [
+        {
+          "name": "Ajouter favori",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "url": "{{apiBaseUrl}}/me/favoris/{{annonceId}}"
+          }
+        },
+        {
+          "name": "Mes favoris",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "url": "{{apiBaseUrl}}/me/favoris?page=0&size=24"
+          }
+        },
+        {
+          "name": "Suivre vendeur",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "url": "{{apiBaseUrl}}/users/{{sellerId}}/follow"
+          }
+        },
+        {
+          "name": "Notifications",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "url": "{{apiBaseUrl}}/me/notifications?page=0&size=20"
+          }
+        },
+        {
+          "name": "Démarrer conversation",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"message\":\"Bonjour, est-ce disponible ?\"}"
+            },
+            "url": "{{apiBaseUrl}}/messagerie/annonces/{{annonceId}}/conversations"
+          }
+        },
+        {
+          "name": "Envoyer message",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+            },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"body\":\"Bonjour\"}"
+            },
+            "url": "{{apiBaseUrl}}/messagerie/conversations/{{conversationId}}/messages"
+          }
+        },
+        {
+          "name": "Calendrier réservation",
+          "request": {
+            "method": "GET",
+            "url": "{{apiBaseUrl}}/reservations/public/annonces/{{annonceId}}/calendar"
+          }
+        }
+      ]
+    }
+  ]
+}

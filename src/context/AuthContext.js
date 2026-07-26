@@ -1,0 +1,275 @@
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import * as authService from "../services/authService";
+import { getAccessToken } from "../api/tokenManager";
+import { queryKeys } from "../api/queryKeys";
+import { normalizePhoneForApi } from "../utils/phone";
+
+const AuthContext = createContext(null);
+
+const LOGIN_ERROR_MESSAGES = {
+  ACCOUNT_DISABLED_PENDING_PRO:
+    "Votre compte professionnel est en attente de validation par l'équipe Bi3oo.",
+  ACCOUNT_DISABLED_ADMIN:
+    "Ce compte a été désactivé. Contactez le support Bi3oo.",
+};
+
+function loginErrorMessage(parsed) {
+  const { statusCode, message, error } = parsed;
+
+  if (statusCode === 403) {
+    if (error && LOGIN_ERROR_MESSAGES[error]) return LOGIN_ERROR_MESSAGES[error];
+    if (message && LOGIN_ERROR_MESSAGES[message]) {
+      return LOGIN_ERROR_MESSAGES[message];
+    }
+    return typeof error === "string" && error.length > 40
+      ? error
+      : message ?? "Accès refusé.";
+  }
+
+  if (statusCode === 401 || message === "Credentials are wrong") {
+    return "E-mail ou mot de passe incorrect.";
+  }
+
+  return message ?? "Connexion impossible.";
+}
+
+export function AuthProvider({ children }) {
+  const queryClient = useQueryClient();
+  const [user, setUser] = useState(null);
+  const [isBootstrapping, setIsBootstrapping] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      const token = await getAccessToken();
+      if (!token) {
+        if (mounted) setIsBootstrapping(false);
+        return;
+      }
+
+      const result = await authService.getMe();
+      if (mounted) {
+        if (result.ok) {
+          setUser(result.data);
+          queryClient.setQueryData(queryKeys.me, result.data);
+        } else {
+          await authService.logout();
+        }
+        setIsBootstrapping(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [queryClient]);
+
+  const login = useCallback(
+    async (email, password) => {
+      setIsSubmitting(true);
+      try {
+        const result = await authService.login(email, password);
+        if (!result.ok) {
+          return { ok: false, message: loginErrorMessage(result) };
+        }
+
+        const me = await authService.getMe();
+        if (me.ok) {
+          setUser(me.data);
+          queryClient.setQueryData(queryKeys.me, me.data);
+          return { ok: true };
+        }
+
+        const fallbackUser = authService.userFromLoginData(result.data);
+        if (fallbackUser?.email) {
+          setUser(fallbackUser);
+          return { ok: true };
+        }
+
+        await authService.logout();
+        return {
+          ok: false,
+          message:
+            me.message ??
+            "Connexion réussie mais impossible de charger le profil.",
+        };
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [queryClient]
+  );
+
+  const register = useCallback(async (form) => {
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        nom: form.nom.trim(),
+        prenom: form.prenom.trim(),
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
+        telephone: normalizePhoneForApi(form.telephone),
+        typeCompte: "PARTICULIER",
+        role: "USER",
+      };
+
+      const result = await authService.register(payload);
+      if (!result.ok) return { ok: false, message: result.message };
+
+      setPendingVerificationEmail(payload.email);
+      return { ok: true, email: payload.email };
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, []);
+
+  const verifyEmail = useCallback(async (email, code) => {
+    setIsSubmitting(true);
+    try {
+      const result = await authService.verifyEmail(email.trim(), code.trim());
+      if (!result.ok) return { ok: false, message: result.message };
+      setPendingVerificationEmail(null);
+      return { ok: true, message: result.data?.message };
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, []);
+
+  const resendOtp = useCallback(async (email) => {
+    setIsSubmitting(true);
+    try {
+      const result = await authService.resendOtp(email.trim());
+      if (!result.ok) return { ok: false, message: result.message };
+      return { ok: true, message: result.data?.message };
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, []);
+
+  const forgotPassword = useCallback(async (email) => {
+    setIsSubmitting(true);
+    try {
+      const result = await authService.forgotPassword(email.trim());
+      if (!result.ok) return { ok: false, message: result.message };
+      return {
+        ok: true,
+        message:
+          result.data?.message ??
+          "Si un compte existe, un e-mail a été envoyé.",
+      };
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, []);
+
+  const resetPassword = useCallback(async (token, newPassword) => {
+    setIsSubmitting(true);
+    try {
+      const result = await authService.resetPassword(token, newPassword);
+      if (!result.ok) return { ok: false, message: result.message };
+      return { ok: true, message: result.data?.message };
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, []);
+
+  const exchangeOAuthCode = useCallback(
+    async (code) => {
+      setIsSubmitting(true);
+      try {
+        const result = await authService.oauthExchange(code);
+        if (!result.ok) {
+          return { ok: false, message: loginErrorMessage(result) };
+        }
+        const me = await authService.getMe();
+        if (me.ok) {
+          setUser(me.data);
+          queryClient.setQueryData(queryKeys.me, me.data);
+          return { ok: true };
+        }
+        await authService.logout();
+        return {
+          ok: false,
+          message: me.message ?? "Échange OAuth réussi mais profil inaccessible.",
+        };
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [queryClient]
+  );
+
+  const logout = useCallback(async () => {
+    await authService.logout();
+    setUser(null);
+    setPendingVerificationEmail(null);
+    queryClient.clear();
+  }, [queryClient]);
+
+  const refreshUser = useCallback(async () => {
+    const me = await authService.getMe();
+    if (me.ok) {
+      setUser(me.data);
+      queryClient.setQueryData(queryKeys.me, me.data);
+      return { ok: true, data: me.data };
+    }
+    return { ok: false, message: me.message };
+  }, [queryClient]);
+
+  const value = useMemo(
+    () => ({
+      user,
+      isAuthenticated: Boolean(user),
+      isBootstrapping,
+      isSubmitting,
+      pendingVerificationEmail,
+      login,
+      register,
+      verifyEmail,
+      resendOtp,
+      forgotPassword,
+      resetPassword,
+      exchangeOAuthCode,
+      logout,
+      refreshUser,
+      setUser,
+      setPendingVerificationEmail,
+    }),
+    [
+      user,
+      isBootstrapping,
+      isSubmitting,
+      pendingVerificationEmail,
+      login,
+      register,
+      verifyEmail,
+      resendOtp,
+      forgotPassword,
+      resetPassword,
+      exchangeOAuthCode,
+      logout,
+      refreshUser,
+    ]
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
+  return ctx;
+}
