@@ -23,6 +23,10 @@ export default function ChangePasswordScreen({ navigation }) {
   const [confirm, setConfirm] = useState("");
 
   const handleSubmit = async () => {
+    if (!currentPassword.trim()) {
+      Alert.alert("Mot de passe", "Le mot de passe actuel est obligatoire.");
+      return;
+    }
     if (newPassword.length < 8) {
       Alert.alert("Mot de passe", "Au moins 8 caractères.");
       return;
@@ -33,7 +37,7 @@ export default function ChangePasswordScreen({ navigation }) {
     }
     try {
       await mutation.mutateAsync({
-        currentPassword: currentPassword || undefined,
+        currentPassword: currentPassword.trim(),
         newPassword,
       });
       Alert.alert("Succès", "Mot de passe mis à jour.", [

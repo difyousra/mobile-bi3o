@@ -2,24 +2,17 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import HomeScreen from "../screens/HomeScreen";
 import FavoritesScreen from "../screens/FavoritesScreen";
 import PublishScreen from "../screens/PublishScreen";
-import CartScreen from "../screens/CartScreen";
 import AccountScreen from "../screens/AccountScreen";
-import CustomTabBar from "./CustomTabBar";
+import MessagesNavigator from "./MessagesNavigator";
 
 const Tab = createBottomTabNavigator();
 
 export default function BottomTabNavigator() {
   return (
     <Tab.Navigator
-      tabBar={(props) => <CustomTabBar {...props} />}
+      tabBar={() => null}
       screenOptions={{
         headerShown: false,
-        tabBarStyle: {
-          position: "absolute",
-          backgroundColor: "transparent",
-          borderTopWidth: 0,
-          elevation: 0,
-        },
       }}
     >
       <Tab.Screen
@@ -38,9 +31,9 @@ export default function BottomTabNavigator() {
         options={{ tabBarLabel: "Publier" }}
       />
       <Tab.Screen
-        name="Cart"
-        component={CartScreen}
-        options={{ tabBarLabel: "Panier" }}
+        name="Messages"
+        component={MessagesNavigator}
+        options={{ tabBarLabel: "Messages" }}
       />
       <Tab.Screen
         name="Account"

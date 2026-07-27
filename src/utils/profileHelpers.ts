@@ -11,11 +11,69 @@ export function userDisplayName(user?: User | null): string {
   return user.email?.split("@")[0] ?? "Utilisateur";
 }
 
-export function userAvatarUrl(user?: User | null): string {
-  if (!user) return FALLBACK_AVATAR;
+/**
+ * Photo profil API publique : nested dans `particulier.photoUrl` ou `pro.photoUrl`.
+ * GET /users/public/{id} ne met pas photoUrl à la racine.
+ */
+export function publicProfilePhotoUrl(data: unknown): string | undefined {
+  if (!data || typeof data !== "object") return undefined;
+  const row = data as Record<string, unknown>;
+  const particulier =
+    row.particulier && typeof row.particulier === "object"
+      ? (row.particulier as Record<string, unknown>)
+      : null;
+  const pro =
+    row.pro && typeof row.pro === "object"
+      ? (row.pro as Record<string, unknown>)
+      : null;
+
   const raw =
-    user.avatarUrl ?? user.photoUrl ?? user.avatar ?? undefined;
-  return resolveMediaUrl(raw) ?? FALLBACK_AVATAR;
+    (typeof particulier?.photoUrl === "string" ? particulier.photoUrl : undefined) ??
+    (typeof pro?.photoUrl === "string" ? pro.photoUrl : undefined) ??
+    (typeof row.photoUrl === "string" ? row.photoUrl : undefined) ??
+    (typeof row.avatarUrl === "string" ? row.avatarUrl : undefined) ??
+    (typeof row.avatar === "string" ? row.avatar : undefined);
+
+  return resolveMediaUrl(raw);
+}
+
+export function publicProfileVille(data: unknown): string | undefined {
+  if (!data || typeof data !== "object") return undefined;
+  const row = data as Record<string, unknown>;
+  const particulier =
+    row.particulier && typeof row.particulier === "object"
+      ? (row.particulier as Record<string, unknown>)
+      : null;
+  const pro =
+    row.pro && typeof row.pro === "object"
+      ? (row.pro as Record<string, unknown>)
+      : null;
+
+  if (typeof particulier?.ville === "string" && particulier.ville.trim()) {
+    return particulier.ville.trim();
+  }
+  if (typeof pro?.ville === "string" && pro.ville.trim()) {
+    return pro.ville.trim();
+  }
+  if (typeof row.ville === "string" && row.ville.trim()) {
+    return row.ville.trim();
+  }
+  return undefined;
+}
+
+export function userAvatarUrl(
+  user?: User | null,
+  publicProfile?: unknown
+): string {
+  if (user) {
+    const fromUser = resolveMediaUrl(
+      user.avatarUrl ?? user.photoUrl ?? user.avatar ?? undefined
+    );
+    if (fromUser) return fromUser;
+  }
+  const fromPublic = publicProfilePhotoUrl(publicProfile);
+  if (fromPublic) return fromPublic;
+  return FALLBACK_AVATAR;
 }
 
 /** Normalise GET /annonces/suggestions → libellés cliquables. */
@@ -75,6 +133,15 @@ export function mapPublicSeller(data: unknown, fallbackId: number): PublicSeller
     `${prenom} ${nom}`.trim() ||
     String(row.name ?? row.nomComplet ?? row.email ?? `Vendeur #${id}`);
 
+  const particulier =
+    row.particulier && typeof row.particulier === "object"
+      ? (row.particulier as Record<string, unknown>)
+      : null;
+  const pro =
+    row.pro && typeof row.pro === "object"
+      ? (row.pro as Record<string, unknown>)
+      : null;
+
   return {
     id: Number.isFinite(id) ? id : fallbackId,
     name,
@@ -85,17 +152,18 @@ export function mapPublicSeller(data: unknown, fallbackId: number): PublicSeller
         : typeof row.bio === "string"
           ? row.bio
           : undefined,
-    avatar:
-      resolveMediaUrl(
-        (row.avatarUrl as string) ??
-          (row.photoUrl as string) ??
-          (row.avatar as string)
-      ) ?? undefined,
+    avatar: publicProfilePhotoUrl(data),
     typeCompte:
       typeof row.typeCompte === "string" ? row.typeCompte : undefined,
     telephone:
-      typeof row.telephone === "string" ? row.telephone : undefined,
-    ville: typeof row.ville === "string" ? row.ville : undefined,
+      typeof row.telephone === "string"
+        ? row.telephone
+        : typeof pro?.telephone === "string"
+          ? (pro.telephone as string)
+          : typeof particulier?.telephone === "string"
+            ? (particulier.telephone as string)
+            : undefined,
+    ville: publicProfileVille(data),
   };
 }
 

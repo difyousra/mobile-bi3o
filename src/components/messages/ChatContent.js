@@ -44,6 +44,16 @@ export default function ChatContent({
 
   const [draft, setDraft] = useState("");
 
+  const handleSellerPress = () => {
+    const sellerId = conversation?.sellerId;
+    if (!sellerId || !navigation) return;
+    navigation.navigate("SellerProfile", {
+      sellerId: Number(sellerId),
+      sellerName: conversation.sellerName,
+      sellerAvatar: conversation.sellerAvatar,
+    });
+  };
+
   const handleSend = async () => {
     const text = draft.trim();
     if (!text || sendMutation.isPending) return;
@@ -129,6 +139,7 @@ export default function ChatContent({
         lastSeen={conversation.lastSeen}
         onBackPress={onBack}
         onMenuPress={handleMenuPress}
+        onSellerPress={conversation?.sellerId ? handleSellerPress : undefined}
       />
 
       <ProductContextBar

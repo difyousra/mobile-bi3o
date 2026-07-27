@@ -11,7 +11,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
-import { showDevMessage } from "../../utils/devFeedback";
 import { useAuth } from "../../context/AuthContext";
 
 const ACCOUNT_ITEMS = [
@@ -22,36 +21,17 @@ const ACCOUNT_ITEMS = [
     route: "ChangePassword",
   },
   {
+    id: "editProfile",
+    label: "Modifier le profil",
+    icon: "create-outline",
+    route: "EditProfile",
+  },
+  {
     id: "notifications",
-    label: "Notification Setting",
+    label: "Notifications",
     icon: "notifications-outline",
     route: "Notifications",
   },
-  {
-    id: "shipping",
-    label: "Shipping Address",
-    icon: "location-outline",
-    route: "BuyAddress",
-  },
-  {
-    id: "payment",
-    label: "Payment Info",
-    icon: "card-outline",
-    route: "BuyPayment",
-  },
-  {
-    id: "delete",
-    label: "Delete Account",
-    icon: "trash-outline",
-    destructive: true,
-  },
-];
-
-const APP_TOGGLES = [
-  { id: "faceId", label: "Eneble Face ID For Log In" },
-  { id: "push", label: "Eneble Push Notifications" },
-  { id: "location", label: "Eneble Location Services" },
-  { id: "darkMode", label: "Dark Mode" },
 ];
 
 function SettingsRow({ icon, label, onPress, destructive, children }) {
@@ -81,39 +61,12 @@ function SettingsRow({ icon, label, onPress, destructive, children }) {
 
 export default function AccountSettingsScreen({ navigation }) {
   const { logout } = useAuth();
-  const [toggles, setToggles] = useState({
-    faceId: false,
-    push: true,
-    location: true,
-    darkMode: false,
-  });
-
-  const setToggle = (id, value) => {
-    setToggles((prev) => ({ ...prev, [id]: value }));
-  };
 
   const handleAccountItem = (item) => {
-    if (item.id === "delete") {
-      Alert.alert(
-        "Supprimer le compte",
-        "Cette action est irréversible. Continuer ?",
-        [
-          { text: "Annuler", style: "cancel" },
-          {
-            text: "Supprimer",
-            style: "destructive",
-            onPress: () =>
-              showDevMessage("Compte", "Suppression simulée."),
-          },
-        ]
-      );
-      return;
-    }
     if (item.route) {
       navigation.navigate(item.route);
       return;
     }
-    showDevMessage(item.label, "Paramètre à connecter avec l'API.");
   };
 
   const handleLogout = () => {
@@ -150,20 +103,6 @@ export default function AccountSettingsScreen({ navigation }) {
               destructive={item.destructive}
               onPress={() => handleAccountItem(item)}
             />
-          ))}
-        </View>
-
-        <Text style={styles.sectionLabel}>App Settings</Text>
-        <View style={styles.section}>
-          {APP_TOGGLES.map((item) => (
-            <View key={item.id} style={styles.row}>
-              <Text style={styles.rowLabel}>{item.label}</Text>
-              <Switch
-                value={toggles[item.id]}
-                onValueChange={(v) => setToggle(item.id, v)}
-                trackColor={{ true: colors.primary }}
-              />
-            </View>
           ))}
         </View>
 

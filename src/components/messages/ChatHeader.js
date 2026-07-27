@@ -8,6 +8,7 @@ export default function ChatHeader({
   sellerAvatar,
   lastSeen,
   onBackPress,
+  onSellerPress,
   onMenuPress,
 }) {
   return (
@@ -21,13 +22,18 @@ export default function ChatHeader({
       </TouchableOpacity>
 
       {variant === "seller" ? (
-        <View style={styles.sellerInfo}>
+        <TouchableOpacity
+          style={styles.sellerInfo}
+          activeOpacity={0.8}
+          onPress={onSellerPress}
+          disabled={!onSellerPress}
+        >
           <Image source={{ uri: sellerAvatar }} style={styles.avatar} />
           <View>
             <Text style={styles.sellerName}>{sellerName}</Text>
             <Text style={styles.lastSeen}>{lastSeen}</Text>
           </View>
-        </View>
+        </TouchableOpacity>
       ) : (
         <Text style={styles.logo}>Bi3oo</Text>
       )}

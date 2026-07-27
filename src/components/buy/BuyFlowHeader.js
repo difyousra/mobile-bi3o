@@ -9,7 +9,6 @@ export default function BuyFlowHeader({ navigation, activeCategory = "clothes" }
   return (
     <View style={styles.wrap}>
       <HomeHeader
-        onChatPress={() => navigation.navigate("Messages")}
         onNotificationPress={() =>
           showDevMessage("Notifications", "Bientôt disponible.")
         }

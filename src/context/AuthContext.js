@@ -11,6 +11,8 @@ import * as authService from "../services/authService";
 import { getAccessToken } from "../api/tokenManager";
 import { queryKeys } from "../api/queryKeys";
 import { normalizePhoneForApi } from "../utils/phone";
+import { fetchPublicSeller } from "../services/annoncesService";
+import { publicProfilePhotoUrl } from "../utils/profileHelpers";
 
 const AuthContext = createContext(null);
 
@@ -20,6 +22,20 @@ const LOGIN_ERROR_MESSAGES = {
   ACCOUNT_DISABLED_ADMIN:
     "Ce compte a été désactivé. Contactez le support Bi3oo.",
 };
+
+async function enrichUserWithPhoto(user) {
+  if (!user?.id) return user;
+  try {
+    const pub = await fetchPublicSeller(user.id);
+    const photo = publicProfilePhotoUrl(pub);
+    if (photo) {
+      return { ...user, photoUrl: photo, avatarUrl: photo };
+    }
+  } catch {
+    // ignore — photo optionnelle
+  }
+  return user;
+}
 
 function loginErrorMessage(parsed) {
   const { statusCode, message, error } = parsed;
@@ -61,8 +77,9 @@ export function AuthProvider({ children }) {
       const result = await authService.getMe();
       if (mounted) {
         if (result.ok) {
-          setUser(result.data);
-          queryClient.setQueryData(queryKeys.me, result.data);
+          const nextUser = await enrichUserWithPhoto(result.data);
+          setUser(nextUser);
+          queryClient.setQueryData(queryKeys.me, nextUser);
         } else {
           await authService.logout();
         }
@@ -86,8 +103,9 @@ export function AuthProvider({ children }) {
 
         const me = await authService.getMe();
         if (me.ok) {
-          setUser(me.data);
-          queryClient.setQueryData(queryKeys.me, me.data);
+          const nextUser = await enrichUserWithPhoto(me.data);
+          setUser(nextUser);
+          queryClient.setQueryData(queryKeys.me, nextUser);
           return { ok: true };
         }
 
@@ -194,8 +212,9 @@ export function AuthProvider({ children }) {
         }
         const me = await authService.getMe();
         if (me.ok) {
-          setUser(me.data);
-          queryClient.setQueryData(queryKeys.me, me.data);
+          const nextUser = await enrichUserWithPhoto(me.data);
+          setUser(nextUser);
+          queryClient.setQueryData(queryKeys.me, nextUser);
           return { ok: true };
         }
         await authService.logout();
@@ -220,9 +239,15 @@ export function AuthProvider({ children }) {
   const refreshUser = useCallback(async () => {
     const me = await authService.getMe();
     if (me.ok) {
-      setUser(me.data);
-      queryClient.setQueryData(queryKeys.me, me.data);
-      return { ok: true, data: me.data };
+      const nextUser = await enrichUserWithPhoto(me.data);
+      setUser((prev) => ({
+        ...nextUser,
+        // conserver photo locale si API /users/me n’en renvoie pas encore
+        photoUrl: nextUser.photoUrl ?? prev?.photoUrl,
+        avatarUrl: nextUser.avatarUrl ?? prev?.avatarUrl,
+      }));
+      queryClient.setQueryData(queryKeys.me, nextUser);
+      return { ok: true, data: nextUser };
     }
     return { ok: false, message: me.message };
   }, [queryClient]);

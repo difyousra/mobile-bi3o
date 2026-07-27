@@ -174,6 +174,18 @@ export function useMarkAllNotificationsRead() {
   });
 }
 
+/**
+ * Liste des vendeurs suivis (tab "Mes vendeurs" dans Favoris).
+ * Backend : GET /users/me/following
+ */
+export function useFollowedSellers() {
+  return useQuery({
+    queryKey: queryKeys.followedSellers,
+    queryFn: () => engagement.fetchFollowedSellers({ page: 0, size: 50 }),
+    staleTime: 60_000,
+  });
+}
+
 export function useSavedSearches() {
   return useQuery({
     queryKey: queryKeys.savedSearches,

@@ -99,13 +99,27 @@ export default function MessagesListScreen({ navigation }) {
                 onPress={() => openChat(conv.id)}
               >
                 <Image
-                  source={{ uri: conv.sellerAvatar }}
+                  source={{ uri: conv.product.image || conv.sellerAvatar }}
                   style={styles.avatar}
                 />
                 <View style={styles.convInfo}>
-                  <Text style={styles.convName}>{conv.sellerName}</Text>
+                  <View style={styles.convNameRow}>
+                    <Text style={styles.convName} numberOfLines={1}>
+                      {conv.sellerName}
+                    </Text>
+                    {conv.unreadCount ? (
+                      <View style={styles.unreadBadge}>
+                        <Text style={styles.unreadText}>
+                          {conv.unreadCount > 99 ? "99+" : conv.unreadCount}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
                   <Text style={styles.convPreview} numberOfLines={1}>
                     {conv.preview || conv.product.title}
+                  </Text>
+                  <Text style={styles.convLastSeen} numberOfLines={1}>
+                    {conv.lastSeen}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -131,7 +145,7 @@ const styles = StyleSheet.create({
   list: {
     gap: 8,
     marginTop: 8,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   conversationRow: {
     flexDirection: "row",
@@ -151,6 +165,11 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  convNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   convName: {
     fontSize: 15,
     fontWeight: "600",
@@ -159,6 +178,24 @@ const styles = StyleSheet.create({
   convPreview: {
     fontSize: 13,
     color: colors.textMuted,
+  },
+  convLastSeen: {
+    fontSize: 11,
+    color: colors.textMuted,
+  },
+  unreadBadge: {
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 6,
+    borderRadius: 10,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  unreadText: {
+    color: colors.white,
+    fontSize: 11,
+    fontWeight: "700",
   },
   error: {
     marginTop: 24,

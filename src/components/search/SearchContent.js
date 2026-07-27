@@ -216,7 +216,6 @@ export default function SearchContent({
   const renderListHeader = () => (
     <>
       <HomeHeader
-        onChatPress={handleChatPress}
         onNotificationPress={handleNotificationPress}
       />
       <HomeSearchBar

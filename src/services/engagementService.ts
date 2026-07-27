@@ -4,9 +4,12 @@ import type { Page } from "../types/auth";
 import type {
   FavoritePage,
   FollowStatus,
+  FollowedSellerDto,
   NotificationItem,
   NotificationsPage,
   SavedSearch,
+  SavedSearchRaw,
+  FollowedSellersPage,
   UnreadCount,
 } from "../types/engagement";
 
@@ -150,8 +153,51 @@ export async function markAllNotificationsRead(): Promise<void> {
 /** GET /me/recherches */
 export async function fetchSavedSearches(): Promise<SavedSearch[]> {
   const { data } = await apiClient.get<unknown>("/me/recherches");
-  if (Array.isArray(data)) return data as SavedSearch[];
-  return asPage<SavedSearch>(data).content;
+  const rows = Array.isArray(data) ? data : asPage<SavedSearchRaw>(data).content;
+
+  return rows
+    .map((row: any) => {
+      const id = row?.id;
+      const name = row?.name ?? row?.label ?? row?.titre;
+      const queryJson = row?.queryJson ?? row?.query_json;
+      let query: string | undefined;
+      if (typeof queryJson === "string" && queryJson.trim()) {
+        try {
+          const parsed = JSON.parse(queryJson);
+          query =
+            (typeof parsed?.q === "string" && parsed.q) ||
+            (typeof parsed?.search === "string" && parsed.search) ||
+            undefined;
+          // Normalisation simple: si c’est '?q=Audi', garder 'Audi'
+          if (typeof query === "string" && query.startsWith("?q=")) {
+            query = query.replace("?q=", "");
+          }
+        } catch {
+          // ignore: on garde query undefined
+        }
+      }
+      return {
+        id,
+        label: name,
+        query,
+        createdAt: row?.createdAt,
+      } as SavedSearch;
+    })
+    .filter((s): s is SavedSearch => typeof s?.id === "number");
+}
+
+/**
+ * GET /users/me/following
+ * Used by the "vendeurs" tab in Favorites.
+ */
+export async function fetchFollowedSellers(params?: {
+  page?: number;
+  size?: number;
+}): Promise<FollowedSellersPage> {
+  const { data } = await apiClient.get<unknown>("/users/me/following", {
+    params: { page: params?.page ?? 0, size: params?.size ?? 50 },
+  });
+  return asPage<FollowedSellerDto>(data) as FollowedSellersPage;
 }
 
 /**

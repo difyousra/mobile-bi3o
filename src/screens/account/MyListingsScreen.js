@@ -13,7 +13,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
-import { LISTING_TABS } from "../../data/mockProfile";
 import { formatPrice } from "../../utils/productMapper";
 import { resolveMediaUrl } from "../../utils/mediaUrl";
 import {
@@ -22,6 +21,15 @@ import {
   useReactivateAnnonce,
   useDeleteAnnonce,
 } from "../../hooks/usePublish";
+
+// Contrat UI <-> API :
+// - Backend renvoie status textuels (ACTIVE/PAUSED/ARCHIVE...) qui sont normalisés dans normalizeStatus()
+// - Donc les onglets doivent correspondre aux valeurs normalisées : active / paused / sold
+const LISTING_TABS = [
+  { id: "active", label: "Actives" },
+  { id: "paused", label: "En pause" },
+  { id: "sold", label: "Vendues" },
+];
 
 function normalizeStatus(item) {
   const raw = String(item.status ?? item.statut ?? "ACTIVE").toUpperCase();
@@ -41,7 +49,7 @@ function mapManagedItem(item) {
       resolveMediaUrl(item.coverUrl ?? item.image) ??
       "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&q=80",
     views: item.views ?? item.vues ?? 0,
-    messages: item.messages ?? 0,
+    messages: item.messagesCount ?? item.messages ?? 0,
     status: normalizeStatus(item),
   };
 }

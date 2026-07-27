@@ -148,7 +148,6 @@ export default function HomeContent() {
         }
       >
         <HomeHeader
-          onChatPress={handleChatPress}
           onNotificationPress={handleNotificationPress}
         />
 

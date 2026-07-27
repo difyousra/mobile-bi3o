@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   View,
   Text,
@@ -6,17 +6,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
-  TextInput,
   RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
-import {
-  useMyReservations,
-  useCreateReservation,
-} from "../../hooks/useMessaging";
+import { useMyReservations } from "../../hooks/useMessaging";
 import * as reservationService from "../../services/reservationService";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -25,16 +20,8 @@ function statusLabel(item) {
 }
 
 export default function MyReservationsScreen({ navigation, route }) {
-  const prefillAnnonceId = route.params?.annonceId;
-  const { data, isLoading, isError, refetch, isRefetching } =
-    useMyReservations(0);
-  const createMutation = useCreateReservation();
+  const { data, isLoading, isError, refetch, isRefetching } = useMyReservations(0);
   const qc = useQueryClient();
-  const [dateDebut, setDateDebut] = useState("");
-  const [dateFin, setDateFin] = useState("");
-  const [annonceId, setAnnonceId] = useState(
-    prefillAnnonceId ? String(prefillAnnonceId) : ""
-  );
 
   const items = useMemo(() => data?.content ?? [], [data]);
 
@@ -45,39 +32,6 @@ export default function MyReservationsScreen({ navigation, route }) {
       qc.invalidateQueries({ queryKey: ["reservations"] });
     },
   });
-
-  const handleCreate = async () => {
-    if (!annonceId.trim()) {
-      Alert.alert("Réservation", "Indiquez l'ID d'annonce.");
-      return;
-    }
-    if (!dateDebut.trim() || !dateFin.trim()) {
-      Alert.alert(
-        "Réservation",
-        "Indiquez dateDebut et dateFin (YYYY-MM-DD).\nCorps minimal — non détaillé dans Postman."
-      );
-      return;
-    }
-    try {
-      await createMutation.mutateAsync({
-        annonceId: annonceId.trim(),
-        body: {
-          dateDebut: dateDebut.trim(),
-          dateFin: dateFin.trim(),
-        },
-      });
-      Alert.alert("OK", "Réservation créée (si le contrat backend accepte ces champs).");
-      setDateDebut("");
-      setDateFin("");
-      refetch();
-    } catch (error) {
-      Alert.alert(
-        "Erreur",
-        error?.message ??
-          "Création refusée — ajuster le corps selon OpenAPI/QA."
-      );
-    }
-  };
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -95,49 +49,6 @@ export default function MyReservationsScreen({ navigation, route }) {
           <RefreshControl refreshing={Boolean(isRefetching)} onRefresh={refetch} />
         }
       >
-        <View style={styles.formCard}>
-          <Text style={styles.formTitle}>Nouvelle demande</Text>
-          <Text style={styles.hint}>
-            POST /reservations/annonces/{"{id}"} — champs dateDebut / dateFin
-            (hypothèse documentée comme gap Postman).
-          </Text>
-          <TextInput
-            style={styles.input}
-            placeholder="ID annonce"
-            placeholderTextColor={colors.textMuted}
-            value={annonceId}
-            onChangeText={setAnnonceId}
-            keyboardType="number-pad"
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="dateDebut (YYYY-MM-DD)"
-            placeholderTextColor={colors.textMuted}
-            value={dateDebut}
-            onChangeText={setDateDebut}
-            autoCapitalize="none"
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="dateFin (YYYY-MM-DD)"
-            placeholderTextColor={colors.textMuted}
-            value={dateFin}
-            onChangeText={setDateFin}
-            autoCapitalize="none"
-          />
-          <TouchableOpacity
-            style={styles.btn}
-            onPress={handleCreate}
-            disabled={createMutation.isPending}
-          >
-            {createMutation.isPending ? (
-              <ActivityIndicator color={colors.white} />
-            ) : (
-              <Text style={styles.btnText}>Créer</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-
         {isLoading ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} />
         ) : null}
@@ -192,33 +103,6 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 17, fontWeight: "700", color: colors.textHeading },
   content: { padding: 16, paddingBottom: 40 },
-  formCard: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-    gap: 10,
-  },
-  formTitle: { fontSize: 16, fontWeight: "700", color: colors.textHeading },
-  hint: { fontSize: 12, color: colors.textMuted, marginBottom: 4 },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: colors.textHeading,
-  },
-  btn: {
-    backgroundColor: colors.primary,
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: "center",
-    marginTop: 4,
-  },
-  btnText: { color: colors.white, fontWeight: "700" },
   empty: { textAlign: "center", color: colors.textMuted, marginTop: 24 },
   error: { color: colors.primary, textAlign: "center", marginTop: 16 },
   card: {

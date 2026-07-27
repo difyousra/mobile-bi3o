@@ -39,3 +39,28 @@ export type SavedSearch = {
 };
 
 export type SavedSearchesPage = Page<SavedSearch> | SavedSearch[];
+
+/** Shape brute GET /me/recherches (mobile backend préprod). */
+export type SavedSearchRaw = {
+  id: number;
+  name?: string;
+  label?: string;
+  titre?: string;
+  queryJson?: string;
+  createdAt?: string;
+  [key: string]: unknown;
+};
+
+export type FollowedSellerDto = {
+  id: number;
+  nom?: string;
+  prenom?: string;
+  displayName?: string | null;
+  typeCompte?: string | null;
+  photoUrl?: string | null;
+  followedAt?: string;
+  lastActivityAt?: string;
+  adsCount?: number;
+};
+
+export type FollowedSellersPage = Page<FollowedSellerDto> | FollowedSellerDto[];

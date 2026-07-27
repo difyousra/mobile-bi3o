@@ -15,9 +15,11 @@ import HomeSearchBar from "../home/HomeSearchBar";
 import FavoritesTabs from "./FavoritesTabs";
 import ExperienceRatingCard from "./ExperienceRatingCard";
 import MarketplaceProductCard from "../home/MarketplaceProductCard";
+import SavedSellerRow from "./SavedSellerRow";
 import { FAVORITES_TABS } from "../../data/mockFavoritesData";
 import { useFavorites } from "../../context/FavoritesContext";
 import {
+  useFollowedSellers,
   useSavedSearches,
   useDeleteSavedSearch,
   useUnreadNotificationsCount,
@@ -32,6 +34,7 @@ export default function FavoritesContent() {
     products,
     isFavorite,
     toggleFavorite,
+    removeSavedSeller,
     isLoading,
     isError,
     refetch,
@@ -40,6 +43,12 @@ export default function FavoritesContent() {
     useSavedSearches();
   const deleteSearch = useDeleteSavedSearch();
   const { data: unreadCount = 0 } = useUnreadNotificationsCount();
+  const {
+    data: followedSellersPage,
+    isLoading: sellersLoading,
+    isError: sellersError,
+    refetch: refetchSellers,
+  } = useFollowedSellers();
 
   const [activeTab, setActiveTab] = useState("annonces");
   const [searchQuery, setSearchQuery] = useState("");
@@ -95,12 +104,12 @@ export default function FavoritesContent() {
   const onRefresh = () => {
     refetch();
     refetchSearches();
+    refetchSellers();
   };
 
   const renderHeader = () => (
     <>
       <HomeHeader
-        onChatPress={handleChatPress}
         onNotificationPress={handleNotificationPress}
       />
       {unreadCount > 0 ? (
@@ -213,16 +222,65 @@ export default function FavoritesContent() {
   }
 
   if (activeTab === "vendeurs") {
+    const sellers = Array.isArray(followedSellersPage)
+      ? followedSellersPage
+      : followedSellersPage?.content ?? [];
+
+    const filteredSellers = (() => {
+      const q = searchQuery.trim().toLowerCase();
+      if (!q) return sellers;
+      return sellers.filter((s) =>
+        String(s?.displayName ?? s?.nom ?? s?.prenom ?? "")
+          .toLowerCase()
+          .includes(q)
+      );
+    })();
+
     return (
       <SafeAreaView style={styles.safe} edges={["top"]}>
-        <View style={styles.list}>
-          {renderHeader()}
-          <Text style={styles.empty}>
-            Suivez un vendeur depuis la fiche annonce (POST /users/{"{id}"}
-            /follow). La liste globale des suivis n’est pas exposée par l’API
-            documentée.
-          </Text>
-        </View>
+        <FlatList
+          data={filteredSellers}
+          keyExtractor={(item) => String(item.id)}
+          contentContainerStyle={styles.list}
+          ListHeaderComponent={renderHeader()}
+          ListEmptyComponent={
+            !sellersLoading && !sellersError ? (
+              <Text style={styles.empty}>Aucun vendeur suivi.</Text>
+            ) : null
+          }
+          refreshControl={
+            <RefreshControl
+              refreshing={Boolean(isLoading || sellersLoading)}
+              onRefresh={onRefresh}
+            />
+          }
+          renderItem={({ item }) => {
+            const seller = {
+              id: item.id,
+              name:
+                item.displayName ??
+                [item.prenom, item.nom].filter(Boolean).join(" ") ??
+                `Vendeur #${item.id}`,
+              avatar: item.photoUrl ?? "",
+              listings: Number(item.adsCount ?? 0),
+              rating: 0,
+            };
+
+            return (
+              <SavedSellerRow
+                seller={seller}
+                onPress={() =>
+                  navigation.navigate("SellerProfile", {
+                    sellerId: item.id,
+                    sellerName: seller.name,
+                    sellerAvatar: seller.avatar,
+                  })
+                }
+                onUnfollow={(sellerId) => removeSavedSeller(sellerId)}
+              />
+            );
+          }}
+        />
       </SafeAreaView>
     );
   }

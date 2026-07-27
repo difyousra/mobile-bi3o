@@ -224,7 +224,7 @@ export default function ProductDetailScreen({ route, navigation }) {
             style={styles.roundBtnDark}
             onPress={() => {
               addItem(product, 1);
-              navigation.navigate("MainTabs", { screen: "Cart" });
+              navigation.navigate("Cart");
             }}
           >
             <Ionicons name="bag-outline" size={22} color={colors.white} />

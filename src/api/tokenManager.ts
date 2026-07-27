@@ -1,29 +1,67 @@
 /**
- * TokenManager — access + refresh dans SecureStore (Keychain / Keystore Expo).
- * Jamais AsyncStorage pour les JWT (contrat mobile_api.md).
+ * TokenManager — access + refresh.
+ * Native : SecureStore (Keychain / Keystore Expo).
+ * Web : fallback AsyncStorage (SecureStore non fiable / absent).
  */
+import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { AuthSession } from "../types/auth";
 
 const SERVICE = "bi3oo.auth.session";
 
 let memory: AuthSession | null = null;
 
-async function writeSecure(json: string): Promise<void> {
-  await SecureStore.setItemAsync(SERVICE, json);
+let useSecureStore: boolean | null = null;
+
+async function canUseSecureStore(): Promise<boolean> {
+  if (useSecureStore != null) return useSecureStore;
+  if (Platform.OS === "web") {
+    useSecureStore = false;
+    return false;
+  }
+  try {
+    useSecureStore = await SecureStore.isAvailableAsync();
+  } catch {
+    useSecureStore = false;
+  }
+  return useSecureStore;
 }
 
-async function readSecure(): Promise<string | null> {
+async function writePersist(json: string): Promise<void> {
+  if (await canUseSecureStore()) {
+    await SecureStore.setItemAsync(SERVICE, json);
+    return;
+  }
+  await AsyncStorage.setItem(SERVICE, json);
+}
+
+async function readPersist(): Promise<string | null> {
+  if (await canUseSecureStore()) {
+    try {
+      return await SecureStore.getItemAsync(SERVICE);
+    } catch {
+      return null;
+    }
+  }
   try {
-    return await SecureStore.getItemAsync(SERVICE);
+    return await AsyncStorage.getItem(SERVICE);
   } catch {
     return null;
   }
 }
 
-async function deleteSecure(): Promise<void> {
+async function deletePersist(): Promise<void> {
+  if (await canUseSecureStore()) {
+    try {
+      await SecureStore.deleteItemAsync(SERVICE);
+    } catch {
+      // déjà absent
+    }
+    return;
+  }
   try {
-    await SecureStore.deleteItemAsync(SERVICE);
+    await AsyncStorage.removeItem(SERVICE);
   } catch {
     // déjà absent
   }
@@ -34,12 +72,12 @@ export async function saveSession(session: AuthSession): Promise<void> {
     throw new Error("SESSION_INCOMPLETE");
   }
   memory = session;
-  await writeSecure(JSON.stringify(session));
+  await writePersist(JSON.stringify(session));
 }
 
 export async function getSession(): Promise<AuthSession | null> {
   if (memory?.token && memory.refreshToken) return memory;
-  const raw = await readSecure();
+  const raw = await readPersist();
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as AuthSession;
@@ -65,7 +103,7 @@ export async function getRefreshToken(): Promise<string | null> {
 
 export async function clearSession(): Promise<void> {
   memory = null;
-  await deleteSecure();
+  await deletePersist();
 }
 
 /** Compat anciens imports — access token uniquement. */

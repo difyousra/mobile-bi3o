@@ -3,7 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
 import { useUnreadNotificationsCount } from "../../hooks/useEngagement";
 
-export default function HomeHeader({ onChatPress, onNotificationPress }) {
+export default function HomeHeader({ onNotificationPress }) {
   const { data: unread = 0 } = useUnreadNotificationsCount();
 
   return (
@@ -11,14 +11,6 @@ export default function HomeHeader({ onChatPress, onNotificationPress }) {
       <Text style={styles.logo}>Bi3oo</Text>
 
       <View style={styles.actions}>
-        <TouchableOpacity
-          style={styles.iconButton}
-          activeOpacity={0.7}
-          onPress={onChatPress}
-        >
-          <Ionicons name="chatbubble-outline" size={20} color={colors.textDark} />
-        </TouchableOpacity>
-
         <TouchableOpacity
           style={styles.iconButton}
           activeOpacity={0.7}

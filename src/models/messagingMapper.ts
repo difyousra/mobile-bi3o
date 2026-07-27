@@ -79,6 +79,9 @@ export function mapMessageToUi(
 }
 
 function interlocutorName(c: ConversationDto): string {
+  const otherUserNom = String(c.otherUserNom ?? "").trim();
+  if (otherUserNom) return otherUserNom;
+
   const prenom = String(c.interlocuteurPrenom ?? "").trim();
   const nom = String(c.interlocuteurNom ?? "").trim();
   const full = `${prenom} ${nom}`.trim();
@@ -104,26 +107,42 @@ export function mapConversationToUi(
   c: ConversationDto,
   messages: UiMessage[] = []
 ): UiConversation {
+  const sellerIdRaw = c.otherUserId ?? c.interlocuteurId;
+  const sellerId = Number.isFinite(Number(sellerIdRaw))
+    ? Number(sellerIdRaw)
+    : undefined;
+
+  const unreadCount =
+    typeof c.unreadCount === "number" && Number.isFinite(c.unreadCount)
+      ? c.unreadCount
+      : undefined;
+
   const avatar =
     resolveMediaUrl(
-      (c.interlocuteurAvatar as string) ??
+      (c.otherUserPhotoUrl as string) ??
+        (c.interlocuteurAvatar as string) ??
         (typeof c.avatar === "string" ? c.avatar : undefined)
     ) ?? FALLBACK_AVATAR;
 
   const cover =
     resolveMediaUrl(c.coverUrl as string | undefined) ?? FALLBACK_PRODUCT;
 
-  const lastAt = (c.lastMessageAt ?? c.updatedAt ?? c.createdAt) as
+  const lastAt = (c.otherUserLastActivityAt ??
+    c.lastMessageAt ??
+    c.updatedAt ??
+    c.createdAt) as
     | string
     | undefined;
 
   return {
     id: c.id,
+    sellerId,
     sellerName: interlocutorName(c),
     sellerAvatar: avatar,
     lastSeen: lastAt
       ? `Dernière activité ${formatTime(lastAt)}`
       : "Messagerie Bi3oo",
+    unreadCount,
     product: {
       id: annonceIdOf(c) ?? c.id,
       title: productTitle(c),

@@ -21,6 +21,17 @@ export type ConversationDto = {
   titreAnnonce?: string;
   annonceTitre?: string;
   coverUrl?: string;
+
+  // Backend : champs “otherUser*”
+  otherUserId?: number;
+  otherUserNom?: string;
+  otherUserPhotoUrl?: string;
+  otherUserVille?: string;
+  otherUserLastActivityAt?: string;
+
+  /** Nombre de messages non lus (backend). */
+  unreadCount?: number;
+
   prix?: number;
   interlocuteurId?: number;
   interlocuteurNom?: string;
@@ -61,9 +72,11 @@ export type MessagesPage = Page<MessageDto> | MessageDto[];
 /** Forme UI consommée par ChatContent / MessagesList */
 export type UiConversation = {
   id: number | string;
+  sellerId?: number;
   sellerName: string;
   sellerAvatar: string;
   lastSeen: string;
+  unreadCount?: number;
   product: {
     id: number | string;
     title: string;

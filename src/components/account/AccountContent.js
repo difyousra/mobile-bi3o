@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -12,65 +12,26 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
+import { useQuery } from "@tanstack/react-query";
 import { colors } from "../../theme/colors";
-import { MOCK_PROMOTIONS } from "../../data/mockProfile";
 import { useWallet } from "../../context/WalletContext";
 import { useAuth } from "../../context/AuthContext";
 import { useUploadAvatar } from "../../hooks/useProfile";
+import { queryKeys } from "../../api/queryKeys";
+import { fetchPublicSeller } from "../../services/annoncesService";
+import { useMyManagedAds } from "../../hooks/usePublish";
 import {
+  useConversations,
+  useMyReservations,
+} from "../../hooks/useMessaging";
+import {
+  mapPublicSeller,
   userAvatarUrl,
   userDisplayName,
 } from "../../utils/profileHelpers";
+import { resolveMediaUrl } from "../../utils/mediaUrl";
 import WalletBalanceCard from "./WalletBalanceCard";
-import PromotionCarousel from "./PromotionCarousel";
-import ProfilePromoBanner from "./ProfilePromoBanner";
 import TopUpModal from "./TopUpModal";
-import { showDevMessage } from "../../utils/devFeedback";
-
-const ACTIVITY_ITEMS = [
-  { id: "pending", label: "Pending", icon: "wallet-outline", badge: 1 },
-  {
-    id: "selling",
-    label: "Selling",
-    icon: "cube-outline",
-    badge: 2,
-    route: "MyListings",
-  },
-  {
-    id: "reservations",
-    label: "Réserv.",
-    icon: "calendar-outline",
-    route: "MyReservations",
-  },
-  {
-    id: "contact",
-    label: "Contact",
-    icon: "chatbubble-outline",
-    badge: 3,
-    route: "Messages",
-  },
-];
-
-const PROJECT_ITEMS = [
-  {
-    id: "immobilier",
-    title: "Immobilier",
-    subtitle: "Créer et gérer mon dossier locataire",
-    icon: "home-outline",
-  },
-  {
-    id: "emploi",
-    title: "Emploi",
-    subtitle: "Gérer mes candidatures et mes alertes",
-    icon: "briefcase-outline",
-  },
-  {
-    id: "vacances",
-    title: "Vacances",
-    subtitle: "Louer un logement de vacances",
-    icon: "umbrella-outline",
-  },
-];
 
 const MENU_ITEMS = [
   {
@@ -78,6 +39,12 @@ const MENU_ITEMS = [
     label: "Change Password",
     icon: "key-outline",
     route: "ChangePassword",
+  },
+  {
+    id: "editProfile",
+    label: "Modifier le profil",
+    icon: "create-outline",
+    route: "EditProfile",
   },
   {
     id: "favorites",
@@ -115,16 +82,72 @@ function ActivityTile({ item, onPress }) {
 
 export default function AccountContent() {
   const navigation = useNavigation();
-  const { user, logout, refreshUser } = useAuth();
+  const { user, setUser, logout, refreshUser } = useAuth();
   const uploadAvatar = useUploadAvatar();
   const { balance, balanceUpdated, topUp } = useWallet();
   const [balanceVisible, setBalanceVisible] = useState(true);
-  const [showRelayBanner, setShowRelayBanner] = useState(true);
   const [topUpVisible, setTopUpVisible] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState("1000");
 
   const displayName = userDisplayName(user);
-  const avatarUri = userAvatarUrl(user);
+  const sellerId = user?.id;
+
+  const {
+    data: publicSellerData,
+    refetch: refetchPublicSeller,
+  } = useQuery({
+    queryKey: queryKeys.sellerPublic(Number(sellerId) || 0),
+    queryFn: () => fetchPublicSeller(Number(sellerId)),
+    enabled: Boolean(sellerId),
+    staleTime: 60_000,
+  });
+
+  const publicSeller = useMemo(
+    () =>
+      publicSellerData
+        ? mapPublicSeller(publicSellerData, Number(sellerId) || 0)
+        : null,
+    [publicSellerData, sellerId]
+  );
+
+  const avatarUri = userAvatarUrl(user, publicSellerData);
+  const city = publicSeller?.ville;
+  const bio = publicSeller?.bio;
+  const { data: managedAds } = useMyManagedAds(0, 50);
+  const { data: conversations = [] } = useConversations(0, 50);
+  const { data: reservations } = useMyReservations(0);
+
+  const activityItems = useMemo(
+    () => [
+      {
+        id: "selling",
+        label: "Annonces",
+        icon: "cube-outline",
+        badge: Number(managedAds?.totalElements ?? managedAds?.content?.length ?? 0),
+        route: "MyListings",
+      },
+      {
+        id: "reservations",
+        label: "Réserv.",
+        icon: "calendar-outline",
+        badge: Number(
+          reservations?.totalElements ?? reservations?.content?.length ?? 0
+        ),
+        route: "MyReservations",
+      },
+      {
+        id: "contact",
+        label: "Messages",
+        icon: "chatbubble-outline",
+        badge: conversations.reduce(
+          (sum, conv) => sum + Number(conv?.unreadCount ?? 0),
+          0
+        ),
+        route: "Messages",
+      },
+    ],
+    [managedAds, conversations, reservations]
+  );
 
   const handleActivityPress = (item) => {
     if (item.route === "Messages") {
@@ -135,7 +158,6 @@ export default function AccountContent() {
       navigation.navigate(item.route);
       return;
     }
-    showDevMessage(item.label, "Fonctionnalité à connecter avec l'API.");
   };
 
   const handleMenuPress = (item) => {
@@ -147,7 +169,6 @@ export default function AccountContent() {
       navigation.navigate(item.route);
       return;
     }
-    showDevMessage(item.label, "Fonctionnalité à connecter avec l'API.");
   };
 
   const handleAvatarPress = async () => {
@@ -165,12 +186,24 @@ export default function AccountContent() {
     if (result.canceled || !result.assets?.[0]) return;
     const asset = result.assets[0];
     try {
-      await uploadAvatar.mutateAsync({
+      const uploaded = await uploadAvatar.mutateAsync({
         uri: asset.uri,
         mimeType: asset.mimeType ?? "image/jpeg",
         fileName: asset.fileName ?? "avatar.jpg",
       });
+      const photoAbsolute =
+        uploaded?.photoUrlAbsolute ??
+        resolveMediaUrl(uploaded?.photoUrl) ??
+        asset.uri;
+      if (setUser && user) {
+        setUser({
+          ...user,
+          photoUrl: uploaded?.photoUrl ?? photoAbsolute,
+          avatarUrl: photoAbsolute,
+        });
+      }
       await refreshUser?.();
+      await refetchPublicSeller?.();
       Alert.alert("Avatar", "Photo de profil mise à jour.");
     } catch (error) {
       Alert.alert(
@@ -194,7 +227,6 @@ export default function AccountContent() {
   const handleTopUpConfirm = () => {
     topUp(topUpAmount);
     setTopUpVisible(false);
-    showDevMessage("Top Up", `Rechargement de ${topUpAmount} Da effectué.`);
   };
 
   return (
@@ -225,6 +257,12 @@ export default function AccountContent() {
             <Text style={styles.greetingSub}>
               {user?.email ?? "Ready to shop again?"}
             </Text>
+            {city ? <Text style={styles.accountType}>{city}</Text> : null}
+            {bio ? (
+              <Text style={styles.accountType} numberOfLines={2}>
+                {bio}
+              </Text>
+            ) : null}
             {user?.typeCompte ? (
               <Text style={styles.accountType}>{user.typeCompte}</Text>
             ) : null}
@@ -252,14 +290,14 @@ export default function AccountContent() {
             balanceVisible={balanceVisible}
             onToggleVisibility={() => setBalanceVisible((v) => !v)}
             updatedAt={balanceUpdated}
-            onTransfer={() => showDevMessage("Transfer", "Transfert simulé.")}
+            onTransfer={() => {}}
             onTopUp={() => setTopUpVisible(true)}
             onPressCard={() => navigation.navigate("MyWallet")}
           />
 
-          <Text style={styles.sectionTitle}>My Activity</Text>
+          <Text style={styles.sectionTitle}>Mon activité</Text>
           <View style={styles.activityRow}>
-            {ACTIVITY_ITEMS.map((item) => (
+            {activityItems.map((item) => (
               <ActivityTile
                 key={item.id}
                 item={item}
@@ -267,37 +305,6 @@ export default function AccountContent() {
               />
             ))}
           </View>
-
-          <Text style={styles.sectionTitle}>My promotions</Text>
-          <PromotionCarousel promotions={MOCK_PROMOTIONS} />
-
-          <Text style={styles.sectionTitle}>My projects</Text>
-          <View style={styles.menuCard}>
-            {PROJECT_ITEMS.map((item, index) => (
-              <TouchableOpacity
-                key={item.id}
-                style={[styles.menuRow, index > 0 && styles.menuRowBorder]}
-                onPress={() => showDevMessage(item.title, item.subtitle)}
-              >
-                <View style={styles.menuIconWrap}>
-                  <Ionicons name={item.icon} size={22} color={colors.navy} />
-                </View>
-                <View style={styles.menuTexts}>
-                  <Text style={styles.menuTitle}>{item.title}</Text>
-                  <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
-                </View>
-                <Ionicons
-                  name="chevron-forward"
-                  size={20}
-                  color={colors.iconMuted}
-                />
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {showRelayBanner ? (
-            <ProfilePromoBanner onDismiss={() => setShowRelayBanner(false)} />
-          ) : null}
 
           <View style={styles.menuCard}>
             {MENU_ITEMS.map((item, index) => (
@@ -428,7 +435,7 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   activityTile: {
-    width: "23%",
+    width: "31%",
     alignItems: "center",
     paddingVertical: 10,
     position: "relative",
@@ -482,19 +489,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  menuTexts: {
-    flex: 1,
-  },
   menuTitle: {
     flex: 1,
     fontSize: 15,
     fontWeight: "600",
     color: colors.textHeading,
-  },
-  menuSubtitle: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
   },
   logoutRow: {
     flexDirection: "row",
