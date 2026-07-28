@@ -7,6 +7,7 @@ import { queryKeys } from "../api/queryKeys";
 import * as engagement from "../services/engagementService";
 import { mapAdCardToUi } from "../models/adMapper";
 import { extractEurToDzd } from "../services/exchangeService";
+import { useAuth } from "../context/AuthContext";
 import { useExchangeRate } from "./useCatalog";
 import type { AdCard } from "../types/catalog";
 import type { FavoritePage } from "../types/engagement";
@@ -16,12 +17,14 @@ function toId(id: number | string): string {
 }
 
 export function useFavoritesPage(page = 0, size = 24) {
+  const { isAuthenticated } = useAuth();
   const eurToDzd = extractEurToDzd(useExchangeRate().data);
 
   const query = useQuery({
     queryKey: queryKeys.favorites(page),
     queryFn: () => engagement.fetchFavorites({ page, size }),
     staleTime: 60_000,
+    enabled: isAuthenticated,
   });
 
   const products =

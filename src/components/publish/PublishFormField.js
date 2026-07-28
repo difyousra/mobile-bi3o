@@ -9,19 +9,29 @@ export default function PublishFormField({
   maxLength = 200,
   hint,
   multiline = false,
+  editable = true,
 }) {
   const count = value?.length ?? 0;
 
   return (
     <View style={styles.wrap}>
-      <View style={styles.labelRow}>
-        <Text style={styles.label}>{label}</Text>
-        {maxLength ? (
+      {label ? (
+        <View style={styles.labelRow}>
+          <Text style={styles.label}>{label}</Text>
+          {maxLength ? (
+            <Text style={styles.counter}>
+              {count} / {maxLength}
+            </Text>
+          ) : null}
+        </View>
+      ) : maxLength ? (
+        <View style={styles.labelRow}>
+          <View />
           <Text style={styles.counter}>
             {count} / {maxLength}
           </Text>
-        ) : null}
-      </View>
+        </View>
+      ) : null}
       <TextInput
         style={[styles.input, multiline && styles.inputMultiline]}
         value={value}
@@ -30,6 +40,7 @@ export default function PublishFormField({
         placeholderTextColor="rgba(0, 0, 0, 0.19)"
         maxLength={maxLength}
         multiline={multiline}
+        editable={editable}
       />
       {hint ? <Text style={styles.hint}>{hint}</Text> : null}
     </View>
@@ -67,7 +78,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   inputMultiline: {
-    height: 88,
+    height: 140,
     paddingTop: 16,
     textAlignVertical: "top",
   },

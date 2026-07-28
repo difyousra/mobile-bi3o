@@ -4,6 +4,7 @@ export const queryKeys = {
   taxoTree: ["taxo", "tree"] as const,
   sousCategories: ["taxo", "sous-categories"] as const,
   attributs: (id: number) => ["taxo", "attributs", id] as const,
+  referentielMarquesModeles: ["taxo", "referentiel-marques-modeles"] as const,
   publicAds: (page: number, size: number, categorieId?: number | "all") =>
     ["annonces", "public", page, size, categorieId ?? "all"] as const,
   adPublic: (id: number | string) => ["annonces", "public", id] as const,

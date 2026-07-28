@@ -77,7 +77,7 @@ export default function ProductDetailScreen({ route, navigation }) {
 
   const { addItem } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, openAuth } = useAuth();
   const startConversation = useStartConversation();
   const { data: calendarData } = useReservationCalendar(annonceId);
   const busyDates = useMemo(
@@ -128,7 +128,14 @@ export default function ProductDetailScreen({ route, navigation }) {
 
   const handleContactSeller = () => {
     if (!isAuthenticated) {
-      Alert.alert("Connexion requise", "Connectez-vous pour contacter le vendeur.");
+      Alert.alert(
+        "Connexion requise",
+        "Connectez-vous pour contacter le vendeur.",
+        [
+          { text: "Annuler", style: "cancel" },
+          { text: "Se connecter", onPress: () => openAuth("signin") },
+        ]
+      );
       return;
     }
     const id = annonceId ?? product.id;

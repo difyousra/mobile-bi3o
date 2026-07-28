@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import { apiClient } from "../api/client";
 import { API_BASE_URL, UPLOAD_TIMEOUT_MS } from "../config/api";
 import { getAccessToken } from "../api/tokenManager";
@@ -88,19 +89,37 @@ export async function createAnnonceMultipart(
   const token = await getAccessToken();
   const form = new FormData();
 
-  form.append("dto", {
-    string: JSON.stringify(dto),
-    type: "application/json",
-    name: "dto.json",
-  } as unknown as Blob);
+  if (Platform.OS === "web") {
+    form.append(
+      "dto",
+      new Blob([JSON.stringify(dto)], { type: "application/json" }),
+      "dto.json"
+    );
 
-  images.forEach((image, index) => {
-    form.append("files", {
-      uri: image.uri,
-      type: image.mimeType ?? "image/jpeg",
-      name: image.fileName ?? `photo-${index}.jpg`,
+    for (const [index, image] of images.entries()) {
+      const fileResponse = await fetch(image.uri);
+      const fileBlob = await fileResponse.blob();
+      form.append(
+        "files",
+        fileBlob,
+        image.fileName ?? `photo-${index}.jpg`
+      );
+    }
+  } else {
+    form.append("dto", {
+      string: JSON.stringify(dto),
+      type: "application/json",
+      name: "dto.json",
     } as unknown as Blob);
-  });
+
+    images.forEach((image, index) => {
+      form.append("files", {
+        uri: image.uri,
+        type: image.mimeType ?? "image/jpeg",
+        name: image.fileName ?? `photo-${index}.jpg`,
+      } as unknown as Blob);
+    });
+  }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
@@ -117,7 +136,15 @@ export async function createAnnonceMultipart(
     });
 
     const text = await response.text();
-    const data = text ? JSON.parse(text) : null;
+    const data = text
+      ? (() => {
+          try {
+            return JSON.parse(text);
+          } catch {
+            return { message: text };
+          }
+        })()
+      : null;
 
     if (!response.ok) {
       const message =

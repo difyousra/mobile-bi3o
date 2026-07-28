@@ -5,6 +5,8 @@ export type AnnonceType = "OFFRE" | "DEMANDE";
 export type AnnonceValeur = {
   attributDefiniId: number;
   valueText?: string;
+  valueNumber?: number;
+  valueDate?: string;
 };
 
 export type CreateAnnonceDto = {

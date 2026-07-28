@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,17 +7,49 @@ import {
   Image,
   Switch,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import PublishStepLayout from "../../components/publish/PublishStepLayout";
 import PublishFormField from "../../components/publish/PublishFormField";
 import PublishPhotoGrid from "../../components/publish/PublishPhotoGrid";
 import PublishDropdownField from "../../components/publish/PublishDropdownField";
+import ImmobilierSubcategoryForm, {
+  validateImmobilierAttributs,
+} from "../../components/publish/immobilier/ImmobilierSubcategoryForm";
+import VehicleSubcategoryForm, {
+  validateVehicleAttributs,
+} from "../../components/publish/vehicle/VehicleSubcategoryForm";
+import { getVehicleSubcategoryConfig } from "../../features/annonces/config/vehicleSubcategories";
+import { getElectroniqueSubcategoryConfig } from "../../features/annonces/config/electroniqueSubcategories";
+import { getAnimauxSubcategoryConfig } from "../../features/annonces/config/animauxSubcategories";
+import { getMaisonJardinSubcategoryConfig } from "../../features/annonces/config/maisonJardinSubcategories";
+import { getLoisirsSubcategoryConfig } from "../../features/annonces/config/loisirsSubcategories";
+import { getLocationsVacancesSubcategoryConfig } from "../../features/annonces/config/locationsVacancesSubcategories";
+import { getMaterielProfessionnelSubcategoryConfig } from "../../features/annonces/config/materielProfessionnelSubcategories";
+import { getModeSubcategoryConfig } from "../../features/annonces/config/modeSubcategories";
+import { getServiceSubcategoryConfig } from "../../features/annonces/config/serviceSubcategories";
+import { getEmploiSubcategoryConfig } from "../../features/annonces/config/emploiSubcategories";
+import { getFamilleSubcategoryConfig } from "../../features/annonces/config/familleSubcategories";
+import { getImmobilierSubcategoryConfig } from "../../features/annonces/config/immobilierSubcategories";
+import { getSubcategoryFormConfig } from "../../features/annonces/config/subcategoryFormRegistry";
+import { generateAnnonceDescription } from "../../features/annonces/utils/generateAnnonceDescription";
+import { useSubcategoryAttributs } from "../../hooks/useSubcategoryAttributs";
 import {
   BOOST_OPTIONS,
   PREVIEW_IMAGE,
   PUBLISH_TOTAL_STEPS,
 } from "../../data/publishSteps";
+import MaisonJardinDynamicForm, {
+  validateMaisonJardinAttributs,
+} from "../../components/publish/maison-jardin/MaisonJardinDynamicForm";
+import LocationPickerField from "../../components/publish/LocationPickerField";
+import LivraisonFinalizerCard from "../../components/publish/LivraisonFinalizerCard";
+import {
+  applyLivraisonFinalizerAttrIdsFromTaxo,
+  LIVRAISON_FINALIZER_ATTR_KEYS,
+} from "../../features/annonces/utils/livraisonFinalizer";
+import { isLivraisonDisponibleOui } from "../../features/annonces/utils/livraisonUtils";
 import { colors } from "../../theme/colors";
 import { showDevMessage } from "../../utils/devFeedback";
 
@@ -62,14 +94,140 @@ export function PublishGenericStepScreen({
   onContinue,
   onViewListing,
   onPublishAnother,
+  stepNumber,
+  totalSteps = PUBLISH_TOTAL_STEPS,
 }) {
   const [local, setLocal] = useState({ ...draft });
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+  const [generateDescriptionError, setGenerateDescriptionError] = useState("");
+  const activeSubcategoryId = draft?.sousCategorieId ?? local?.sousCategorieId;
+  const subcategoryFormConfig = getSubcategoryFormConfig(activeSubcategoryId);
+  const immobilierConfig = getImmobilierSubcategoryConfig(
+    activeSubcategoryId
+  );
+  const vehicleConfig = getVehicleSubcategoryConfig(
+    activeSubcategoryId
+  );
+  const electroniqueConfig = getElectroniqueSubcategoryConfig(
+    activeSubcategoryId
+  );
+  const animauxConfig = getAnimauxSubcategoryConfig(
+    activeSubcategoryId
+  );
+  const maisonJardinConfig = getMaisonJardinSubcategoryConfig(
+    activeSubcategoryId
+  );
+  const loisirsConfig = getLoisirsSubcategoryConfig(
+    activeSubcategoryId
+  );
+  const locationsVacancesConfig = getLocationsVacancesSubcategoryConfig(
+    activeSubcategoryId
+  );
+  const materielProfessionnelConfig = getMaterielProfessionnelSubcategoryConfig(
+    activeSubcategoryId
+  );
+  const modeConfig = getModeSubcategoryConfig(
+    activeSubcategoryId
+  );
+  const serviceConfig = getServiceSubcategoryConfig(
+    activeSubcategoryId
+  );
+  const emploiConfig = getEmploiSubcategoryConfig(
+    activeSubcategoryId
+  );
+  const familleConfig = getFamilleSubcategoryConfig(
+    activeSubcategoryId
+  );
+  const { data: taxoAttributs = [] } = useSubcategoryAttributs(
+    config.type === "immobilierFields"
+      ? immobilierConfig?.id
+      : config.type === "vehicleFields"
+        ? vehicleConfig?.id
+        : config.type === "electroniqueFields"
+          ? electroniqueConfig?.id
+        : config.type === "animauxFields"
+          ? animauxConfig?.id
+        : config.type === "maisonJardinFields"
+          ? maisonJardinConfig?.id
+        : config.type === "loisirsFields"
+          ? loisirsConfig?.id
+        : config.type === "locationsVacancesFields"
+          ? locationsVacancesConfig?.id
+        : config.type === "materielProfessionnelFields"
+          ? materielProfessionnelConfig?.id
+        : config.type === "modeFields"
+          ? modeConfig?.id
+        : config.type === "serviceFields"
+          ? serviceConfig?.id
+        : config.type === "emploiFields"
+          ? emploiConfig?.id
+          : config.type === "familleFields" || config.type === "price"
+            ? activeSubcategoryId
+            : null
+  );
 
   const update = (key, value) => {
     const next = { ...local, [key]: value };
     setLocal(next);
     onChange?.(next);
   };
+
+  const mergeLocal = useCallback(
+    (patch) => {
+      setLocal((prev) => {
+        const next = { ...prev, ...patch };
+        onChange?.(next);
+        return next;
+      });
+    },
+    [onChange]
+  );
+
+  useEffect(() => {
+    if (config.type !== "price") return;
+    const { attributeAttrIds, attributeTypes } =
+      applyLivraisonFinalizerAttrIdsFromTaxo(taxoAttributs);
+    if (
+      Object.keys(attributeAttrIds).length === 0 &&
+      Object.keys(attributeTypes).length === 0
+    ) {
+      return;
+    }
+    const nextAttrIds = {
+      ...(local.attributeAttrIds || {}),
+      ...attributeAttrIds,
+    };
+    const nextTypes = {
+      ...(local.attributeTypes || {}),
+      ...attributeTypes,
+    };
+    const attrIdsChanged =
+      JSON.stringify(nextAttrIds) !== JSON.stringify(local.attributeAttrIds || {});
+    const typesChanged =
+      JSON.stringify(nextTypes) !== JSON.stringify(local.attributeTypes || {});
+    if (!attrIdsChanged && !typesChanged) return;
+    mergeLocal({
+      attributeAttrIds: nextAttrIds,
+      attributeTypes: nextTypes,
+    });
+  }, [config.type, local.attributeAttrIds, local.attributeTypes, mergeLocal, taxoAttributs]);
+
+  useEffect(() => {
+    if (config.type !== "price") return;
+    if (isLivraisonDisponibleOui(local.attributs || {})) return;
+    const nextAttributs = { ...(local.attributs || {}) };
+    let changed = false;
+    LIVRAISON_FINALIZER_ATTR_KEYS.forEach((key) => {
+      const raw = nextAttributs[key];
+      const hasValue = Array.isArray(raw)
+        ? raw.length > 0
+        : String(raw ?? "").trim().length > 0;
+      if (!hasValue) return;
+      nextAttributs[key] = Array.isArray(raw) ? [] : "";
+      changed = true;
+    });
+    if (changed) mergeLocal({ attributs: nextAttributs });
+  }, [config.type, local.attributs, mergeLocal]);
 
   const pickValue = (field) => {
     const options = [field.placeholder, "Autre"];
@@ -82,6 +240,47 @@ export function PublishGenericStepScreen({
     ]);
   };
 
+  const handleGenerateDescription = async () => {
+    setGenerateDescriptionError("");
+    setIsGeneratingDescription(true);
+    try {
+      const priceOptional = Boolean(emploiConfig?.priceOptional);
+      const isDonation = !priceOptional && Boolean(local.isDonation);
+      const parsedPrice = String(local.price || "")
+        .trim()
+        .replace(/\s/g, "")
+        .replace(",", ".");
+      const prix =
+        !isDonation && parsedPrice && Number(parsedPrice) >= 1
+          ? String(Math.round(Number(parsedPrice)))
+          : "";
+
+      const text = await generateAnnonceDescription({
+        sousCategorieId: activeSubcategoryId,
+        sousCategorieNom: subcategoryFormConfig?.label,
+        titre: local.title,
+        type:
+          local.adType === "request" || local.adType === "DEMANDE"
+            ? "DEMANDE"
+            : "OFFRE",
+        prix,
+        ville: local.city,
+        codePostal: local.postalCode,
+        attributs: local.attributs || {},
+        subcategoryConfig: subcategoryFormConfig,
+        attributeAttrIds: local.attributeAttrIds || {},
+      });
+      mergeLocal({ description: text });
+    } catch (error) {
+      const message =
+        error?.message || "Erreur lors de la génération de la description.";
+      setGenerateDescriptionError(message);
+      showDevMessage("Génération", message);
+    } finally {
+      setIsGeneratingDescription(false);
+    }
+  };
+
   const renderFields = () => {
     if (config.type === "photos") {
       return (
@@ -92,17 +291,316 @@ export function PublishGenericStepScreen({
       );
     }
 
+    if (config.type === "immobilierFields") {
+      if (!immobilierConfig) {
+        return (
+          <Text style={styles.tipText}>
+            Sous-catégorie immobilier introuvable.
+          </Text>
+        );
+      }
+      return (
+        <ImmobilierSubcategoryForm
+          config={immobilierConfig}
+          attributs={local.attributs || {}}
+          attributeAttrIds={local.attributeAttrIds || {}}
+          attributeTypes={local.attributeTypes || {}}
+          onAttributsChange={(attributs) => mergeLocal({ attributs })}
+          onMetaChange={(meta) => mergeLocal(meta)}
+        />
+      );
+    }
+
+    if (config.type === "vehicleFields") {
+      if (!vehicleConfig) {
+        return (
+          <Text style={styles.tipText}>
+            Sous-catégorie véhicule introuvable.
+          </Text>
+        );
+      }
+      if (vehicleConfig.noDetails) {
+        return (
+          <Text style={styles.tipText}>
+            Aucun détail supplémentaire requis pour cette sous-catégorie.
+          </Text>
+        );
+      }
+      return (
+        <VehicleSubcategoryForm
+          config={vehicleConfig}
+          attributs={local.attributs || {}}
+          attributeAttrIds={local.attributeAttrIds || {}}
+          attributeTypes={local.attributeTypes || {}}
+          onAttributsChange={(attributs) => mergeLocal({ attributs })}
+          onMetaChange={(meta) => mergeLocal(meta)}
+        />
+      );
+    }
+
+    if (config.type === "electroniqueFields") {
+      if (!electroniqueConfig) {
+        return (
+          <Text style={styles.tipText}>
+            Sous-catégorie électronique introuvable.
+          </Text>
+        );
+      }
+      return (
+        <VehicleSubcategoryForm
+          config={electroniqueConfig}
+          attributs={local.attributs || {}}
+          attributeAttrIds={local.attributeAttrIds || {}}
+          attributeTypes={local.attributeTypes || {}}
+          onAttributsChange={(attributs) => mergeLocal({ attributs })}
+          onMetaChange={(meta) => mergeLocal(meta)}
+        />
+      );
+    }
+
+    if (config.type === "animauxFields") {
+      if (!animauxConfig) {
+        return (
+          <Text style={styles.tipText}>
+            Sous-catégorie animaux introuvable.
+          </Text>
+        );
+      }
+      return (
+        <VehicleSubcategoryForm
+          config={animauxConfig}
+          attributs={local.attributs || {}}
+          attributeAttrIds={local.attributeAttrIds || {}}
+          attributeTypes={local.attributeTypes || {}}
+          onAttributsChange={(attributs) => mergeLocal({ attributs })}
+          onMetaChange={(meta) => mergeLocal(meta)}
+        />
+      );
+    }
+
+    if (config.type === "maisonJardinFields") {
+      if (!maisonJardinConfig) {
+        return (
+          <Text style={styles.tipText}>
+            Sous-catégorie maison et jardin introuvable.
+          </Text>
+        );
+      }
+      return (
+        <MaisonJardinDynamicForm
+          config={maisonJardinConfig}
+          attributs={local.attributs || {}}
+          attributeAttrIds={local.attributeAttrIds || {}}
+          attributeTypes={local.attributeTypes || {}}
+          onAttributsChange={(attributs) => mergeLocal({ attributs })}
+          onMetaChange={(meta) => mergeLocal(meta)}
+        />
+      );
+    }
+
+    if (config.type === "loisirsFields") {
+      if (!loisirsConfig) {
+        return (
+          <Text style={styles.tipText}>
+            Sous-catégorie loisirs introuvable.
+          </Text>
+        );
+      }
+      return (
+        <VehicleSubcategoryForm
+          config={loisirsConfig}
+          attributs={local.attributs || {}}
+          attributeAttrIds={local.attributeAttrIds || {}}
+          attributeTypes={local.attributeTypes || {}}
+          onAttributsChange={(attributs) => mergeLocal({ attributs })}
+          onMetaChange={(meta) => mergeLocal(meta)}
+        />
+      );
+    }
+
+    if (config.type === "locationsVacancesFields") {
+      if (!locationsVacancesConfig) {
+        return (
+          <Text style={styles.tipText}>
+            Sous-catégorie locations de vacances introuvable.
+          </Text>
+        );
+      }
+      return (
+        <VehicleSubcategoryForm
+          config={locationsVacancesConfig}
+          attributs={local.attributs || {}}
+          attributeAttrIds={local.attributeAttrIds || {}}
+          attributeTypes={local.attributeTypes || {}}
+          onAttributsChange={(attributs) => mergeLocal({ attributs })}
+          onMetaChange={(meta) => mergeLocal(meta)}
+        />
+      );
+    }
+
+    if (config.type === "materielProfessionnelFields") {
+      if (!materielProfessionnelConfig) {
+        return (
+          <Text style={styles.tipText}>
+            Sous-catégorie matériel professionnel introuvable.
+          </Text>
+        );
+      }
+      return (
+        <VehicleSubcategoryForm
+          config={materielProfessionnelConfig}
+          attributs={local.attributs || {}}
+          attributeAttrIds={local.attributeAttrIds || {}}
+          attributeTypes={local.attributeTypes || {}}
+          onAttributsChange={(attributs) => mergeLocal({ attributs })}
+          onMetaChange={(meta) => mergeLocal(meta)}
+        />
+      );
+    }
+
+    if (config.type === "location") {
+      return (
+        <View style={styles.fields}>
+          <LocationPickerField
+            city={local.city ?? ""}
+            postalCode={local.postalCode ?? ""}
+            onChange={(patch) => mergeLocal(patch)}
+          />
+          <PublishFormField
+            label="Adresse (privée)"
+            value={local.address ?? ""}
+            onChangeText={(v) => update("address", v)}
+            placeholder="Rue, quartier, repère..."
+            hint="Votre adresse exacte reste privée. Seuls la wilaya et le code postal sont utilisés pour publier."
+          />
+        </View>
+      );
+    }
+
+    if (config.type === "modeFields") {
+      if (!modeConfig) {
+        return (
+          <Text style={styles.tipText}>
+            Sous-catégorie mode introuvable.
+          </Text>
+        );
+      }
+      return (
+        <VehicleSubcategoryForm
+          config={modeConfig}
+          attributs={local.attributs || {}}
+          attributeAttrIds={local.attributeAttrIds || {}}
+          attributeTypes={local.attributeTypes || {}}
+          onAttributsChange={(attributs) => mergeLocal({ attributs })}
+          onMetaChange={(meta) => mergeLocal(meta)}
+        />
+      );
+    }
+
+    if (config.type === "serviceFields") {
+      if (!serviceConfig) {
+        return (
+          <Text style={styles.tipText}>
+            Sous-catégorie service introuvable.
+          </Text>
+        );
+      }
+      return (
+        <VehicleSubcategoryForm
+          config={serviceConfig}
+          attributs={local.attributs || {}}
+          attributeAttrIds={local.attributeAttrIds || {}}
+          attributeTypes={local.attributeTypes || {}}
+          onAttributsChange={(attributs) => mergeLocal({ attributs })}
+          onMetaChange={(meta) => mergeLocal(meta)}
+        />
+      );
+    }
+
+    if (config.type === "emploiFields") {
+      if (!emploiConfig) {
+        return (
+          <Text style={styles.tipText}>
+            Sous-catégorie emploi introuvable.
+          </Text>
+        );
+      }
+      return (
+        <VehicleSubcategoryForm
+          config={emploiConfig}
+          attributs={local.attributs || {}}
+          attributeAttrIds={local.attributeAttrIds || {}}
+          attributeTypes={local.attributeTypes || {}}
+          onAttributsChange={(attributs) => mergeLocal({ attributs })}
+          onMetaChange={(meta) => mergeLocal(meta)}
+        />
+      );
+    }
+
+    if (config.type === "familleFields") {
+      if (!familleConfig) {
+        return (
+          <Text style={styles.tipText}>
+            Sous-catégorie famille introuvable.
+          </Text>
+        );
+      }
+      return (
+        <VehicleSubcategoryForm
+          config={familleConfig}
+          attributs={local.attributs || {}}
+          attributeAttrIds={local.attributeAttrIds || {}}
+          attributeTypes={local.attributeTypes || {}}
+          onAttributsChange={(attributs) => mergeLocal({ attributs })}
+          onMetaChange={(meta) => mergeLocal(meta)}
+        />
+      );
+    }
+
     if (config.type === "price") {
+      const livraisonActive = isLivraisonDisponibleOui(local.attributs || {});
+      const priceOptional = Boolean(emploiConfig?.priceOptional);
+      const isDonation = !priceOptional && Boolean(local.isDonation);
       return (
         <View style={styles.priceSection}>
+          {!priceOptional ? (
+            <TouchableOpacity
+              style={styles.donationRow}
+              onPress={() => mergeLocal({ isDonation: !isDonation, price: !isDonation ? "" : local.price })}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.checkbox, isDonation && styles.checkboxActive]}>
+                {isDonation ? (
+                  <Ionicons name="checkmark" size={14} color={colors.white} />
+                ) : null}
+              </View>
+              <Text style={styles.donationText}>Je fais un don</Text>
+            </TouchableOpacity>
+          ) : null}
           <PublishFormField
-            label="Prix de l'article"
+            label={priceOptional ? "Prix de l'article (optionnel)" : "Prix de l'article"}
             value={local.price ?? ""}
             onChangeText={(v) => update("price", v)}
-            placeholder="450"
+            placeholder={
+              isDonation ? "" : priceOptional ? "Laisser vide si non applicable" : "450"
+            }
             maxLength={10}
-            hint="Conseil : Comparez avec des objets similaires pour vendre plus vite."
+            editable={!isDonation}
+            hint={
+              isDonation
+                ? "Annonce en don : aucun prix ne sera envoyé."
+                : priceOptional
+                  ? "Le prix n'est pas obligatoire pour cette sous-catégorie."
+                  : "Conseil : Comparez avec des objets similaires pour vendre plus vite."
+            }
           />
+          {isDonation ? (
+            <View style={styles.donationBanner}>
+              <Text style={styles.donationBannerText}>
+                Annonce en don. Publiez gratuitement sans renseigner de prix.
+              </Text>
+            </View>
+          ) : null}
           <View style={styles.secureCard}>
             <View style={styles.secureHeader}>
               <View style={styles.secureIcon}>
@@ -115,14 +613,65 @@ export function PublishGenericStepScreen({
                 </View>
               </View>
               <Switch
-                value={local.securePayment ?? true}
+                value={isDonation ? false : local.securePayment ?? true}
                 onValueChange={(v) => update("securePayment", v)}
                 trackColor={{ true: colors.primary }}
+                disabled={isDonation}
               />
             </View>
             <Text style={styles.secureSub}>
               Activez le paiement en ligne pour rassurer les acheteurs.
             </Text>
+          </View>
+          {livraisonActive ? (
+            <LivraisonFinalizerCard
+              attributs={local.attributs || {}}
+              onAttributChange={(key, value) =>
+                mergeLocal({
+                  attributs: {
+                    ...(local.attributs || {}),
+                    [key]: value,
+                  },
+                })
+              }
+            />
+          ) : null}
+          <View style={styles.descriptionSection}>
+            <View style={styles.descriptionHeader}>
+              <Text style={styles.descriptionLabel}>Description *</Text>
+              <TouchableOpacity
+                style={[
+                  styles.generateBtn,
+                  isGeneratingDescription && styles.generateBtnDisabled,
+                ]}
+                onPress={handleGenerateDescription}
+                disabled={isGeneratingDescription}
+                activeOpacity={0.8}
+              >
+                {isGeneratingDescription ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Ionicons name="sparkles-outline" size={16} color={colors.primary} />
+                )}
+                <Text style={styles.generateBtnText}>
+                  {isGeneratingDescription ? "Génération…" : "Générer"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.descriptionHint}>
+              Le texte proposé reprend le titre, le prix, le lieu et ce que vous avez déjà indiqué. Si vous n'avez pas mis de prix, il ne sera pas inventé.
+            </Text>
+            <PublishFormField
+              label=""
+              value={local.description ?? ""}
+              onChangeText={(v) => update("description", v)}
+              placeholder="État, dimensions, caractéristiques utiles, modalités de retrait ou de livraison…"
+              maxLength={2000}
+              multiline
+            />
+            {generateDescriptionError ? (
+              <Text style={styles.generateError}>{generateDescriptionError}</Text>
+            ) : null}
           </View>
           <TouchableOpacity
             style={styles.estimateBtn}
@@ -141,6 +690,19 @@ export function PublishGenericStepScreen({
         local.photos?.primary || local.photos?.front || PREVIEW_IMAGE;
       const imageUri =
         typeof raw === "string" ? raw : raw?.uri || PREVIEW_IMAGE;
+      const attrs = local.attributs || {};
+      const typeBien =
+        attrs.type_bien ||
+        attrs.type_transaction ||
+        attrs.type_vehicule ||
+        attrs.type ||
+        local.assetType ||
+        local.rentType;
+      const surface = attrs.surface_habitable || local.surface;
+      const marque = attrs.marque;
+      const modele =
+        attrs.modele ||
+        Object.entries(attrs).find(([key, value]) => key.endsWith("_modele") && value)?.[1];
       return (
         <View style={styles.previewWrap}>
           <View style={styles.previewCard}>
@@ -157,21 +719,32 @@ export function PublishGenericStepScreen({
                     {local.title || "Titre de l'annonce"}
                   </Text>
                   <Text style={styles.previewPrice}>
-                    {local.price ? `${local.price} €` : "—"}
+                    {local.isDonation ? "Don" : local.price ? `${local.price} €` : "—"}
                   </Text>
                 </View>
-                <TouchableOpacity onPress={() => showDevMessage("Modifier", "Retour aux étapes précédentes.")}>
+                <TouchableOpacity
+                  onPress={() =>
+                    showDevMessage("Modifier", "Retour aux étapes précédentes.")
+                  }
+                >
                   <Text style={styles.modifyLink}>Modifier</Text>
                 </TouchableOpacity>
               </View>
               <View style={styles.badgeRow}>
                 <View style={styles.chip}>
-                  <Text style={styles.chipText}>{local.category || "Catégorie"}</Text>
+                  <Text style={styles.chipText}>
+                    {local.category || "Catégorie"}
+                  </Text>
                 </View>
                 <View style={styles.chip}>
-                  <Ionicons name="location-outline" size={12} color={colors.navy} />
+                  <Ionicons
+                    name="location-outline"
+                    size={12}
+                    color={colors.navy}
+                  />
                   <Text style={styles.chipText}>
-                    {local.city || "Ville"} {local.postalCode ? `(${local.postalCode})` : ""}
+                    {local.location ||
+                      `${local.city || "Ville"}${local.postalCode ? ` (${local.postalCode})` : ""}`}
                   </Text>
                 </View>
               </View>
@@ -181,14 +754,36 @@ export function PublishGenericStepScreen({
           <View style={styles.detailsCard}>
             <View style={styles.detailsHeader}>
               <Text style={styles.detailsTitle}>Détails</Text>
-              <TouchableOpacity onPress={() => showDevMessage("Modifier", "Édition des détails.")}>
+              <TouchableOpacity
+                onPress={() => showDevMessage("Modifier", "Édition des détails.")}
+              >
                 <Text style={styles.modifyLink}>Modifier</Text>
               </TouchableOpacity>
             </View>
-            <PreviewDetailRow label="Type" value={local.assetType || local.rentType} />
-            <PreviewDetailRow label="Surface" value={local.surface ? `${local.surface} m²` : null} />
-            <PreviewDetailRow label="État" value={local.condition} />
-            <PreviewDetailRow label="Kilométrage" value={local.mileage} />
+            <PreviewDetailRow label="Type" value={typeBien} />
+            {marque ? <PreviewDetailRow label="Marque" value={marque} /> : null}
+            {modele ? <PreviewDetailRow label="Modèle" value={String(modele)} /> : null}
+            <PreviewDetailRow
+              label="Surface"
+              value={surface ? `${surface} m²` : null}
+            />
+            {attrs.nombre_pieces ? (
+              <PreviewDetailRow
+                label="Pièces"
+                value={String(attrs.nombre_pieces)}
+              />
+            ) : null}
+            {attrs.meuble ? (
+              <PreviewDetailRow label="Meublé" value={attrs.meuble} />
+            ) : null}
+            <PreviewDetailRow
+              label="État"
+              value={attrs.etat_du_bien || attrs.etat || local.condition}
+            />
+            <PreviewDetailRow
+              label="Kilométrage"
+              value={attrs.kilometrage || local.mileage}
+            />
           </View>
         </View>
       );
@@ -204,29 +799,47 @@ export function PublishGenericStepScreen({
           <View style={styles.successCard}>
             <Image source={{ uri: imageUri }} style={styles.successImage} />
             <View style={styles.successBody}>
-              <Text style={styles.successTitle}>{local.title || "Votre annonce"}</Text>
+              <Text style={styles.successTitle}>
+                {local.title || "Votre annonce"}
+              </Text>
               <Text style={styles.successPrice}>
-                {local.price ? `${local.price} €` : "—"}
+                {local.isDonation ? "Don" : local.price ? `${local.price} €` : "—"}
               </Text>
               <View style={styles.badgeRow}>
                 <View style={styles.chip}>
-                  <Text style={styles.chipText}>{local.category || "Catégorie"}</Text>
+                  <Text style={styles.chipText}>
+                    {local.category || "Catégorie"}
+                  </Text>
                 </View>
                 <View style={styles.chip}>
-                  <Ionicons name="location-outline" size={12} color={colors.navy} />
-                  <Text style={styles.chipText}>{local.city || "Lyon"}</Text>
+                  <Ionicons
+                    name="location-outline"
+                    size={12}
+                    color={colors.navy}
+                  />
+                  <Text style={styles.chipText}>
+                    {local.location || local.city || "Localisation"}
+                  </Text>
                 </View>
               </View>
             </View>
           </View>
 
-          <TouchableOpacity style={styles.viewListingBtn} onPress={onViewListing}>
+          <TouchableOpacity
+            style={styles.viewListingBtn}
+            onPress={onViewListing}
+          >
             <Ionicons name="eye-outline" size={18} color={colors.navy} />
             <Text style={styles.viewListingText}>Voir mon annonce</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.publishAnotherBtn} onPress={onPublishAnother}>
-            <Text style={styles.publishAnotherText}>Publier une autre annonce</Text>
+          <TouchableOpacity
+            style={styles.publishAnotherBtn}
+            onPress={onPublishAnother}
+          >
+            <Text style={styles.publishAnotherText}>
+              Publier une autre annonce
+            </Text>
           </TouchableOpacity>
 
           <Text style={styles.shareLabel}>Partager votre annonce</Text>
@@ -295,22 +908,327 @@ export function PublishGenericStepScreen({
         typeof primary === "string"
           ? Boolean(primary)
           : Boolean(primary?.uri);
-      if (!hasPrimary) {
-        showDevMessage("Photo requise", "Ajoutez au moins une photo principale.");
+      const photosOptional = Boolean(
+        emploiConfig?.photosOptional ||
+          familleConfig?.photosOptional ||
+          vehicleConfig?.photosOptional ||
+          electroniqueConfig?.photosOptional ||
+          animauxConfig?.photosOptional ||
+          maisonJardinConfig?.photosOptional ||
+          loisirsConfig?.photosOptional ||
+          locationsVacancesConfig?.photosOptional ||
+          materielProfessionnelConfig?.photosOptional ||
+          modeConfig?.photosOptional ||
+          serviceConfig?.photosOptional
+      );
+      if (!hasPrimary && !photosOptional) {
+        showDevMessage(
+          "Photo requise",
+          "Ajoutez au moins une photo principale."
+        );
         return;
       }
     }
-    if (config.type === "price" && !String(local.price ?? "").trim()) {
-      showDevMessage("Prix requis", "Indiquez un prix pour votre annonce.");
-      return;
+    if (config.type === "immobilierFields") {
+      if (!immobilierConfig) {
+        showDevMessage("Erreur", "Configuration immobilier manquante.");
+        return;
+      }
+      const { ok, missing } = validateImmobilierAttributs(
+        immobilierConfig,
+        local.attributs || {},
+        taxoAttributs
+      );
+      if (!ok) {
+        showDevMessage(
+          "Champs requis",
+          `Complétez : ${missing.slice(0, 4).join(", ")}${
+            missing.length > 4 ? "…" : ""
+          }`
+        );
+        return;
+      }
+      const pilotKey =
+        immobilierConfig.id === 44 ? "type_transaction" : "type_bien";
+      if (!String(local.attributs?.[pilotKey] || "").trim()) {
+        showDevMessage(
+          "Champ requis",
+          immobilierConfig.id === 44
+            ? "Sélectionnez un type de transaction."
+            : "Sélectionnez un type de bien."
+        );
+        return;
+      }
+    }
+    if (config.type === "vehicleFields") {
+      if (!vehicleConfig) {
+        showDevMessage("Erreur", "Configuration véhicule manquante.");
+        return;
+      }
+      const { ok, missing } = validateVehicleAttributs(
+        vehicleConfig,
+        local.attributs || {},
+        taxoAttributs
+      );
+      if (!ok) {
+        showDevMessage(
+          "Champs requis",
+          `Complétez : ${missing.slice(0, 4).join(", ")}${
+            missing.length > 4 ? "…" : ""
+          }`
+        );
+        return;
+      }
+    }
+
+    if (config.type === "electroniqueFields") {
+      if (!electroniqueConfig) {
+        showDevMessage("Erreur", "Configuration électronique manquante.");
+        return;
+      }
+      const { ok, missing } = validateVehicleAttributs(
+        electroniqueConfig,
+        local.attributs || {},
+        taxoAttributs
+      );
+      if (!ok) {
+        showDevMessage(
+          "Champs requis",
+          `Complétez : ${missing.slice(0, 4).join(", ")}${
+            missing.length > 4 ? "…" : ""
+          }`
+        );
+        return;
+      }
+    }
+
+    if (config.type === "animauxFields") {
+      if (!animauxConfig) {
+        showDevMessage("Erreur", "Configuration animaux manquante.");
+        return;
+      }
+      const { ok, missing } = validateVehicleAttributs(
+        animauxConfig,
+        local.attributs || {},
+        taxoAttributs
+      );
+      if (!ok) {
+        showDevMessage(
+          "Champs requis",
+          `Complétez : ${missing.slice(0, 4).join(", ")}${
+            missing.length > 4 ? "…" : ""
+          }`
+        );
+        return;
+      }
+    }
+
+    if (config.type === "maisonJardinFields") {
+      if (!maisonJardinConfig) {
+        showDevMessage("Erreur", "Configuration maison et jardin manquante.");
+        return;
+      }
+      const missing = validateMaisonJardinAttributs(
+        local.attributs || {},
+        local.taxonomyValidationFields || []
+      );
+      if (missing) {
+        showDevMessage("Champs requis", `Complétez : ${missing}`);
+        return;
+      }
+    }
+
+    if (config.type === "loisirsFields") {
+      if (!loisirsConfig) {
+        showDevMessage("Erreur", "Configuration loisirs manquante.");
+        return;
+      }
+      const { ok, missing } = validateVehicleAttributs(
+        loisirsConfig,
+        local.attributs || {},
+        taxoAttributs
+      );
+      if (!ok) {
+        showDevMessage(
+          "Champs requis",
+          `Complétez : ${missing.slice(0, 4).join(", ")}${
+            missing.length > 4 ? "…" : ""
+          }`
+        );
+        return;
+      }
+    }
+
+    if (config.type === "locationsVacancesFields") {
+      if (!locationsVacancesConfig) {
+        showDevMessage(
+          "Erreur",
+          "Configuration locations de vacances manquante."
+        );
+        return;
+      }
+      const { ok, missing } = validateVehicleAttributs(
+        locationsVacancesConfig,
+        local.attributs || {},
+        taxoAttributs
+      );
+      if (!ok) {
+        showDevMessage(
+          "Champs requis",
+          `Complétez : ${missing.slice(0, 4).join(", ")}${
+            missing.length > 4 ? "…" : ""
+          }`
+        );
+        return;
+      }
+    }
+
+    if (config.type === "materielProfessionnelFields") {
+      if (!materielProfessionnelConfig) {
+        showDevMessage(
+          "Erreur",
+          "Configuration matériel professionnel manquante."
+        );
+        return;
+      }
+      const { ok, missing } = validateVehicleAttributs(
+        materielProfessionnelConfig,
+        local.attributs || {},
+        taxoAttributs
+      );
+      if (!ok) {
+        showDevMessage(
+          "Champs requis",
+          `Complétez : ${missing.slice(0, 4).join(", ")}${
+            missing.length > 4 ? "…" : ""
+          }`
+        );
+        return;
+      }
+    }
+
+    if (config.type === "modeFields") {
+      if (!modeConfig) {
+        showDevMessage("Erreur", "Configuration mode manquante.");
+        return;
+      }
+      const { ok, missing } = validateVehicleAttributs(
+        modeConfig,
+        local.attributs || {},
+        taxoAttributs
+      );
+      if (!ok) {
+        showDevMessage(
+          "Champs requis",
+          `Complétez : ${missing.slice(0, 4).join(", ")}${
+            missing.length > 4 ? "…" : ""
+          }`
+        );
+        return;
+      }
+    }
+
+    if (config.type === "serviceFields") {
+      if (!serviceConfig) {
+        showDevMessage("Erreur", "Configuration service manquante.");
+        return;
+      }
+      const { ok, missing } = validateVehicleAttributs(
+        serviceConfig,
+        local.attributs || {},
+        taxoAttributs
+      );
+      if (!ok) {
+        showDevMessage(
+          "Champs requis",
+          `Complétez : ${missing.slice(0, 4).join(", ")}${
+            missing.length > 4 ? "…" : ""
+          }`
+        );
+        return;
+      }
+    }
+
+    if (config.type === "emploiFields") {
+      if (!emploiConfig) {
+        showDevMessage("Erreur", "Configuration emploi manquante.");
+        return;
+      }
+      const { ok, missing } = validateVehicleAttributs(
+        emploiConfig,
+        local.attributs || {},
+        taxoAttributs
+      );
+      if (!ok) {
+        showDevMessage(
+          "Champs requis",
+          `Complétez : ${missing.slice(0, 4).join(", ")}${
+            missing.length > 4 ? "…" : ""
+          }`
+        );
+        return;
+      }
+    }
+    if (config.type === "familleFields") {
+      if (!familleConfig) {
+        showDevMessage("Erreur", "Configuration famille manquante.");
+        return;
+      }
+      const { ok, missing } = validateVehicleAttributs(
+        familleConfig,
+        local.attributs || {},
+        taxoAttributs
+      );
+      if (!ok) {
+        showDevMessage(
+          "Champs requis",
+          `Complétez : ${missing.slice(0, 4).join(", ")}${
+            missing.length > 4 ? "…" : ""
+          }`
+        );
+        return;
+      }
+    }
+    if (config.type === "location") {
+      if (
+        !String(local.city ?? "").trim() ||
+        !String(local.postalCode ?? "").trim()
+      ) {
+        showDevMessage(
+          "Localisation requise",
+          "Sélectionnez une commune ou un code postal depuis la liste."
+        );
+        return;
+      }
+    }
+    if (config.type === "price") {
+      const priceOptional = Boolean(emploiConfig?.priceOptional);
+      const isDonation = !priceOptional && Boolean(local.isDonation);
+      if (!priceOptional && !isDonation && !String(local.price ?? "").trim()) {
+        showDevMessage(
+          "Prix requis",
+          "Indiquez un prix pour votre annonce."
+        );
+        return;
+      }
+      if (isDonation) {
+        mergeLocal({ price: "" });
+      }
+      if (!String(local.description ?? "").trim()) {
+        showDevMessage(
+          "Description requise",
+          "Rédigez une description ou générez-en une automatiquement."
+        );
+        return;
+      }
     }
     onContinue?.(local);
   };
 
   return (
     <PublishStepLayout
-      step={config.id}
-      totalSteps={PUBLISH_TOTAL_STEPS}
+      step={stepNumber ?? config.id}
+      totalSteps={totalSteps}
       stepLabel={config.stepLabel}
       title={config.title}
       subtitle={config.subtitle}
@@ -318,7 +1236,11 @@ export function PublishGenericStepScreen({
       onClose={onClose}
       onContinue={handleContinue}
       continueLabel={
-        config.type === "success" ? "Booster mon annonce" : "Continuer"
+        config.type === "preview"
+          ? "Publier l'annonce"
+          : config.type === "success"
+            ? "Terminer"
+            : "Continuer"
       }
       showDraft={config.type !== "success" && config.type !== "preview"}
       onDraft={() => showDevMessage("Brouillon", "Annonce enregistrée.")}
@@ -471,6 +1393,82 @@ const styles = StyleSheet.create({
     color: colors.textHeading,
   },
   priceSection: { gap: 16 },
+  donationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    backgroundColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkboxActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  donationText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.textHeading,
+  },
+  donationBanner: {
+    borderRadius: 12,
+    backgroundColor: colors.brandLight,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  donationBannerText: {
+    fontSize: 13,
+    color: colors.navy,
+    fontWeight: "600",
+  },
+  descriptionSection: { gap: 10 },
+  descriptionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  descriptionLabel: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.textHeading,
+  },
+  descriptionHint: {
+    fontSize: 12,
+    color: colors.textMuted,
+    lineHeight: 16,
+  },
+  generateBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderColor: colors.brandMuted,
+    backgroundColor: colors.brandLight,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  generateBtnDisabled: {
+    opacity: 0.7,
+  },
+  generateBtnText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.primary,
+  },
+  generateError: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: "600",
+  },
   secureCard: {
     borderWidth: 1,
     borderColor: colors.border,

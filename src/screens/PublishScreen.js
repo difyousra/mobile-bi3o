@@ -1,19 +1,20 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Platform,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import PublishStep1Screen from "./publish/PublishStep1Screen";
+import { PublishGenericStepScreen } from "./publish/PublishFlowScreens";
 import {
-  PublishGenericStepScreen,
-  PublishBoostScreen,
-} from "./publish/PublishFlowScreens";
-import { PUBLISH_STEPS } from "../data/publishSteps";
+  resolvePublishSteps,
+  resolvePublishTotalSteps,
+} from "../data/publishSteps";
 import { colors } from "../theme";
 import { normalizeProduct } from "../utils/productMapper";
 import { usePublishAnnonce } from "../hooks/usePublish";
@@ -22,6 +23,21 @@ function photoUri(value) {
   if (!value) return null;
   if (typeof value === "string") return value;
   return value.uri ?? null;
+}
+
+function notify(title, message, buttons) {
+  if (Platform.OS === "web") {
+    const ok = window.confirm(`${title}\n\n${message}`);
+    const action = buttons?.find((b) =>
+      ok ? b.style !== "cancel" : b.style === "cancel"
+    );
+    action?.onPress?.();
+    if (!ok && !buttons?.some((b) => b.style === "cancel")) {
+      buttons?.[buttons.length - 1]?.onPress?.();
+    }
+    return;
+  }
+  Alert.alert(title, message, buttons);
 }
 
 function draftToProduct(draft, annonceId) {
@@ -39,8 +55,9 @@ function draftToProduct(draft, annonceId) {
     price: Number(draft.price) || 0,
     priceDa: Number(draft.price) || 0,
     priceEuro: Number(draft.price) || 0,
-    description: draft.description || `${draft.title || "Annonce"} publiée sur Bi3oo.`,
-    location: draft.city || "Alger",
+    description:
+      draft.description || `${draft.title || "Annonce"} publiée sur Bi3oo.`,
+    location: draft.location || draft.city || "Alger",
     seller: "Moi",
   });
 }
@@ -48,40 +65,85 @@ function draftToProduct(draft, annonceId) {
 export default function PublishScreen() {
   const navigation = useNavigation();
   const publishMutation = usePublishAnnonce();
-  const [step, setStep] = useState(1);
+  const [stepIndex, setStepIndex] = useState(0);
   const [draft, setDraft] = useState({});
-  const [phase, setPhase] = useState("form");
   const [createdId, setCreatedId] = useState(null);
 
+  const steps = useMemo(
+    () => resolvePublishSteps(draft.sousCategorieId),
+    [draft.sousCategorieId]
+  );
+  const totalSteps = useMemo(
+    () => resolvePublishTotalSteps(draft.sousCategorieId),
+    [draft.sousCategorieId]
+  );
+  const currentStep = steps[stepIndex] ?? steps[0];
+
   const reset = () => {
-    setStep(1);
+    setStepIndex(0);
     setDraft({});
-    setPhase("form");
     setCreatedId(null);
   };
 
-  const mergeDraft = (data) => {
+  const mergeDraft = useCallback((data) => {
     setDraft((prev) => ({ ...prev, ...data }));
+  }, []);
+
+  const submitPublish = async (data = {}) => {
+    const fullDraft = { ...draft, ...data };
+    mergeDraft(data);
+
+    try {
+      const result = await publishMutation.mutateAsync(fullDraft);
+      setCreatedId(result.id);
+
+      notify("Annonce publiée", `Votre annonce a été publiée (ID ${result.id}).`, [
+        {
+          text: "Voir l'annonce",
+          onPress: () => {
+            navigation.navigate("ProductDetail", {
+              product: draftToProduct(fullDraft, result.id),
+              annonceId: result.id,
+            });
+            reset();
+          },
+        },
+        { text: "OK", style: "cancel", onPress: reset },
+      ]);
+    } catch (error) {
+      const message =
+        error?.message ??
+        "Publication impossible. Vérifiez les champs et la connexion.";
+
+      if (error?.code === "MODERATION_REJECTED") {
+        const priceStepIndex = steps.findIndex((step) => step.type === "price");
+        if (priceStepIndex >= 0) {
+          setStepIndex(priceStepIndex);
+        }
+        notify(
+          "Modération refusée",
+          `${message}\n\nModifiez le titre ou la description, puis republiez.`,
+          [{ text: "Modifier le texte" }]
+        );
+        return;
+      }
+
+      notify("Erreur publication", message, [{ text: "OK" }]);
+    }
   };
 
   const goNext = (data) => {
     mergeDraft(data);
-    // Après aperçu (8) → boost UI puis API — pas d’écran « publiée » avant création réelle
-    if (step >= 8) {
-      setPhase("boost");
+    if (stepIndex >= steps.length - 1 || currentStep?.type === "preview") {
+      submitPublish(data);
       return;
     }
-    setStep((s) => s + 1);
+    setStepIndex((s) => s + 1);
   };
 
   const goBack = () => {
-    if (phase === "boost") {
-      setPhase("form");
-      setStep(8); // retour à l’aperçu
-      return;
-    }
-    if (step > 1) {
-      setStep((s) => s - 1);
+    if (stepIndex > 0) {
+      setStepIndex((s) => s - 1);
     }
   };
 
@@ -90,53 +152,6 @@ export default function PublishScreen() {
       product: draftToProduct(draft, createdId),
       annonceId: createdId,
     });
-  };
-
-  const submitPublish = async (boostData) => {
-    const fullDraft = { ...draft, ...boostData };
-    mergeDraft(boostData);
-
-    try {
-      const result = await publishMutation.mutateAsync(fullDraft);
-      setCreatedId(result.id);
-
-      const boostLabel =
-        boostData.boost === "none"
-          ? ""
-          : boostData.boost === "performance"
-            ? " (boost Performance — UI seule, pas d’API boost)"
-            : boostData.boost === "highlight"
-              ? " (Mise en avant — UI seule)"
-              : " (Logo Urgent — UI seule)";
-
-      Alert.alert(
-        "Annonce publiée",
-        `ID ${result.id}${boostLabel}.`,
-        [
-          {
-            text: "Voir l'annonce",
-            onPress: () => {
-              navigation.navigate("ProductDetail", {
-                product: draftToProduct(fullDraft, result.id),
-                annonceId: result.id,
-              });
-              reset();
-            },
-          },
-          { text: "OK", onPress: reset },
-        ]
-      );
-    } catch (error) {
-      const message =
-        error?.message ??
-        "Publication impossible. Vérifiez les champs et la connexion.";
-      Alert.alert(
-        error?.code === "MODERATION_REJECTED"
-          ? "Modération refusée"
-          : "Erreur publication",
-        message
-      );
-    }
   };
 
   if (publishMutation.isPending) {
@@ -150,33 +165,32 @@ export default function PublishScreen() {
     );
   }
 
-  if (step === 1) {
+  if (stepIndex === 0 || currentStep?.type === "essentials") {
     return (
       <PublishStep1Screen
         draft={draft}
-        onContinue={(data) => goNext(data)}
-        onBack={goBack}
-        onClose={reset}
-      />
-    );
-  }
-
-  if (phase === "boost") {
-    return (
-      <PublishBoostScreen
-        draft={draft}
-        onBack={goBack}
-        onClose={reset}
-        onFinish={(data) => {
-          submitPublish(data);
+        onContinue={(data) => {
+          const subcategoryChanged =
+            Number(data.sousCategorieId) !== Number(draft.sousCategorieId);
+          mergeDraft(
+            subcategoryChanged
+              ? {
+                  ...data,
+                  attributs: {},
+                  attributeAttrIds: {},
+                  attributeTypes: {},
+                }
+              : data
+          );
+          setStepIndex(1);
         }}
+        onBack={goBack}
+        onClose={reset}
       />
     );
   }
 
-  const config = PUBLISH_STEPS.find((s) => s.id === step);
-
-  if (!config) {
+  if (!currentStep) {
     return (
       <SafeAreaView style={styles.placeholder}>
         <Text style={styles.title}>Étape inconnue</Text>
@@ -186,7 +200,9 @@ export default function PublishScreen() {
 
   return (
     <PublishGenericStepScreen
-      config={config}
+      config={currentStep}
+      stepNumber={stepIndex + 1}
+      totalSteps={totalSteps}
       draft={draft}
       onChange={mergeDraft}
       onBack={goBack}

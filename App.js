@@ -32,20 +32,19 @@ function getApiOrigin() {
   return API_BASE_URL.replace(/\/api\/?$/, "");
 }
 
-function AppContent() {
+function AuthFlowOverlay() {
   const {
-    isAuthenticated,
-    isBootstrapping,
+    authGate,
+    setAuthGate,
     pendingVerificationEmail,
     setPendingVerificationEmail,
+    closeAuth,
   } = useAuth();
-  const [flow, setFlow] = useState("onboarding");
   const [verifyEmail, setVerifyEmail] = useState(null);
 
-  const goToSignIn = () => setFlow("signin");
-  const goToSignUp = () => setFlow("signup");
-  const goToOnboarding = () => setFlow("onboarding");
-  const goToForgotPassword = () => setFlow("forgot-password");
+  const goToSignIn = () => setAuthGate("signin");
+  const goToSignUp = () => setAuthGate("signup");
+  const goToForgotPassword = () => setAuthGate("forgot-password");
 
   const handleGoogleAuth = async () => {
     const url = `${getApiOrigin()}/oauth2/authorization/google`;
@@ -68,6 +67,58 @@ function AppContent() {
     }
   };
 
+  if (!authGate) return null;
+
+  let screen = null;
+
+  if (authGate === "verify-email" && (verifyEmail || pendingVerificationEmail)) {
+    const email = verifyEmail ?? pendingVerificationEmail;
+    screen = (
+      <VerifyEmailScreen
+        email={email}
+        onSuccess={goToSignIn}
+        onBackPress={goToSignUp}
+      />
+    );
+  } else if (authGate === "forgot-password") {
+    screen = (
+      <ForgotPasswordScreen
+        onBackPress={goToSignIn}
+        onSuccess={goToSignIn}
+      />
+    );
+  } else if (authGate === "onboarding") {
+    screen = <OnboardingScreen onContinue={goToSignIn} />;
+  } else if (authGate === "signup") {
+    screen = (
+      <SignUpScreen
+        onSignInPress={goToSignIn}
+        onRegisterSuccess={(email) => {
+          setVerifyEmail(email);
+          setPendingVerificationEmail(email);
+          setAuthGate("verify-email");
+        }}
+        onGooglePress={handleGoogleAuth}
+        onBackPress={goToSignIn}
+      />
+    );
+  } else {
+    screen = (
+      <SignInScreen
+        onSignUpPress={goToSignUp}
+        onGooglePress={handleGoogleAuth}
+        onForgotPasswordPress={goToForgotPassword}
+        onBackPress={closeAuth}
+      />
+    );
+  }
+
+  return <View style={styles.authOverlay}>{screen}</View>;
+}
+
+function AppContent() {
+  const { isBootstrapping } = useAuth();
+
   if (isBootstrapping) {
     return (
       <View style={styles.loading}>
@@ -76,73 +127,22 @@ function AppContent() {
     );
   }
 
-  if (isAuthenticated) {
-    return (
-      <CartProvider>
-        <CheckoutProvider>
-          <WalletProvider>
-            <FavoritesProvider>
-              <MessagesProvider>
+  return (
+    <CartProvider>
+      <CheckoutProvider>
+        <WalletProvider>
+          <FavoritesProvider>
+            <MessagesProvider>
+              <View style={styles.root}>
                 <AppNavigator />
-              </MessagesProvider>
-            </FavoritesProvider>
-          </WalletProvider>
-        </CheckoutProvider>
-      </CartProvider>
-    );
-  }
-
-  if (flow === "verify-email" && (verifyEmail || pendingVerificationEmail)) {
-    const email = verifyEmail ?? pendingVerificationEmail;
-    return (
-      <VerifyEmailScreen
-        email={email}
-        onSuccess={goToSignIn}
-        onBackPress={goToSignUp}
-      />
-    );
-  }
-
-  if (flow === "forgot-password") {
-    return (
-      <ForgotPasswordScreen
-        onBackPress={goToSignIn}
-        onSuccess={goToSignIn}
-      />
-    );
-  }
-
-  if (flow === "onboarding") {
-    return <OnboardingScreen onContinue={goToSignIn} />;
-  }
-
-  if (flow === "signin") {
-    return (
-      <SignInScreen
-        onSignUpPress={goToSignUp}
-        onGooglePress={handleGoogleAuth}
-        onForgotPasswordPress={goToForgotPassword}
-        onBackPress={goToOnboarding}
-      />
-    );
-  }
-
-  if (flow === "signup") {
-    return (
-      <SignUpScreen
-        onSignInPress={goToSignIn}
-        onRegisterSuccess={(email) => {
-          setVerifyEmail(email);
-          setPendingVerificationEmail(email);
-          setFlow("verify-email");
-        }}
-        onGooglePress={handleGoogleAuth}
-        onBackPress={goToSignIn}
-      />
-    );
-  }
-
-  return null;
+                <AuthFlowOverlay />
+              </View>
+            </MessagesProvider>
+          </FavoritesProvider>
+        </WalletProvider>
+      </CheckoutProvider>
+    </CartProvider>
+  );
 }
 
 export default function App() {
@@ -158,10 +158,19 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
   loading: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: colors.background,
+  },
+  authOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 100,
+    elevation: 100,
     backgroundColor: colors.background,
   },
 });

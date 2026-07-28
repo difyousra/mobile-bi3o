@@ -63,6 +63,16 @@ export function AuthProvider({ children }) {
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState(null);
+  /** null = app libre (home) ; sinon écran auth affiché en overlay */
+  const [authGate, setAuthGate] = useState(null);
+
+  const openAuth = useCallback((screen = "signin") => {
+    setAuthGate(screen);
+  }, []);
+
+  const closeAuth = useCallback(() => {
+    setAuthGate(null);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -106,12 +116,14 @@ export function AuthProvider({ children }) {
           const nextUser = await enrichUserWithPhoto(me.data);
           setUser(nextUser);
           queryClient.setQueryData(queryKeys.me, nextUser);
+          setAuthGate(null);
           return { ok: true };
         }
 
         const fallbackUser = authService.userFromLoginData(result.data);
         if (fallbackUser?.email) {
           setUser(fallbackUser);
+          setAuthGate(null);
           return { ok: true };
         }
 
@@ -215,6 +227,7 @@ export function AuthProvider({ children }) {
           const nextUser = await enrichUserWithPhoto(me.data);
           setUser(nextUser);
           queryClient.setQueryData(queryKeys.me, nextUser);
+          setAuthGate(null);
           return { ok: true };
         }
         await authService.logout();
@@ -259,6 +272,10 @@ export function AuthProvider({ children }) {
       isBootstrapping,
       isSubmitting,
       pendingVerificationEmail,
+      authGate,
+      openAuth,
+      closeAuth,
+      setAuthGate,
       login,
       register,
       verifyEmail,
@@ -276,6 +293,9 @@ export function AuthProvider({ children }) {
       isBootstrapping,
       isSubmitting,
       pendingVerificationEmail,
+      authGate,
+      openAuth,
+      closeAuth,
       login,
       register,
       verifyEmail,

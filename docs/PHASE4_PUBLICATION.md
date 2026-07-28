@@ -43,7 +43,7 @@
 | Sujet | Statut |
 |-------|--------|
 | Boost payant | UI seule — **pas d’API boost** documentée |
-| Attributs EAV `valeurs[]` | Envoyés vides pour l’instant (attributs chargés possibles via taxo) |
+| Attributs EAV `valeurs[]` | Branchés pour Immobilier 41–44 (taxo + champs conditionnels) ; autres catégories encore vides |
 | `PATCH /annonces/{id}` édition | Non branché UI (Phase 4b) |
 | Paiement sécurisé switch | UI décorative (pas d’API paiement) |
 | Écran « success » Figma (step 9) | Remplacé par Alert post-API (évite faux « publiée ») |

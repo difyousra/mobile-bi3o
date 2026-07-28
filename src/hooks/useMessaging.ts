@@ -6,12 +6,14 @@ import {
   mapConversationToUi,
   mapMessageToUi,
 } from "../models/messagingMapper";
+import { useAuth } from "../context/AuthContext";
 import type { LocalPhoto } from "../types/publish";
 import type { UiConversation, UiMessage } from "../types/messaging";
 
 const POLL_MS = 12_000;
 
 export function useConversations(page = 0, size = 50) {
+  const { isAuthenticated } = useAuth();
   return useQuery({
     queryKey: [...queryKeys.conversations, page, size],
     queryFn: async (): Promise<UiConversation[]> => {
@@ -19,7 +21,8 @@ export function useConversations(page = 0, size = 50) {
       return (pageData.content ?? []).map((c) => mapConversationToUi(c));
     },
     staleTime: 15_000,
-    refetchInterval: POLL_MS,
+    refetchInterval: isAuthenticated ? POLL_MS : false,
+    enabled: isAuthenticated,
   });
 }
 
@@ -110,10 +113,12 @@ export function useReservationCalendar(annonceId?: number | string) {
 }
 
 export function useMyReservations(page = 0) {
+  const { isAuthenticated } = useAuth();
   return useQuery({
     queryKey: queryKeys.myReservations(page),
     queryFn: () => reservationService.fetchMyReservations({ page, size: 20 }),
     staleTime: 30_000,
+    enabled: isAuthenticated,
   });
 }
 

@@ -26,3 +26,9 @@ export async function fetchAttributs(sousCategorieId: number): Promise<unknown> 
   );
   return data;
 }
+
+/** GET /taxo/referentiel/marques-modeles */
+export async function fetchReferentielMarquesModeles(): Promise<unknown> {
+  const { data } = await apiClient.get("/taxo/referentiel/marques-modeles");
+  return data;
+}

@@ -15,7 +15,7 @@ import PublishFormField from "../../components/publish/PublishFormField";
 import CategoryPicker from "../../components/publish/CategoryPicker";
 import AdTypeSelector from "../../components/publish/AdTypeSelector";
 import { colors } from "../../theme/colors";
-import { PUBLISH_TOTAL_STEPS } from "../../data/publishSteps";
+import { resolvePublishTotalSteps } from "../../data/publishSteps";
 import { showDevMessage } from "../../utils/devFeedback";
 
 const CAR_IMAGE =
@@ -23,6 +23,7 @@ const CAR_IMAGE =
 
 export default function PublishStep1Screen({
   draft,
+  totalSteps: totalStepsProp,
   onContinue,
   onBack,
   onClose,
@@ -32,8 +33,11 @@ export default function PublishStep1Screen({
   const [sousCategorieId, setSousCategorieId] = useState(
     draft?.sousCategorieId ?? null
   );
+  const [categorieId, setCategorieId] = useState(draft?.categorieId ?? null);
   const [adType, setAdType] = useState(draft?.adType ?? "offer");
 
+  const totalSteps =
+    totalStepsProp ?? resolvePublishTotalSteps(sousCategorieId);
   const handleContinue = () => {
     if (!title.trim()) {
       showDevMessage("Titre requis", "Ajoutez un titre pour votre annonce.");
@@ -46,7 +50,18 @@ export default function PublishStep1Screen({
       );
       return;
     }
-    onContinue?.({ title, category, sousCategorieId, adType });
+
+    // Emploi : sous-catégorie "offre de candidature" (id 12) => DEMANDE forcée.
+    const forcedAdType =
+      Number(sousCategorieId) === 12 ? "request" : adType;
+
+    onContinue?.({
+      title,
+      category,
+      sousCategorieId,
+      categorieId,
+      adType: forcedAdType,
+    });
   };
 
   return (
@@ -67,7 +82,7 @@ export default function PublishStep1Screen({
 
         <PublishStepIndicator
           currentStep={1}
-          totalSteps={PUBLISH_TOTAL_STEPS}
+          totalSteps={totalSteps}
           stepLabel="L'essentiel"
         />
 
@@ -86,9 +101,15 @@ export default function PublishStep1Screen({
         <CategoryPicker
           value={category}
           sousCategorieId={sousCategorieId}
-          onChange={({ category: nom, sousCategorieId: id }) => {
+          categorieId={categorieId}
+          onChange={({
+            category: nom,
+            sousCategorieId: id,
+            categorieId: catId,
+          }) => {
             setCategory(nom);
             setSousCategorieId(id);
+            setCategorieId(catId ?? null);
           }}
         />
 

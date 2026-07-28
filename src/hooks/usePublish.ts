@@ -5,13 +5,16 @@ import {
   collectLocalPhotos,
   draftToCreateDto,
 } from "../models/publishMapper";
+import { useAuth } from "../context/AuthContext";
 import type { CreateAnnonceDto, LocalPhoto } from "../types/publish";
 
 export function useMyManagedAds(page = 0, size = 20) {
+  const { isAuthenticated } = useAuth();
   return useQuery({
     queryKey: queryKeys.myAds(page),
     queryFn: () => publishService.fetchMyManagedAds({ page, size }),
     staleTime: 30_000,
+    enabled: isAuthenticated,
   });
 }
 

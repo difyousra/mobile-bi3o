@@ -4,11 +4,13 @@ import {
   useContext,
   useMemo,
 } from "react";
+import { Alert } from "react-native";
 import {
   useFavoritesPage,
   useToggleFavorite,
   useToggleFollow,
 } from "../hooks/useEngagement";
+import { useAuth } from "./AuthContext";
 
 const FavoritesContext = createContext(null);
 
@@ -17,6 +19,7 @@ const FavoritesContext = createContext(null);
  * Remplace la persistance AsyncStorage locale.
  */
 export function FavoritesProvider({ children }) {
+  const { isAuthenticated, openAuth } = useAuth();
   const { products, favoriteIds, isLoading, isError, refetch, pageData } =
     useFavoritesPage(0, 48);
   const toggleMutation = useToggleFavorite();
@@ -29,13 +32,24 @@ export function FavoritesProvider({ children }) {
 
   const toggleFavorite = useCallback(
     (id) => {
+      if (!isAuthenticated) {
+        Alert.alert(
+          "Connexion requise",
+          "Connectez-vous pour ajouter aux favoris.",
+          [
+            { text: "Annuler", style: "cancel" },
+            { text: "Se connecter", onPress: () => openAuth("signin") },
+          ]
+        );
+        return;
+      }
       const currentlyFavorite = favoriteIds.has(String(id));
       toggleMutation.mutate({
         annonceId: id,
         currentlyFavorite,
       });
     },
-    [favoriteIds, toggleMutation]
+    [favoriteIds, toggleMutation, isAuthenticated, openAuth]
   );
 
   const unfollowSeller = useCallback(

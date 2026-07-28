@@ -82,7 +82,7 @@ function ActivityTile({ item, onPress }) {
 
 export default function AccountContent() {
   const navigation = useNavigation();
-  const { user, setUser, logout, refreshUser } = useAuth();
+  const { user, setUser, logout, refreshUser, openAuth } = useAuth();
   const uploadAvatar = useUploadAvatar();
   const { balance, balanceUpdated, topUp } = useWallet();
   const [balanceVisible, setBalanceVisible] = useState(true);
@@ -229,6 +229,29 @@ export default function AccountContent() {
     setTopUpVisible(false);
   };
 
+  if (!user) {
+    return (
+      <View style={styles.guestRoot}>
+        <Text style={styles.guestTitle}>Mon compte</Text>
+        <Text style={styles.guestSubtitle}>
+          Connectez-vous pour gérer votre profil, vos annonces et vos messages.
+        </Text>
+        <TouchableOpacity
+          style={styles.guestPrimaryBtn}
+          onPress={() => openAuth("signin")}
+        >
+          <Text style={styles.guestPrimaryText}>Se connecter</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.guestSecondaryBtn}
+          onPress={() => openAuth("signup")}
+        >
+          <Text style={styles.guestSecondaryText}>Créer un compte</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <>
       <ScrollView
@@ -350,6 +373,49 @@ export default function AccountContent() {
 }
 
 const styles = StyleSheet.create({
+  guestRoot: {
+    flex: 1,
+    backgroundColor: colors.navy,
+    paddingHorizontal: 24,
+    paddingTop: 48,
+    justifyContent: "center",
+  },
+  guestTitle: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: colors.white,
+    marginBottom: 12,
+  },
+  guestSubtitle: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: "rgba(255,255,255,0.75)",
+    marginBottom: 28,
+  },
+  guestPrimaryBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  guestPrimaryText: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  guestSecondaryBtn: {
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.35)",
+  },
+  guestSecondaryText: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: "600",
+  },
   scroll: {
     flex: 1,
     backgroundColor: colors.navy,

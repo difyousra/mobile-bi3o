@@ -1,17 +1,26 @@
 import type { CreateAnnonceDto, LocalPhoto } from "../types/publish";
+import { getSubcategoryFormConfig } from "../features/annonces/config/subcategoryFormRegistry";
+import { buildValeursFromAttributs } from "../features/annonces/utils/buildValeursFromAttributs";
+import { buildValeursFromTaxonomyDynamic } from "../features/annonces/utils/maisonJardinTaxonomyHelpers";
+import { appendLivraisonFinalizerValeurs } from "../features/annonces/utils/livraisonFinalizer";
 
 type PublishDraft = {
   title?: string;
   description?: string;
   adType?: string;
   price?: string | number;
+  isDonation?: boolean;
   city?: string;
   postalCode?: string;
+  location?: string;
   sousCategorieId?: number;
   category?: string;
   photos?: Record<string, string | LocalPhoto>;
   condition?: string;
   surface?: string;
+  attributs?: Record<string, unknown>;
+  attributeAttrIds?: Record<string, number>;
+  attributeTypes?: Record<string, string>;
   [key: string]: unknown;
 };
 
@@ -19,10 +28,21 @@ function buildDescription(draft: PublishDraft): string {
   if (draft.description && String(draft.description).trim()) {
     return String(draft.description).trim();
   }
+  const attrs = draft.attributs || {};
   const parts = [
     draft.condition,
-    draft.surface ? `Surface: ${draft.surface}` : null,
-    draft.roomsCount ? `Pièces: ${draft.roomsCount}` : null,
+    attrs.type_bien ? `Type: ${attrs.type_bien}` : null,
+    attrs.type_transaction ? `Transaction: ${attrs.type_transaction}` : null,
+    attrs.surface_habitable
+      ? `Surface: ${attrs.surface_habitable} m²`
+      : draft.surface
+        ? `Surface: ${draft.surface}`
+        : null,
+    attrs.nombre_pieces
+      ? `Pièces: ${attrs.nombre_pieces}`
+      : draft.roomsCount
+        ? `Pièces: ${draft.roomsCount}`
+        : null,
     draft.mileage ? `Km: ${draft.mileage}` : null,
     draft.job ? `Métier: ${draft.job}` : null,
   ].filter(Boolean);
@@ -39,8 +59,15 @@ export function draftToCreateDto(draft: PublishDraft): CreateAnnonceDto {
     );
   }
 
-  const prix = Number(String(draft.price ?? "").replace(/\s/g, "").replace(",", "."));
-  if (!Number.isFinite(prix) || prix < 0) {
+  const formConfig = getSubcategoryFormConfig(sousCategorieId);
+  const isDonation = Boolean(draft.isDonation);
+  const priceOptional = Boolean(formConfig?.priceOptional);
+  const rawPrice = String(draft.price ?? "").replace(/\s/g, "").replace(",", ".");
+  const prix = isDonation || (!rawPrice && priceOptional) ? 0 : Number(rawPrice);
+  if (!isDonation && !priceOptional && (!Number.isFinite(prix) || prix < 1)) {
+    throw new Error("Prix invalide. Indiquez un prix d'au moins 1 Da, ou cochez « Je fais un don ».");
+  }
+  if (!isDonation && priceOptional && rawPrice && (!Number.isFinite(prix) || prix < 0)) {
     throw new Error("Prix invalide.");
   }
 
@@ -49,15 +76,36 @@ export function draftToCreateDto(draft: PublishDraft): CreateAnnonceDto {
       ? "DEMANDE"
       : "OFFRE";
 
+  const baseValeurs = formConfig
+    ? formConfig.taxonomyDynamic
+      ? buildValeursFromTaxonomyDynamic(
+          (draft.attributs || {}) as Record<string, unknown>,
+          draft.attributeAttrIds || {},
+          draft.attributeTypes || {}
+        )
+      : buildValeursFromAttributs(
+          (draft.attributs || {}) as Record<string, unknown>,
+          formConfig,
+          draft.attributeAttrIds || {},
+          draft.attributeTypes || {}
+        )
+    : [];
+  const valeurs = appendLivraisonFinalizerValeurs(
+    baseValeurs,
+    (draft.attributs || {}) as Record<string, unknown>,
+    draft.attributeAttrIds || {},
+    draft.attributeTypes || {}
+  );
+
   return {
     titre: String(draft.title ?? "").trim(),
     description: buildDescription(draft),
     type,
-    prix,
-    ville: String(draft.city ?? "").trim() || "Alger",
+    prix: isDonation ? 0 : prix,
+    ville: String(draft.city ?? "").trim() || "16",
     codePostal: String(draft.postalCode ?? "").trim() || "16000",
     sousCategorieId,
-    valeurs: [],
+    valeurs,
   };
 }
 
@@ -72,10 +120,15 @@ export function collectLocalPhotos(
     const value = photos[key];
     if (!value) continue;
     if (typeof value === "string") {
-      if (value.startsWith("file:") || value.startsWith("content:")) {
+      if (
+        value.startsWith("file:") ||
+        value.startsWith("content:") ||
+        value.startsWith("blob:") ||
+        value.startsWith("data:") ||
+        value.startsWith("http")
+      ) {
         result.push({ uri: value, mimeType: "image/jpeg" });
       }
-      // URLs distantes (Unsplash) : non uploadées
       continue;
     }
     if (value.uri) {
