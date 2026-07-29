@@ -1,5 +1,13 @@
-import type { AdCard, CategoryTreeNode, PublicAdDetail } from "../types/catalog";
+import type { AdCard, AnnonceValeur, CategoryTreeNode, PublicAdDetail } from "../types/catalog";
 import { resolveMediaUrl } from "../utils/mediaUrl";
+
+export type UiAttribut = {
+  id?: number;
+  attributDefiniId?: number;
+  attributNom?: string;
+  label: string;
+  value: string;
+};
 
 export type UiProduct = {
   id: string;
@@ -13,9 +21,22 @@ export type UiProduct = {
   currency: string;
   description: string;
   seller: string;
-  location: string;
-  photos: string[];
   sellerId?: number;
+  vendeurEstPro?: boolean;
+  location: string;
+  ville?: string;
+  codePostal?: string;
+  photos: string[];
+  createdAt?: string;
+  type?: string;
+  categorieNom?: string;
+  sousCategorieNom?: string;
+  categorieId?: number;
+  sousCategorieId?: number;
+  favorisCount?: number;
+  views?: number;
+  /** Attributs catégorie (valeurs[]) */
+  attributs: UiAttribut[];
   rating: number;
   reviews: number;
   sold: number;
@@ -24,6 +45,46 @@ export type UiProduct = {
 
 const PLACEHOLDER_IMAGE =
   "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&q=80";
+
+/** Livraison / contact — on les exclut des attributs affichés comme le web */
+const LIVRAISON_NOM_PATTERNS = [
+  "livraison", "livreur", "partenaire", "bureau", "relais",
+  "point_relais", "yalidine", "maystro", "contact", "whatsapp",
+];
+
+function isExcludedAttribut(nom?: string): boolean {
+  if (!nom) return false;
+  const n = String(nom).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_");
+  return LIVRAISON_NOM_PATTERNS.some((p) => n.includes(p));
+}
+
+function formatAttributValue(valeur: AnnonceValeur): string {
+  if (valeur.valueText) return valeur.valueText;
+  if (valeur.valueNumber != null && valeur.valueNumber !== "") {
+    const num = Number(valeur.valueNumber);
+    return Number.isFinite(num) ? String(num) : "";
+  }
+  if (valeur.valueDate) return valeur.valueDate;
+  return "";
+}
+
+function formatAttributLabel(nom?: string): string {
+  if (!nom) return "Caractéristique";
+  return String(nom).replace(/_/g, " ").trim();
+}
+
+function mapValeurs(valeurs?: AnnonceValeur[]): UiAttribut[] {
+  if (!valeurs?.length) return [];
+  return valeurs
+    .map((v) => ({
+      id: v.id,
+      attributDefiniId: v.attributDefiniId,
+      attributNom: v.attributNom,
+      label: formatAttributLabel(v.attributNom),
+      value: formatAttributValue(v),
+    }))
+    .filter((a) => a.value && !isExcludedAttribut(a.attributNom));
+}
 
 function dzdToEuro(prixDzd: number, rate?: number): number {
   if (rate && rate > 0) return Math.round((prixDzd / rate) * 100) / 100;
@@ -57,8 +118,10 @@ export function mapAdCardToUi(
       (ad as { vendeurPublicNom?: string }).vendeurPublicNom ??
       "Vendeur Bi3oo",
     location: ad.ville ?? "",
+    ville: ad.ville,
     photos: [cover],
     sellerId: (ad as { userId?: number }).userId,
+    attributs: [],
     rating: 0,
     reviews: 0,
     sold: 0,
@@ -71,14 +134,30 @@ export function mapPublicAdToUi(
   options?: { eurToDzd?: number }
 ): UiProduct {
   const base = mapAdCardToUi(ad, options);
-  const photoUrls =
+
+  // Photos : photoUrls[] prioritaire (API v56), sinon photos[], sinon coverUrl
+  const resolvedFromPhotoUrls = (ad.photoUrls ?? [])
+    .map((u) => resolveMediaUrl(u))
+    .filter((u): u is string => Boolean(u));
+
+  const resolvedFromPhotos =
     ad.photos
       ?.map((p) => resolveMediaUrl(p.url ?? p.photoUrl ?? p.chemin))
       .filter((u): u is string => Boolean(u)) ?? [];
 
+  const photoUrls =
+    resolvedFromPhotoUrls.length > 0
+      ? resolvedFromPhotoUrls
+      : resolvedFromPhotos.length > 0
+        ? resolvedFromPhotos
+        : base.photos;
+
   const sellerName =
     ad.vendeur ??
+    ad.vendeurPublicNom ??
     ([ad.user?.prenom, ad.user?.nom].filter(Boolean).join(" ") || base.seller);
+
+  const location = [ad.codePostal, ad.ville].filter(Boolean).join(" ") || ad.ville || base.location;
 
   return {
     ...base,
@@ -87,8 +166,21 @@ export function mapPublicAdToUi(
     description: ad.description ?? base.description,
     seller: sellerName,
     sellerId: ad.userId ?? ad.user?.id,
-    photos: photoUrls.length > 0 ? photoUrls : base.photos,
+    vendeurEstPro: ad.vendeurEstPro,
+    location,
+    ville: ad.ville,
+    codePostal: ad.codePostal,
+    photos: photoUrls,
     image: photoUrls[0] ?? base.image,
+    createdAt: ad.createdAt,
+    type: ad.type,
+    categorieNom: ad.categorieNom,
+    sousCategorieNom: ad.sousCategorieNom,
+    categorieId: ad.categorieId,
+    sousCategorieId: ad.sousCategorieId,
+    favorisCount: ad.favorisCount,
+    views: ad.views,
+    attributs: mapValeurs(ad.valeurs),
   };
 }
 

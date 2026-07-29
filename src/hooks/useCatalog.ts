@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../api/queryKeys";
 import * as taxoService from "../services/taxoService";
 import * as annoncesService from "../services/annoncesService";
@@ -226,6 +226,82 @@ export function useSearchAds(
     isError: hasCriteria ? query.isError : publicFallback.isError,
     isFetching: hasCriteria ? query.isFetching : publicFallback.isFetching,
   };
+}
+
+/** GET /annonces/public/{id}/stats — favorisCount + vues */
+export function usePublicAdStats(id: number | string | undefined) {
+  return useQuery({
+    queryKey: [...queryKeys.adPublic(id ?? "none"), "stats"],
+    queryFn: () => annoncesService.fetchPublicAdStats(id!),
+    enabled: id != null && String(id).length > 0 && !String(id).startsWith("draft-"),
+    staleTime: 60_000,
+  });
+}
+
+/** GET /annonces/public/users/{userId} — annonces d'un vendeur */
+export function useSellerPublicAds(
+  userId: number | string | undefined,
+  size = 6
+) {
+  const eurToDzd = exchangeService.extractEurToDzd(useExchangeRate().data);
+  return useQuery({
+    queryKey: [...queryKeys.sellerPublic(Number(userId) || 0), "ads"],
+    queryFn: () => annoncesService.fetchSellerPublicAds(userId!, { size }),
+    enabled: userId != null && Number(userId) > 0,
+    staleTime: 60_000,
+    select: (data) => ({
+      ...data,
+      products: (data.content ?? []).map((ad: AdCard) =>
+        mapAdCardToUi(ad, { eurToDzd })
+      ),
+    }),
+  });
+}
+
+/**
+ * Annonces similaires à une annonce donnée.
+ * Cascade : sous-catégorie → catégorie → public (aligné web).
+ */
+export function useSimilarAds(options: {
+  sousCategorieId?: number | null;
+  categorieId?: number | null;
+  excludeId?: number | string;
+  size?: number;
+}) {
+  const eurToDzd = exchangeService.extractEurToDzd(useExchangeRate().data);
+  const { sousCategorieId, categorieId, excludeId, size = 8 } = options;
+
+  return useQuery({
+    queryKey: [
+      "annonces",
+      "similar",
+      sousCategorieId ?? null,
+      categorieId ?? null,
+      excludeId ?? "none",
+    ],
+    queryFn: () =>
+      annoncesService.fetchSimilarAds({ sousCategorieId, categorieId, excludeId, size }),
+    enabled: true,
+    staleTime: 60_000,
+    select: (data) => ({
+      ...data,
+      products: (data.content ?? []).map((ad: AdCard) =>
+        mapAdCardToUi(ad, { eurToDzd })
+      ),
+    }),
+  });
+}
+
+/** POST /annonces/{id}/signalements */
+export function useSignalAnnonce() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: number | string; reason: string }) =>
+      annoncesService.signalAnnonce(id, reason),
+    onSettled: (_d, _e, { id }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.adPublic(id) });
+    },
+  });
 }
 
 export function useSuggestions(q: string, limit = 6) {

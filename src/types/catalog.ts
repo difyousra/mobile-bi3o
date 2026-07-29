@@ -39,17 +39,32 @@ export type CategoryTreeNode = {
   children?: CategoryTreeNode[];
 };
 
+/** Attribut dynamique d'une annonce (valeurs[]) */
+export type AnnonceValeur = {
+  id?: number;
+  attributDefiniId?: number;
+  attributNom?: string;
+  valueText?: string;
+  valueNumber?: number | string;
+  valueDate?: string;
+};
+
 export type PublicAdDetail = AdCard & {
   description?: string;
   type?: string;
   codePostal?: string;
+  /** URLs directes des photos (prioritaire) */
+  photoUrls?: string[];
   photos?: Array<{
     id?: number;
     url?: string;
     photoUrl?: string;
     chemin?: string;
+    cover?: boolean;
   }>;
   userId?: number;
+  vendeurPublicNom?: string;
+  vendeurEstPro?: boolean;
   user?: {
     id?: number;
     nom?: string;
@@ -57,8 +72,22 @@ export type PublicAdDetail = AdCard & {
   };
   vendeur?: string;
   sousCategorieId?: number;
+  categorieId?: number;
   categorieNom?: string;
   sousCategorieNom?: string;
+  createdAt?: string;
+  favorisCount?: number;
+  views?: number;
+  messagesCount?: number;
+  /** Attributs catégorie spécifiques */
+  valeurs?: AnnonceValeur[];
+};
+
+/** Stats publiques d'une annonce */
+export type PublicAdStats = {
+  favorisCount?: number;
+  views?: number;
+  messagesCount?: number;
 };
 
 /** Body Postman — POST /annonces/search/all-attributes */

@@ -2,6 +2,7 @@ import { apiClient } from "../api/client";
 import type {
   AdCard,
   PublicAdDetail,
+  PublicAdStats,
   PublicAdsPage,
   SearchAllAttributesRequest,
 } from "../types/catalog";
@@ -132,4 +133,82 @@ export async function fetchSuggestions(
 export async function fetchPublicSeller(sellerId: number): Promise<unknown> {
   const { data } = await apiClient.get(`/users/public/${sellerId}`);
   return data;
+}
+
+/** GET /annonces/public/{id}/stats — favorisCount, vues (public, sans JWT) */
+export async function fetchPublicAdStats(id: number | string): Promise<PublicAdStats> {
+  const { data } = await apiClient.get<PublicAdStats>(`/annonces/public/${id}/stats`);
+  return data ?? {};
+}
+
+/** GET /annonces/public/users/{userId}?page&size — annonces d'un vendeur */
+export async function fetchSellerPublicAds(
+  userId: number | string,
+  params?: { page?: number; size?: number }
+): Promise<PublicAdsPage> {
+  const { data } = await apiClient.get<unknown>(
+    `/annonces/public/users/${userId}`,
+    { params: { page: params?.page ?? 0, size: params?.size ?? 6 } }
+  );
+  return asPage<AdCard>(data);
+}
+
+/** POST /annonces/{id}/signalements — signaler une annonce (JWT) */
+export async function signalAnnonce(
+  id: number | string,
+  reason: string
+): Promise<void> {
+  await apiClient.post(`/annonces/${id}/signalements`, { raison: reason });
+}
+
+/**
+ * Annonces similaires — cascade comme le web :
+ * 1. sous-catégorie → 2. catégorie → 3. catalogue public
+ */
+export async function fetchSimilarAds(options: {
+  sousCategorieId?: number | null;
+  categorieId?: number | null;
+  excludeId?: number | string;
+  size?: number;
+}): Promise<PublicAdsPage> {
+  const size = options.size ?? 8;
+  let page: PublicAdsPage;
+
+  try {
+    if (options.sousCategorieId) {
+      const { data } = await apiClient.get<unknown>(
+        `/annonces/sous-categorie/${options.sousCategorieId}`,
+        { params: { page: 0, size: size + 1, sort: "id,desc" } }
+      );
+      page = asPage<AdCard>(data);
+    } else if (options.categorieId) {
+      const { data } = await apiClient.get<unknown>(
+        `/annonces/public/by-categorie/${options.categorieId}`,
+        { params: { page: 0, size: size + 1, sort: "createdAt,desc" } }
+      );
+      page = asPage<AdCard>(data);
+    } else {
+      const { data } = await apiClient.get<unknown>("/annonces/public", {
+        params: { page: 0, size: size + 1, sort: "createdAt,desc" },
+      });
+      page = asPage<AdCard>(data);
+    }
+  } catch {
+    return asPage<AdCard>([]);
+  }
+
+  const filtered = (page.content ?? []).filter(
+    (ad) => String(ad.id) !== String(options.excludeId)
+  );
+
+  return { ...page, content: filtered.slice(0, size) };
+}
+
+/** GET /annonces/public/{id}/whatsapp-click — tracking clic WhatsApp */
+export async function recordWhatsappClick(id: number | string): Promise<void> {
+  try {
+    await apiClient.get(`/annonces/public/${id}/whatsapp-click`);
+  } catch {
+    // tracking — on ignore les erreurs silencieusement
+  }
 }
