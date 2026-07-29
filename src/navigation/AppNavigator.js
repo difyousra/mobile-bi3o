@@ -1,9 +1,6 @@
 import { useState } from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import {
-  NavigationContainer,
-  useNavigationContainerRef,
-} from "@react-navigation/native";
+import { NavigationContainer } from "@react-navigation/native";
 import { View, StyleSheet } from "react-native";
 import BottomTabNavigator from "./BottomTabNavigator";
 import MessagesNavigator from "./MessagesNavigator";
@@ -29,11 +26,26 @@ import MyReservationsScreen from "../screens/account/MyReservationsScreen";
 import NotificationsScreen from "../screens/notifications/NotificationsScreen";
 import FloatingTabBar from "./FloatingTabBar";
 import CartScreen from "../screens/CartScreen";
+import { navigationRef } from "./navigationRef";
+import { withProtectedScreen } from "./ProtectedScreen";
 
 const Stack = createNativeStackNavigator();
 
+const ProtectedMessages = withProtectedScreen(MessagesNavigator);
+const ProtectedCheckout = withProtectedScreen(CheckoutScreen);
+const ProtectedBuyAddress = withProtectedScreen(AddressScreen);
+const ProtectedBuyAddAddress = withProtectedScreen(AddAddressScreen);
+const ProtectedBuyPayment = withProtectedScreen(PaymentMethodScreen);
+const ProtectedBuyFinish = withProtectedScreen(FinishPaymentScreen);
+const ProtectedAccountSettings = withProtectedScreen(AccountSettingsScreen);
+const ProtectedEditProfile = withProtectedScreen(EditProfileScreen);
+const ProtectedChangePassword = withProtectedScreen(ChangePasswordScreen);
+const ProtectedMyWallet = withProtectedScreen(MyWalletScreen);
+const ProtectedMyListings = withProtectedScreen(MyListingsScreen);
+const ProtectedMyReservations = withProtectedScreen(MyReservationsScreen);
+const ProtectedNotifications = withProtectedScreen(NotificationsScreen);
+
 export default function AppNavigator() {
-  const navigationRef = useNavigationContainerRef();
   const [navState, setNavState] = useState();
 
   return (
@@ -45,7 +57,7 @@ export default function AppNavigator() {
       <View style={styles.root}>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="MainTabs" component={BottomTabNavigator} />
-          <Stack.Screen name="Messages" component={MessagesNavigator} />
+          <Stack.Screen name="Messages" component={ProtectedMessages} />
           <Stack.Screen name="Search" component={SearchScreen} />
           <Stack.Screen name="SearchFilters" component={SearchFiltersScreen} />
           <Stack.Screen name="MapSearch" component={MapSearchScreen} />
@@ -59,38 +71,32 @@ export default function AppNavigator() {
             component={SellerProfileScreen}
           />
           <Stack.Screen name="Cart" component={CartScreen} />
-          <Stack.Screen name="Checkout" component={CheckoutScreen} />
-          <Stack.Screen name="BuyAddress" component={AddressScreen} />
+          <Stack.Screen name="Checkout" component={ProtectedCheckout} />
+          <Stack.Screen name="BuyAddress" component={ProtectedBuyAddress} />
           <Stack.Screen
             name="BuyAddAddress"
-            component={AddAddressScreen}
+            component={ProtectedBuyAddAddress}
           />
-          <Stack.Screen name="BuyPayment" component={PaymentMethodScreen} />
-          <Stack.Screen
-            name="BuyFinish"
-            component={FinishPaymentScreen}
-          />
+          <Stack.Screen name="BuyPayment" component={ProtectedBuyPayment} />
+          <Stack.Screen name="BuyFinish" component={ProtectedBuyFinish} />
           <Stack.Screen
             name="AccountSettings"
-            component={AccountSettingsScreen}
+            component={ProtectedAccountSettings}
           />
-          <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+          <Stack.Screen name="EditProfile" component={ProtectedEditProfile} />
           <Stack.Screen
             name="ChangePassword"
-            component={ChangePasswordScreen}
+            component={ProtectedChangePassword}
           />
-          <Stack.Screen name="MyWallet" component={MyWalletScreen} />
-          <Stack.Screen
-            name="MyListings"
-            component={MyListingsScreen}
-          />
+          <Stack.Screen name="MyWallet" component={ProtectedMyWallet} />
+          <Stack.Screen name="MyListings" component={ProtectedMyListings} />
           <Stack.Screen
             name="MyReservations"
-            component={MyReservationsScreen}
+            component={ProtectedMyReservations}
           />
           <Stack.Screen
             name="Notifications"
-            component={NotificationsScreen}
+            component={ProtectedNotifications}
           />
         </Stack.Navigator>
         <FloatingTabBar navigationRef={navigationRef} navState={navState} />

@@ -31,6 +31,7 @@ import ProductReviewCard from "../../components/product/ProductReviewCard";
 import { extractCalendarBusyDates } from "../../utils/profileHelpers";
 
 function FollowSellerButton({ sellerId }) {
+  const { isAuthenticated, requireAuth } = useAuth();
   const { data: following = false, isLoading } = useFollowStatus(sellerId);
   const toggle = useToggleFollow();
 
@@ -38,12 +39,16 @@ function FollowSellerButton({ sellerId }) {
     <TouchableOpacity
       style={styles.followBtn}
       disabled={isLoading || toggle.isPending}
-      onPress={() =>
+      onPress={() => {
+        if (!isAuthenticated) {
+          requireAuth();
+          return;
+        }
         toggle.mutate({
           sellerId,
           currentlyFollowing: following,
-        })
-      }
+        });
+      }}
     >
       <Ionicons
         name={following ? "heart" : "heart-outline"}
@@ -77,7 +82,7 @@ export default function ProductDetailScreen({ route, navigation }) {
 
   const { addItem } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
-  const { isAuthenticated, openAuth } = useAuth();
+  const { isAuthenticated, requireAuth } = useAuth();
   const startConversation = useStartConversation();
   const { data: calendarData } = useReservationCalendar(annonceId);
   const busyDates = useMemo(
@@ -128,14 +133,10 @@ export default function ProductDetailScreen({ route, navigation }) {
 
   const handleContactSeller = () => {
     if (!isAuthenticated) {
-      Alert.alert(
-        "Connexion requise",
-        "Connectez-vous pour contacter le vendeur.",
-        [
-          { text: "Annuler", style: "cancel" },
-          { text: "Se connecter", onPress: () => openAuth("signin") },
-        ]
-      );
+      requireAuth({
+        name: "ProductDetail",
+        params: route.params,
+      });
       return;
     }
     const id = annonceId ?? product.id;

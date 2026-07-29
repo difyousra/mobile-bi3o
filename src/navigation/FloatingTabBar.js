@@ -5,6 +5,8 @@ import { CommonActions } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../theme/colors";
 import { TAB_ICONS, TAB_ROUTES } from "./tabConfig";
+import { useAuth } from "../context/AuthContext";
+import { isProtectedTab, returnToTab } from "./authRoutes";
 
 function getFocusedRouteName(state) {
   if (!state) return null;
@@ -55,14 +57,20 @@ function getActiveTab(rootState) {
 
 /**
  * Barre d’onglets flottante — toujours visible (tabs + écrans stack).
+ * Onglets protégés → redirection login auto (comme le web).
  */
 export default function FloatingTabBar({ navigationRef, navState }) {
   const insets = useSafeAreaInsets();
+  const { isAuthenticated, requireAuth } = useAuth();
   const rootState = navState ?? navigationRef?.getRootState?.() ?? null;
   const activeTab = getActiveTab(rootState);
 
   const goTab = useCallback(
     (name) => {
+      if (!isAuthenticated && isProtectedTab(name)) {
+        requireAuth(returnToTab(name));
+        return;
+      }
       navigationRef?.dispatch(
         CommonActions.navigate({
           name: "MainTabs",
@@ -70,7 +78,7 @@ export default function FloatingTabBar({ navigationRef, navState }) {
         })
       );
     },
-    [navigationRef]
+    [navigationRef, isAuthenticated, requireAuth]
   );
 
   return (

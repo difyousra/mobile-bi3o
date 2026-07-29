@@ -96,10 +96,11 @@ export function useToggleFavorite() {
 }
 
 export function useFollowStatus(sellerId: number | string | undefined) {
+  const { isAuthenticated } = useAuth();
   return useQuery({
     queryKey: queryKeys.followStatus(sellerId ?? "none"),
     queryFn: () => engagement.fetchFollowStatus(sellerId as number),
-    enabled: sellerId != null && Number(sellerId) > 0,
+    enabled: isAuthenticated && sellerId != null && Number(sellerId) > 0,
     staleTime: 60_000,
   });
 }

@@ -169,8 +169,8 @@ const styles = StyleSheet.create({
   },
   authOverlay: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: 100,
-    elevation: 100,
+    zIndex: 1000,
+    elevation: 1000,
     backgroundColor: colors.background,
   },
 });

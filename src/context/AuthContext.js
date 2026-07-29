@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -13,6 +14,10 @@ import { queryKeys } from "../api/queryKeys";
 import { normalizePhoneForApi } from "../utils/phone";
 import { fetchPublicSeller } from "../services/annoncesService";
 import { publicProfilePhotoUrl } from "../utils/profileHelpers";
+import {
+  navigateToReturnTarget,
+  resetToHome,
+} from "../navigation/navigationRef";
 
 const AuthContext = createContext(null);
 
@@ -65,14 +70,36 @@ export function AuthProvider({ children }) {
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState(null);
   /** null = app libre (home) ; sinon écran auth affiché en overlay */
   const [authGate, setAuthGate] = useState(null);
+  const pendingReturnToRef = useRef(null);
 
-  const openAuth = useCallback((screen = "signin") => {
+  const finishAuthSuccess = useCallback(() => {
+    setAuthGate(null);
+    const target = pendingReturnToRef.current;
+    pendingReturnToRef.current = null;
+    if (target) {
+      // laisser l’overlay se démonter avant navigation
+      setTimeout(() => navigateToReturnTarget(target), 0);
+    }
+  }, []);
+
+  const openAuth = useCallback((screen = "signin", options = {}) => {
+    if (options.returnTo) {
+      pendingReturnToRef.current = options.returnTo;
+    }
     setAuthGate(screen);
   }, []);
 
   const closeAuth = useCallback(() => {
     setAuthGate(null);
+    pendingReturnToRef.current = null;
   }, []);
+
+  const requireAuth = useCallback(
+    (returnTo) => {
+      openAuth("signin", returnTo ? { returnTo } : undefined);
+    },
+    [openAuth]
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -116,14 +143,14 @@ export function AuthProvider({ children }) {
           const nextUser = await enrichUserWithPhoto(me.data);
           setUser(nextUser);
           queryClient.setQueryData(queryKeys.me, nextUser);
-          setAuthGate(null);
+          finishAuthSuccess();
           return { ok: true };
         }
 
         const fallbackUser = authService.userFromLoginData(result.data);
         if (fallbackUser?.email) {
           setUser(fallbackUser);
-          setAuthGate(null);
+          finishAuthSuccess();
           return { ok: true };
         }
 
@@ -138,7 +165,7 @@ export function AuthProvider({ children }) {
         setIsSubmitting(false);
       }
     },
-    [queryClient]
+    [queryClient, finishAuthSuccess]
   );
 
   const register = useCallback(async (form) => {
@@ -227,7 +254,7 @@ export function AuthProvider({ children }) {
           const nextUser = await enrichUserWithPhoto(me.data);
           setUser(nextUser);
           queryClient.setQueryData(queryKeys.me, nextUser);
-          setAuthGate(null);
+          finishAuthSuccess();
           return { ok: true };
         }
         await authService.logout();
@@ -239,14 +266,17 @@ export function AuthProvider({ children }) {
         setIsSubmitting(false);
       }
     },
-    [queryClient]
+    [queryClient, finishAuthSuccess]
   );
 
   const logout = useCallback(async () => {
     await authService.logout();
     setUser(null);
     setPendingVerificationEmail(null);
+    pendingReturnToRef.current = null;
+    setAuthGate(null);
     queryClient.clear();
+    setTimeout(() => resetToHome(), 0);
   }, [queryClient]);
 
   const refreshUser = useCallback(async () => {
@@ -275,6 +305,7 @@ export function AuthProvider({ children }) {
       authGate,
       openAuth,
       closeAuth,
+      requireAuth,
       setAuthGate,
       login,
       register,
@@ -296,6 +327,7 @@ export function AuthProvider({ children }) {
       authGate,
       openAuth,
       closeAuth,
+      requireAuth,
       login,
       register,
       verifyEmail,
