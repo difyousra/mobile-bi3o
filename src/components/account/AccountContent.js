@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Image,
   StyleSheet,
-  Alert,
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -30,6 +29,8 @@ import {
   userDisplayName,
 } from "../../utils/profileHelpers";
 import { resolveMediaUrl } from "../../utils/mediaUrl";
+import { alertDialog, confirmDialog } from "../../utils/confirmDialog";
+import { useTabBarInset } from "../../hooks/useTabBarInset";
 import WalletBalanceCard from "./WalletBalanceCard";
 import TopUpModal from "./TopUpModal";
 
@@ -60,7 +61,7 @@ const MENU_ITEMS = [
   },
   {
     id: "settings",
-    label: "My Settings",
+    label: "Mes paramètres",
     icon: "settings-outline",
     route: "AccountSettings",
   },
@@ -82,6 +83,7 @@ function ActivityTile({ item, onPress }) {
 
 export default function AccountContent() {
   const navigation = useNavigation();
+  const tabBarInset = useTabBarInset();
   const { user, setUser, logout, refreshUser } = useAuth();
   const uploadAvatar = useUploadAvatar();
   const { balance, balanceUpdated, topUp } = useWallet();
@@ -174,7 +176,7 @@ export default function AccountContent() {
   const handleAvatarPress = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert("Permission", "Autorisez l'accès à la galerie.");
+      alertDialog("Permission", "Autorisez l'accès à la galerie.");
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -204,9 +206,9 @@ export default function AccountContent() {
       }
       await refreshUser?.();
       await refetchPublicSeller?.();
-      Alert.alert("Avatar", "Photo de profil mise à jour.");
+      alertDialog("Avatar", "Photo de profil mise à jour.");
     } catch (error) {
-      Alert.alert(
+      alertDialog(
         "Avatar",
         error?.message ?? "Upload impossible (POST /users/me/avatar)."
       );
@@ -214,12 +216,18 @@ export default function AccountContent() {
   };
 
   const handleLogout = () => {
-    Alert.alert("Déconnexion", "Voulez-vous vous déconnecter ?", [
+    confirmDialog("Déconnexion", "Voulez-vous vous déconnecter ?", [
       { text: "Annuler", style: "cancel" },
       {
-        text: "Déconnexion",
+        text: "Me déconnecter",
         style: "destructive",
-        onPress: () => logout(),
+        onPress: async () => {
+          try {
+            await logout();
+          } catch {
+            // AuthContext nettoie déjà la session ; navigation Home
+          }
+        },
       },
     ]);
   };
@@ -233,7 +241,7 @@ export default function AccountContent() {
     <>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: tabBarInset }]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
@@ -326,9 +334,14 @@ export default function AccountContent() {
             ))}
           </View>
 
-          <TouchableOpacity style={styles.logoutRow} onPress={handleLogout}>
+          <TouchableOpacity
+            style={styles.logoutRow}
+            onPress={handleLogout}
+            accessibilityRole="button"
+            accessibilityLabel="Me déconnecter"
+          >
             <Ionicons name="power-outline" size={22} color={colors.primary} />
-            <Text style={styles.logoutText}>Logout</Text>
+            <Text style={styles.logoutText}>Me déconnecter</Text>
             <Ionicons
               name="chevron-forward"
               size={20}
@@ -355,7 +368,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.navy,
   },
   content: {
-    paddingBottom: 120,
+    // paddingBottom via useTabBarInset
   },
   header: {
     flexDirection: "row",

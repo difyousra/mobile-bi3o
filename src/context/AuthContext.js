@@ -270,12 +270,20 @@ export function AuthProvider({ children }) {
   );
 
   const logout = useCallback(async () => {
-    await authService.logout();
+    // Quitter les écrans protégés AVANT de vider la session,
+    // sinon ProtectedScreen/Account rouvre le gate login.
+    resetToHome();
+    try {
+      await authService.logout();
+    } catch {
+      // session déjà nettoyée côté service
+    }
     setUser(null);
     setPendingVerificationEmail(null);
     pendingReturnToRef.current = null;
     setAuthGate(null);
     queryClient.clear();
+    // Second reset au cas où un écran stack était encore au-dessus
     setTimeout(() => resetToHome(), 0);
   }, [queryClient]);
 

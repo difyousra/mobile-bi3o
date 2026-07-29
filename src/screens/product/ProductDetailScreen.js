@@ -17,7 +17,6 @@ import EmbeddedMap from "../../components/map/EmbeddedMap";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
 import { formatPrice } from "../../utils/productMapper";
-import { useCart } from "../../context/CartContext";
 import { useFavorites } from "../../context/FavoritesContext";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -347,6 +346,12 @@ function SimilarAds({ sousCategorieId, categorieId, excludeId, navigation }) {
             />
             <Text style={simStyles.title} numberOfLines={2}>{item.title}</Text>
             <Text style={simStyles.price}>{item.priceDa > 0 ? formatPrice(item.priceDa) : "Sur demande"}</Text>
+            <View style={simStyles.metaRow}>
+              <Ionicons name="heart-outline" size={12} color={colors.textMuted} />
+              <Text style={simStyles.metaText}>
+                {Number(item.favorisCount ?? 0)}
+              </Text>
+            </View>
             <Text style={simStyles.loc} numberOfLines={1}>{item.location}</Text>
           </TouchableOpacity>
         )}
@@ -367,6 +372,14 @@ const simStyles = StyleSheet.create({
     marginHorizontal: 10, marginTop: 8, lineHeight: 16,
   },
   price: { fontSize: 12, fontWeight: "700", color: colors.primary, marginHorizontal: 10, marginTop: 4 },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginHorizontal: 10,
+    marginTop: 4,
+  },
+  metaText: { fontSize: 11, color: colors.textMuted },
   loc: { fontSize: 11, color: colors.textMuted, marginHorizontal: 10, marginBottom: 10 },
 });
 
@@ -471,7 +484,6 @@ export default function ProductDetailScreen({ route, navigation }) {
   const { data: stats } = usePublicAdStats(annonceId);
   const displayProduct = product ?? fallbackRaw;
 
-  const { addItem } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
   const { isAuthenticated, requireAuth } = useAuth();
   const startConversation = useStartConversation();
@@ -554,8 +566,6 @@ export default function ProductDetailScreen({ route, navigation }) {
 
   // Hauteur réelle de la topBar = insets.top + 50px (boutons 38px + paddings)
   const topBarHeight = insets.top + 50;
-  // Hauteur réelle du footer fixe = 16px paddingV + 46px bouton + insets.bottom (iOS) = ~90px
-  const footerHeight = (Platform.OS === "ios" ? insets.bottom + 28 : 16) + 58;
   // FloatingTabBar ~80px
   const TAB_BAR_H = 80 + Math.max(insets.bottom, 12);
 
@@ -583,12 +593,6 @@ export default function ProductDetailScreen({ route, navigation }) {
           >
             <Ionicons name="flag-outline" size={20} color={colors.textMuted} />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.roundBtnDark}
-            onPress={() => { addItem(p, 1); navigation.navigate("Cart"); }}
-          >
-            <Ionicons name="bag-outline" size={22} color={colors.white} />
-          </TouchableOpacity>
         </View>
       </SafeAreaView>
 
@@ -597,7 +601,7 @@ export default function ProductDetailScreen({ route, navigation }) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: footerHeight + TAB_BAR_H + 16 },
+          { paddingBottom: TAB_BAR_H + 24 },
         ]}
         style={{ marginTop: 0 }}
       >
@@ -634,16 +638,16 @@ export default function ProductDetailScreen({ route, navigation }) {
                 <Text style={styles.metaText}>{p.location}</Text>
               </View>
             ) : null}
-            {favorisCount > 0 ? (
-              <View style={styles.metaItem}>
-                <Ionicons name="heart-outline" size={13} color={colors.textMuted} />
-                <Text style={styles.metaText}>{favorisCount}</Text>
-              </View>
-            ) : null}
-            {views != null && views > 0 ? (
+            <View style={styles.metaItem}>
+              <Ionicons name="heart-outline" size={13} color={colors.textMuted} />
+              <Text style={styles.metaText}>
+                {favorisCount} favori{favorisCount !== 1 ? "s" : ""}
+              </Text>
+            </View>
+            {views != null ? (
               <View style={styles.metaItem}>
                 <Ionicons name="eye-outline" size={13} color={colors.textMuted} />
-                <Text style={styles.metaText}>{views}</Text>
+                <Text style={styles.metaText}>{views} vue{views !== 1 ? "s" : ""}</Text>
               </View>
             ) : null}
             {relativeDate(p.createdAt) ? (
@@ -720,23 +724,6 @@ export default function ProductDetailScreen({ route, navigation }) {
         </View>
       </ScrollView>
 
-      {/* Pied de page — juste au-dessus de la FloatingTabBar (~80px + insets.bottom) */}
-      <View style={[styles.footer, { bottom: TAB_BAR_H, paddingBottom: 12 }]}>
-        <View>
-          <Text style={styles.footerLabel}>Prix total</Text>
-          <Text style={styles.footerPrice}>
-            {p.priceDa > 0 ? formatPrice(p.priceDa) : "Sur demande"}
-          </Text>
-        </View>
-        <TouchableOpacity
-          style={styles.continueBtn}
-          onPress={() => { addItem(p, 1); navigation.navigate("Checkout"); }}
-        >
-          <Text style={styles.continueText}>Ajouter au panier</Text>
-          <Ionicons name="arrow-forward" size={16} color={colors.white} />
-        </TouchableOpacity>
-      </View>
-
       <ReportModal
         annonceId={annonceId ?? p.id}
         visible={reportVisible}
@@ -768,10 +755,6 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
     shadowColor: "#000", shadowOpacity: 0.07, shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 }, elevation: 2,
-  },
-  roundBtnDark: {
-    width: 38, height: 38, borderRadius: 19,
-    backgroundColor: colors.navy, alignItems: "center", justifyContent: "center",
   },
   scrollContent: { flexGrow: 1 },
   infoCard: {
@@ -857,21 +840,4 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white,
   },
   contactBtnText: { color: colors.white, fontSize: 13, fontWeight: "700" },
-  footer: {
-    position: "absolute", left: 0, right: 0,
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 20, paddingTop: 12,
-    backgroundColor: colors.white,
-    borderTopWidth: 1, borderTopColor: colors.border,
-    zIndex: 50,
-    elevation: 50,
-  },
-  footerLabel: { fontSize: 11, color: colors.textMuted },
-  footerPrice: { fontSize: 20, fontWeight: "700", color: colors.primary },
-  continueBtn: {
-    flexDirection: "row", alignItems: "center", gap: 8,
-    backgroundColor: colors.primary, paddingHorizontal: 18, paddingVertical: 13,
-    borderRadius: 10, minWidth: 160, justifyContent: "center",
-  },
-  continueText: { fontSize: 14, fontWeight: "700", color: colors.white },
 });

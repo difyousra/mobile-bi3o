@@ -82,7 +82,21 @@ export function useSendChatImage(conversationId: number | string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (image: LocalPhoto) =>
-      messagerieService.sendConversationImage(conversationId, image),
+      messagerieService.sendConversationMedia(conversationId, image),
+    onSettled: () => {
+      qc.invalidateQueries({
+        queryKey: queryKeys.messages(Number(conversationId) || 0),
+      });
+      qc.invalidateQueries({ queryKey: queryKeys.conversations });
+    },
+  });
+}
+
+export function useSendChatAudio(conversationId: number | string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (audio: LocalPhoto) =>
+      messagerieService.sendConversationMedia(conversationId, audio),
     onSettled: () => {
       qc.invalidateQueries({
         queryKey: queryKeys.messages(Number(conversationId) || 0),

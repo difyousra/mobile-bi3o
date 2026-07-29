@@ -238,21 +238,21 @@ export async function getMe(): Promise<AuthResult<User>> {
 }
 
 /**
- * POST /auth/logout — Bearer + body refresh optionnel.
- * Puis efface Keychain local.
+ * POST /auth/logout — efface d’abord la session locale (UI réactive),
+ * puis notifie l’API (best-effort, ne doit jamais bloquer la déconnexion).
  */
 export async function logout(): Promise<void> {
   const refreshToken = await getRefreshToken();
+  await clearSession();
   try {
     await apiClient.post(
       "/auth/logout",
       refreshToken ? { refreshToken } : {},
-      { validateStatus: () => true }
+      { validateStatus: () => true, timeout: 5000 }
     );
   } catch {
-    // logout local même si réseau échoue
+    // déjà déconnecté localement
   }
-  await clearSession();
 }
 
 export function userFromLoginData(

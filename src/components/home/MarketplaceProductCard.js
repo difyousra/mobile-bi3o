@@ -26,10 +26,21 @@ export default function MarketplaceProductCard({
     >
       <View style={styles.imageWrap}>
         <Image source={{ uri: product.image }} style={styles.image} />
-        <TouchableOpacity style={styles.officielBadge} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={styles.officielBadge}
+          activeOpacity={0.8}
+        >
           <Text style={styles.officielText}>Officiel</Text>
           <Ionicons name="chevron-down" size={12} color={colors.white} />
         </TouchableOpacity>
+        {Number(product.favorisCount) > 0 ? (
+          <View style={styles.favCountBadge}>
+            <Ionicons name="heart" size={11} color={colors.primary} />
+            <Text style={styles.favCountText}>
+              {Number(product.favorisCount)}
+            </Text>
+          </View>
+        ) : null}
         <TouchableOpacity
           style={styles.heartButton}
           activeOpacity={0.8}
@@ -110,6 +121,23 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     alignItems: "center",
     justifyContent: "center",
+  },
+  favCountBadge: {
+    position: "absolute",
+    bottom: 8,
+    right: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: colors.white,
+  },
+  favCountText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.textHeading,
   },
   priceRow: {
     flexDirection: "row",

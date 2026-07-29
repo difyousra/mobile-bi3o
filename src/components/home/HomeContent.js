@@ -25,6 +25,7 @@ import {
 import { useFavorites } from "../../context/FavoritesContext";
 import { normalizeProduct } from "../../utils/productMapper";
 import { colors } from "../../theme/colors";
+import { useTabBarInset } from "../../hooks/useTabBarInset";
 
 function ProductGrid({ children }) {
   return <View style={styles.grid}>{children}</View>;
@@ -32,6 +33,7 @@ function ProductGrid({ children }) {
 
 export default function HomeContent() {
   const navigation = useNavigation();
+  const tabBarInset = useTabBarInset();
   const { isFavorite, toggleFavorite } = useFavorites();
   const [activeCategory, setActiveCategory] = useState("all");
   const [activeSousCategorie, setActiveSousCategorie] = useState(null);
@@ -141,7 +143,7 @@ export default function HomeContent() {
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.scroll, { paddingBottom: tabBarInset }]}
         keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl refreshing={isRefetching} onRefresh={onRefresh} />
@@ -266,7 +268,6 @@ const styles = StyleSheet.create({
   },
   scroll: {
     paddingHorizontal: 16,
-    paddingBottom: 100,
   },
   grid: {
     flexDirection: "row",

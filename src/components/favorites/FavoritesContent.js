@@ -27,9 +27,11 @@ import {
 import { normalizeProduct } from "../../utils/productMapper";
 import { showDevMessage } from "../../utils/devFeedback";
 import { colors } from "../../theme/colors";
+import { useTabBarInset } from "../../hooks/useTabBarInset";
 
 export default function FavoritesContent() {
   const navigation = useNavigation();
+  const tabBarInset = useTabBarInset();
   const {
     products,
     isFavorite,
@@ -140,7 +142,7 @@ export default function FavoritesContent() {
           numColumns={2}
           columnWrapperStyle={styles.gridRow}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: tabBarInset }]}
           keyboardShouldPersistTaps="handled"
           refreshControl={
             <RefreshControl refreshing={isLoading} onRefresh={onRefresh} />
@@ -186,7 +188,7 @@ export default function FavoritesContent() {
         <FlatList
           data={filteredSearches}
           keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: tabBarInset }]}
           ListHeaderComponent={renderHeader()}
           ListEmptyComponent={
             <Text style={styles.empty}>
@@ -241,7 +243,7 @@ export default function FavoritesContent() {
         <FlatList
           data={filteredSellers}
           keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: tabBarInset }]}
           ListHeaderComponent={renderHeader()}
           ListEmptyComponent={
             !sellersLoading && !sellersError ? (
@@ -295,7 +297,6 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingHorizontal: 16,
-    paddingBottom: 100,
   },
   gridRow: {
     justifyContent: "space-between",

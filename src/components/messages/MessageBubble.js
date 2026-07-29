@@ -1,6 +1,130 @@
-import { View, Text, Image, StyleSheet } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import {
+  View,
+  Text,
+  Image,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { Audio } from "expo-av";
 import { colors } from "../../theme/colors";
+
+function AudioBubble({ uri, isMe }) {
+  const soundRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [durationMs, setDurationMs] = useState(0);
+  const [positionMs, setPositionMs] = useState(0);
+
+  useEffect(() => {
+    return () => {
+      soundRef.current?.unloadAsync().catch(() => {});
+      soundRef.current = null;
+    };
+  }, [uri]);
+
+  const formatMs = (ms) => {
+    const totalSec = Math.max(0, Math.floor(Number(ms) / 1000));
+    const min = Math.floor(totalSec / 60);
+    const sec = totalSec % 60;
+    return `${min}:${String(sec).padStart(2, "0")}`;
+  };
+
+  const togglePlay = async () => {
+    try {
+      if (playing && soundRef.current) {
+        await soundRef.current.pauseAsync();
+        setPlaying(false);
+        return;
+      }
+
+      if (soundRef.current) {
+        await soundRef.current.playAsync();
+        setPlaying(true);
+        return;
+      }
+
+      setLoading(true);
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+      });
+      const { sound } = await Audio.Sound.createAsync(
+        { uri },
+        { shouldPlay: true },
+        (status) => {
+          if (!status.isLoaded) return;
+          setPositionMs(status.positionMillis || 0);
+          setDurationMs(status.durationMillis || 0);
+          if (status.didJustFinish) {
+            setPlaying(false);
+            setPositionMs(0);
+            sound.setPositionAsync(0).catch(() => {});
+          } else {
+            setPlaying(status.isPlaying);
+          }
+        }
+      );
+      soundRef.current = sound;
+      setPlaying(true);
+    } catch {
+      setPlaying(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const label =
+    durationMs > 0
+      ? formatMs(playing || positionMs > 0 ? positionMs : durationMs)
+      : "Vocal";
+
+  return (
+    <TouchableOpacity
+      style={styles.audioRow}
+      onPress={togglePlay}
+      activeOpacity={0.8}
+      accessibilityLabel={playing ? "Pause" : "Lecture"}
+    >
+      {loading ? (
+        <ActivityIndicator
+          size="small"
+          color={isMe ? colors.white : colors.textDark}
+        />
+      ) : (
+        <Ionicons
+          name={playing ? "pause" : "play"}
+          size={22}
+          color={isMe ? colors.white : colors.textDark}
+        />
+      )}
+      <View style={styles.audioBars}>
+        {[0.4, 0.7, 1, 0.55, 0.85, 0.45, 0.65, 0.9, 0.5, 0.75].map(
+          (h, i) => (
+            <View
+              key={i}
+              style={[
+                styles.audioBar,
+                {
+                  height: 8 + h * 14,
+                  backgroundColor: isMe
+                    ? "rgba(255,255,255,0.85)"
+                    : "#1A1C1E",
+                  opacity: playing ? 1 : 0.55,
+                },
+              ]}
+            />
+          )
+        )}
+      </View>
+      <Text style={[styles.audioTime, isMe ? styles.textMe : styles.textThem]}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
 
 export default function MessageBubble({ message }) {
   const isMe = message.sender === "me";
@@ -23,6 +147,8 @@ export default function MessageBubble({ message }) {
               </Text>
             ) : null}
           </View>
+        ) : message.type === "audio" && message.audio ? (
+          <AudioBubble uri={message.audio} isMe={isMe} />
         ) : (
           <Text style={[styles.text, isMe ? styles.textMe : styles.textThem]}>
             {message.text}
@@ -39,7 +165,7 @@ export default function MessageBubble({ message }) {
   );
 }
 
-export function DateSeparator({ label = "Today" }) {
+export function DateSeparator({ label = "Aujourd'hui" }) {
   return (
     <View style={styles.dateWrap}>
       <Text style={styles.dateText}>{label}</Text>
@@ -90,6 +216,28 @@ const styles = StyleSheet.create({
     height: 160,
     borderRadius: 12,
     backgroundColor: "#F0F2F5",
+  },
+  audioRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    minWidth: 160,
+  },
+  audioBars: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    flex: 1,
+    height: 28,
+  },
+  audioBar: {
+    width: 3,
+    borderRadius: 2,
+  },
+  audioTime: {
+    fontSize: 12,
+    fontVariant: ["tabular-nums"],
+    minWidth: 36,
   },
   meta: {
     flexDirection: "row",

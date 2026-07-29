@@ -16,6 +16,7 @@ import {
   useMarkAllNotificationsRead,
 } from "../../hooks/useEngagement";
 import { colors } from "../../theme/colors";
+import { useTabBarInset } from "../../hooks/useTabBarInset";
 
 function notificationTitle(item) {
   return item.titre ?? item.title ?? item.type ?? "Notification";
@@ -30,6 +31,7 @@ function isRead(item) {
 }
 
 export default function NotificationsScreen({ navigation }) {
+  const tabBarInset = useTabBarInset();
   const { data, isLoading, isError, refetch, isRefetching } =
     useNotifications(0, 20);
   const { data: unread = 0 } = useUnreadNotificationsCount();
@@ -70,7 +72,7 @@ export default function NotificationsScreen({ navigation }) {
       <FlatList
         data={items}
         keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: tabBarInset }]}
         refreshControl={
           <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
         }
@@ -141,7 +143,6 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingHorizontal: 16,
-    paddingBottom: 40,
   },
   row: {
     flexDirection: "row",

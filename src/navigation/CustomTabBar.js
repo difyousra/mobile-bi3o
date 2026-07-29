@@ -7,7 +7,7 @@ const TAB_ICONS = {
   Home: "search-outline",
   Favorites: "heart-outline",
   Publish: "sparkles",
-  Cart: "bag-outline",
+  Messages: "chatbubble-outline",
   Account: "person-outline",
 };
 
@@ -65,7 +65,6 @@ export default function CustomTabBar({ state, descriptors, navigation }) {
             route.name === "Favorites" && isFocused
               ? "heart"
               : TAB_ICONS[route.name] || "ellipse-outline";
-          const showCartBadge = route.name === "Cart";
 
           return (
             <TouchableOpacity
@@ -85,7 +84,6 @@ export default function CustomTabBar({ state, descriptors, navigation }) {
                   size={24}
                   color={isFocused ? colors.navy : colors.textMuted}
                 />
-                {showCartBadge && <View style={styles.badge} />}
               </View>
             </TouchableOpacity>
           );

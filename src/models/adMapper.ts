@@ -121,6 +121,8 @@ export function mapAdCardToUi(
     ville: ad.ville,
     photos: [cover],
     sellerId: (ad as { userId?: number }).userId,
+    favorisCount: Number((ad as { favorisCount?: number }).favorisCount ?? 0),
+    views: Number((ad as { views?: number }).views ?? 0) || undefined,
     attributs: [],
     rating: 0,
     reviews: 0,

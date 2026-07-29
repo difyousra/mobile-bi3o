@@ -9,6 +9,9 @@ export const TAB_ICONS = {
   Account: "person-outline",
 };
 
-/** Espace bas pour ne pas masquer le contenu sous la barre. */
+/**
+ * Fallback statique (StyleSheet) si le hook n’est pas utilisable.
+ * Préférer `useTabBarInset()` pour un padding exact selon le device.
+ */
 export const TAB_BAR_CONTENT_INSET = 110;
 

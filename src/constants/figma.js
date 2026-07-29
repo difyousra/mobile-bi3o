@@ -139,7 +139,7 @@ export const FIGMA_PROFILE = {
   },
   accountSettings: {
     nodeId: "52:15002",
-    name: "Account & Settings",
+    name: "Mes paramètres",
     section: "profile",
   },
   manageListings: {

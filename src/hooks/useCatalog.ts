@@ -44,20 +44,26 @@ async function searchCatalog(options: {
   size: number;
   categorieId?: number | null;
   sousCategorieId?: number | null;
+  attributs?: object[];
+  prixMin?: number | null;
+  prixMax?: number | null;
+  type?: string | null;
 }): Promise<PublicAdsPage> {
-  const { titre, page, size, categorieId, sousCategorieId } = options;
+  const { titre, page, size, categorieId, sousCategorieId, attributs = [], prixMin, prixMax, type } = options;
   const trimmed = titre.trim();
 
   try {
-    const remote = await annoncesService.searchAllAttributes(
-      {
-        titre: trimmed,
-        categorieIds: categorieId ? [categorieId] : [],
-        sousCategorieIds: sousCategorieId ? [sousCategorieId] : [],
-        attributs: [],
-      },
-      { page, size }
-    );
+    const body: Record<string, unknown> = {
+      titre: trimmed,
+      categorieIds: categorieId ? [categorieId] : [],
+      sousCategorieIds: sousCategorieId ? [sousCategorieId] : [],
+      attributs,
+    };
+    if (prixMin) body.prixMin = prixMin;
+    if (prixMax) body.prixMax = prixMax;
+    if (type) body.type = type;
+
+    const remote = await annoncesService.searchAllAttributes(body as Parameters<typeof annoncesService.searchAllAttributes>[0], { page, size });
     return remote;
   } catch {
     // Nginx préprod renvoie souvent 302→dev-login sur search/suggestions.
@@ -181,18 +187,27 @@ export function useSearchAds(
   options?: {
     categorieId?: number | null;
     sousCategorieId?: number | null;
+    attributs?: object[];
+    prixMin?: number | null;
+    prixMax?: number | null;
+    type?: string | null;
   }
 ) {
   const trimmed = titre.trim();
   const categorieId = options?.categorieId ?? null;
   const sousCategorieId = options?.sousCategorieId ?? null;
+  const attributs = options?.attributs ?? [];
+  const prixMin = options?.prixMin ?? null;
+  const prixMax = options?.prixMax ?? null;
+  const type = options?.type ?? null;
   const eurToDzd = exchangeService.extractEurToDzd(useExchangeRate().data);
 
+  const hasAttributeCriteria = attributs.length > 0 || prixMin != null || prixMax != null || type != null;
   const hasCriteria =
-    trimmed.length > 0 || categorieId != null || sousCategorieId != null;
+    trimmed.length > 0 || categorieId != null || sousCategorieId != null || hasAttributeCriteria;
 
   const query = useQuery({
-    queryKey: queryKeys.searchAds(trimmed, page, categorieId, sousCategorieId),
+    queryKey: queryKeys.searchAds(trimmed, page, categorieId, sousCategorieId, attributs, prixMin, prixMax, type),
     queryFn: () =>
       searchCatalog({
         titre: trimmed,
@@ -200,6 +215,10 @@ export function useSearchAds(
         size,
         categorieId,
         sousCategorieId,
+        attributs,
+        prixMin,
+        prixMax,
+        type,
       }),
     enabled: true,
     staleTime: STALE_ADS_MS,

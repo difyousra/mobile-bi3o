@@ -22,6 +22,10 @@ export const PUBLIC_STACK_SCREENS = [
   "ProductReviews",
   "SellerProfile",
   "Cart",
+  "PrivacyPolicy",
+  "TermsOfUse",
+  "AboutBi3oo",
+  "LegalContact",
 ];
 
 /** Écrans stack racine protégés. */
@@ -33,12 +37,26 @@ export const PROTECTED_STACK_SCREENS = [
   "BuyPayment",
   "BuyFinish",
   "AccountSettings",
+  "SecuritySettings",
+  "PrivacySettings",
+  "NotificationSettings",
+  "LotDiscountsSettings",
+  "DisplaySettings",
+  "LegalHub",
   "EditProfile",
   "ChangePassword",
   "MyWallet",
   "MyListings",
   "MyReservations",
   "Notifications",
+];
+
+/** Écrans légaux publics (contenu issu du new design web). */
+export const PUBLIC_LEGAL_SCREENS = [
+  "PrivacyPolicy",
+  "TermsOfUse",
+  "AboutBi3oo",
+  "LegalContact",
 ];
 
 export function isProtectedTab(name) {

@@ -92,9 +92,10 @@ export type UiConversation = {
 
 export type UiMessage = {
   id: string;
-  type: "text" | "image";
+  type: "text" | "image" | "audio";
   text?: string;
   image?: string;
+  audio?: string;
   sender: "me" | "them";
   time: string;
   read?: boolean;

@@ -38,6 +38,7 @@ import { showDevMessage } from "../../utils/devFeedback";
 import { normalizeListing } from "../../utils/productMapper";
 import { colors } from "../../theme/colors";
 import { AppApiError, userFacingMessage } from "../../api/errorHandler";
+import { useTabBarInset } from "../../hooks/useTabBarInset";
 
 function useDebouncedValue(value, delayMs) {
   const [debounced, setDebounced] = useState(value);
@@ -53,6 +54,7 @@ export default function SearchContent({
   initialFilters,
 }) {
   const navigation = useNavigation();
+  const tabBarInset = useTabBarInset();
   const { isFavorite, toggleFavorite } = useFavorites();
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [filters, setFilters] = useState(
@@ -69,12 +71,16 @@ export default function SearchContent({
   const sousCategorieId = filters.sousCategorieId
     ? Number(filters.sousCategorieId)
     : null;
+  const attributs = filters.attributs ?? [];
+  const prixMin = filters.prixMin ? Number(filters.prixMin) : null;
+  const prixMax = filters.prixMax ? Number(filters.prixMax) : null;
+  const annonceType = filters.type ?? null;
 
   const { pageData, isLoading, isError, isFetching } = useSearchAds(
     debouncedQuery,
     0,
     24,
-    { categorieId, sousCategorieId }
+    { categorieId, sousCategorieId, attributs, prixMin, prixMax, type: annonceType }
   );
 
   const { data: suggestionsRaw } = useSuggestions(debouncedQuery, 6);
@@ -91,7 +97,7 @@ export default function SearchContent({
     if (initialFilters) setFilters(initialFilters);
   }, [initialFilters]);
 
-  const activeFilters = countActiveFilters(filters);
+  const activeFilters = countActiveFilters(filters) + (attributs.length > 0 ? 1 : 0);
   const location = filters.location ?? DEFAULT_SEARCH_FILTERS.location;
   const sortLabel =
     SORT_OPTIONS.find((option) => option.id === sortId)?.label ?? "Pertinence";
@@ -291,7 +297,7 @@ export default function SearchContent({
           data={listings}
           keyExtractor={(item) => String(item.id)}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: tabBarInset }]}
           keyboardShouldPersistTaps="handled"
           ListHeaderComponent={renderListHeader()}
           renderItem={({ item }) => (
@@ -328,9 +334,7 @@ const styles = StyleSheet.create({
   emptyHeader: {
     paddingTop: 0,
   },
-  list: {
-    paddingBottom: 160,
-  },
+  list: {},
   error: {
     color: "#D32F2F",
     fontSize: 13,

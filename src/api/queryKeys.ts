@@ -12,7 +12,11 @@ export const queryKeys = {
     titre: string,
     page: number,
     categorieId?: number | null,
-    sousCategorieId?: number | null
+    sousCategorieId?: number | null,
+    attributs?: object[],
+    prixMin?: number | null,
+    prixMax?: number | null,
+    type?: string | null
   ) =>
     [
       "annonces",
@@ -21,6 +25,10 @@ export const queryKeys = {
       page,
       categorieId ?? "all",
       sousCategorieId ?? "all",
+      JSON.stringify(attributs ?? []),
+      prixMin ?? null,
+      prixMax ?? null,
+      type ?? null,
     ] as const,
   suggestions: (q: string) => ["annonces", "suggestions", q] as const,
   sellerPublic: (id: number) => ["users", "public", id] as const,

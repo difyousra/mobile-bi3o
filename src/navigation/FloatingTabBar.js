@@ -7,6 +7,7 @@ import { colors } from "../theme/colors";
 import { TAB_ICONS, TAB_ROUTES } from "./tabConfig";
 import { useAuth } from "../context/AuthContext";
 import { isProtectedTab, returnToTab } from "./authRoutes";
+import { HIDE_FLOATING_TAB_BAR_SCREENS } from "../hooks/useTabBarInset";
 
 function getFocusedRouteName(state) {
   if (!state) return null;
@@ -32,6 +33,16 @@ function getActiveTab(rootState) {
       "Account",
       "AccountScreen",
       "AccountSettings",
+      "SecuritySettings",
+      "PrivacySettings",
+      "NotificationSettings",
+      "LotDiscountsSettings",
+      "DisplaySettings",
+      "LegalHub",
+      "PrivacyPolicy",
+      "TermsOfUse",
+      "AboutBi3oo",
+      "LegalContact",
       "EditProfile",
       "ChangePassword",
       "MyWallet",
@@ -63,6 +74,7 @@ export default function FloatingTabBar({ navigationRef, navState }) {
   const insets = useSafeAreaInsets();
   const { isAuthenticated, requireAuth } = useAuth();
   const rootState = navState ?? navigationRef?.getRootState?.() ?? null;
+  const focusedLeaf = getFocusedRouteName(rootState);
   const activeTab = getActiveTab(rootState);
 
   const goTab = useCallback(
@@ -80,6 +92,11 @@ export default function FloatingTabBar({ navigationRef, navState }) {
     },
     [navigationRef, isAuthenticated, requireAuth]
   );
+
+  // Chat / checkout / filtres : barre masquée pour ne pas cacher input / CTA
+  if (focusedLeaf && HIDE_FLOATING_TAB_BAR_SCREENS.includes(focusedLeaf)) {
+    return null;
+  }
 
   return (
     <View

@@ -29,12 +29,38 @@ function pickText(msg: MessageDto): string {
   ).trim();
 }
 
+function isImageUrl(value: string): boolean {
+  const v = value.toLowerCase();
+  if (!(v.startsWith("http://") || v.startsWith("https://") || v.startsWith("/"))) {
+    return false;
+  }
+  return /\.(png|jpe?g|webp|gif)(\?.*)?$/i.test(v);
+}
+
+function isAudioUrl(value: string): boolean {
+  const v = value.toLowerCase();
+  if (!(v.startsWith("http://") || v.startsWith("https://") || v.startsWith("/"))) {
+    return false;
+  }
+  return /\.(webm|ogg|oga|mp3|m4a|aac|wav|opus)(\?.*)?$/i.test(v);
+}
+
 function pickImage(msg: MessageDto): string | undefined {
-  const raw =
+  const fromField =
     msg.imageUrl ??
     msg.url ??
     (typeof msg.image === "string" ? msg.image : undefined);
-  return resolveMediaUrl(raw as string | undefined);
+  if (fromField) return resolveMediaUrl(fromField as string);
+
+  const body = pickText(msg);
+  if (body && isImageUrl(body)) return resolveMediaUrl(body);
+  return undefined;
+}
+
+function pickAudio(msg: MessageDto): string | undefined {
+  const body = pickText(msg);
+  if (body && isAudioUrl(body)) return resolveMediaUrl(body);
+  return undefined;
 }
 
 function pickSenderId(msg: MessageDto): number | undefined {
@@ -49,7 +75,12 @@ export function mapMessageToUi(
   currentUserId?: number | null
 ): UiMessage {
   const image = pickImage(msg);
-  const text = pickText(msg);
+  const audio = pickAudio(msg);
+  const rawText = pickText(msg);
+  const text =
+    image || audio
+      ? undefined
+      : rawText || undefined;
   const senderId = pickSenderId(msg);
 
   let sender: "me" | "them" = "them";
@@ -63,11 +94,18 @@ export function mapMessageToUi(
     sender = "me";
   }
 
+  const type: UiMessage["type"] = audio
+    ? "audio"
+    : image
+      ? "image"
+      : "text";
+
   return {
     id: String(msg.id ?? `${Date.now()}-${Math.random()}`),
-    type: image && !text ? "image" : image ? "image" : "text",
-    text: text || undefined,
+    type,
+    text,
     image,
+    audio,
     sender,
     time: formatTime(
       (msg.createdAt as string) ??

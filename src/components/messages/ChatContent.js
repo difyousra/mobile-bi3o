@@ -20,9 +20,11 @@ import { useAuth } from "../../context/AuthContext";
 import {
   useArchiveConversation,
   useConversationMessages,
+  useSendChatAudio,
   useSendChatImage,
   useSendMessage,
 } from "../../hooks/useMessaging";
+import { useVoiceRecorder } from "../../hooks/useVoiceRecorder";
 import { colors } from "../../theme/colors";
 import { formatPrice } from "../../utils/productMapper";
 
@@ -40,7 +42,9 @@ export default function ChatContent({
     useConversationMessages(id, currentUserId);
   const sendMutation = useSendMessage(id);
   const imageMutation = useSendChatImage(id);
+  const audioMutation = useSendChatAudio(id);
   const archiveMutation = useArchiveConversation();
+  const voice = useVoiceRecorder();
 
   const [draft, setDraft] = useState("");
 
@@ -102,7 +106,23 @@ export default function ChatContent({
     ]);
   };
 
-  const handleAttachPress = async () => {
+  const uploadPickedImage = async (asset) => {
+    if (!asset?.uri) return;
+    try {
+      await imageMutation.mutateAsync({
+        uri: asset.uri,
+        mimeType: asset.mimeType ?? "image/jpeg",
+        fileName: asset.fileName ?? "chat.jpg",
+      });
+    } catch (error) {
+      Alert.alert(
+        "Photo",
+        error?.message ?? "L'envoi de la photo a échoué."
+      );
+    }
+  };
+
+  const pickFromGallery = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       Alert.alert("Permission", "Autorisez l'accès à la galerie.");
@@ -113,19 +133,57 @@ export default function ChatContent({
       quality: 0.8,
     });
     if (result.canceled || !result.assets?.[0]) return;
-    const asset = result.assets[0];
+    await uploadPickedImage(result.assets[0]);
+  };
+
+  const pickFromCamera = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Permission", "Autorisez l'accès à l'appareil photo.");
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ["images"],
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    await uploadPickedImage(result.assets[0]);
+  };
+
+  const handleAttachPress = () => {
+    Alert.alert("Envoyer une photo", undefined, [
+      { text: "Galerie", onPress: () => pickFromGallery() },
+      { text: "Appareil photo", onPress: () => pickFromCamera() },
+      { text: "Annuler", style: "cancel" },
+    ]);
+  };
+
+  const handleMicPress = async () => {
+    const result = await voice.start();
+    if (!result?.ok) {
+      const msg =
+        result?.error === "not-allowed"
+          ? "Autorisez l'accès au micro pour envoyer un message vocal."
+          : "Impossible de démarrer l'enregistrement.";
+      Alert.alert("Micro", msg);
+    }
+  };
+
+  const handleStopRecording = async () => {
+    const file = await voice.stop();
+    if (!file?.uri) return;
     try {
-      await imageMutation.mutateAsync({
-        uri: asset.uri,
-        mimeType: asset.mimeType ?? "image/jpeg",
-        fileName: asset.fileName ?? "chat.jpg",
-      });
+      await audioMutation.mutateAsync(file);
     } catch (error) {
       Alert.alert(
-        "Image",
-        error?.message ?? "Upload image échoué (vérifier le contrat multipart)."
+        "Vocal",
+        error?.message ?? "L'envoi du message vocal a échoué."
       );
     }
+  };
+
+  const handleCancelRecording = async () => {
+    await voice.cancel();
   };
 
   const isEmpty = !isLoading && messages.length === 0;
@@ -190,6 +248,12 @@ export default function ChatContent({
           onChangeText={setDraft}
           onSend={handleSend}
           onAttachPress={handleAttachPress}
+          onMicPress={handleMicPress}
+          onStopRecording={handleStopRecording}
+          onCancelRecording={handleCancelRecording}
+          isRecording={voice.isRecording}
+          recordingMs={voice.elapsedMs}
+          sendingMedia={imageMutation.isPending || audioMutation.isPending}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>

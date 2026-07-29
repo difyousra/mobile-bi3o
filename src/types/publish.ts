@@ -45,7 +45,11 @@ export type ManagedAnnonce = {
   statut?: string;
   views?: number;
   vues?: number;
+  favorisCount?: number;
   messages?: number;
+  messagesCount?: number;
+  whatsappClicks?: number;
+  photos?: Array<{ url?: string; photoUrl?: string; chemin?: string }>;
   createdAt?: string;
 };
 

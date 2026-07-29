@@ -17,6 +17,7 @@ import PaymentMethodScreen, {
   FinishPaymentScreen,
 } from "../screens/buy/PaymentMethodScreen";
 import AccountSettingsScreen from "../screens/account/AccountSettingsScreen";
+import SecuritySettingsScreen from "../screens/account/SecuritySettingsScreen";
 import EditProfileScreen from "../screens/account/EditProfileScreen";
 import MyWalletScreen from "../screens/account/MyWalletScreen";
 import MyListingsScreen from "../screens/account/MyListingsScreen";
@@ -24,6 +25,15 @@ import ChangePasswordScreen from "../screens/account/ChangePasswordScreen";
 import SellerProfileScreen from "../screens/account/SellerProfileScreen";
 import MyReservationsScreen from "../screens/account/MyReservationsScreen";
 import NotificationsScreen from "../screens/notifications/NotificationsScreen";
+import PrivacySettingsScreen from "../screens/settings/PrivacySettingsScreen";
+import NotificationSettingsScreen from "../screens/settings/NotificationSettingsScreen";
+import LotDiscountsSettingsScreen from "../screens/settings/LotDiscountsSettingsScreen";
+import DisplaySettingsScreen from "../screens/settings/DisplaySettingsScreen";
+import LegalHubScreen from "../screens/settings/LegalHubScreen";
+import PrivacyPolicyScreen from "../screens/settings/PrivacyPolicyScreen";
+import TermsOfUseScreen from "../screens/settings/TermsOfUseScreen";
+import AboutBi3ooScreen from "../screens/settings/AboutBi3ooScreen";
+import LegalContactScreen from "../screens/settings/LegalContactScreen";
 import FloatingTabBar from "./FloatingTabBar";
 import CartScreen from "../screens/CartScreen";
 import { navigationRef } from "./navigationRef";
@@ -38,6 +48,16 @@ const ProtectedBuyAddAddress = withProtectedScreen(AddAddressScreen);
 const ProtectedBuyPayment = withProtectedScreen(PaymentMethodScreen);
 const ProtectedBuyFinish = withProtectedScreen(FinishPaymentScreen);
 const ProtectedAccountSettings = withProtectedScreen(AccountSettingsScreen);
+const ProtectedSecuritySettings = withProtectedScreen(SecuritySettingsScreen);
+const ProtectedPrivacySettings = withProtectedScreen(PrivacySettingsScreen);
+const ProtectedNotificationSettings = withProtectedScreen(
+  NotificationSettingsScreen
+);
+const ProtectedLotDiscountsSettings = withProtectedScreen(
+  LotDiscountsSettingsScreen
+);
+const ProtectedDisplaySettings = withProtectedScreen(DisplaySettingsScreen);
+const ProtectedLegalHub = withProtectedScreen(LegalHubScreen);
 const ProtectedEditProfile = withProtectedScreen(EditProfileScreen);
 const ProtectedChangePassword = withProtectedScreen(ChangePasswordScreen);
 const ProtectedMyWallet = withProtectedScreen(MyWalletScreen);
@@ -83,6 +103,31 @@ export default function AppNavigator() {
             name="AccountSettings"
             component={ProtectedAccountSettings}
           />
+          <Stack.Screen
+            name="SecuritySettings"
+            component={ProtectedSecuritySettings}
+          />
+          <Stack.Screen
+            name="PrivacySettings"
+            component={ProtectedPrivacySettings}
+          />
+          <Stack.Screen
+            name="NotificationSettings"
+            component={ProtectedNotificationSettings}
+          />
+          <Stack.Screen
+            name="LotDiscountsSettings"
+            component={ProtectedLotDiscountsSettings}
+          />
+          <Stack.Screen
+            name="DisplaySettings"
+            component={ProtectedDisplaySettings}
+          />
+          <Stack.Screen name="LegalHub" component={ProtectedLegalHub} />
+          <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+          <Stack.Screen name="TermsOfUse" component={TermsOfUseScreen} />
+          <Stack.Screen name="AboutBi3oo" component={AboutBi3ooScreen} />
+          <Stack.Screen name="LegalContact" component={LegalContactScreen} />
           <Stack.Screen name="EditProfile" component={ProtectedEditProfile} />
           <Stack.Screen
             name="ChangePassword"

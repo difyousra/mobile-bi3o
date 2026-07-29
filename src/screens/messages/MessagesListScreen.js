@@ -18,9 +18,11 @@ import HomeSearchBar from "../../components/home/HomeSearchBar";
 import { useMessages } from "../../context/MessagesContext";
 import { showDevMessage } from "../../utils/devFeedback";
 import { colors } from "../../theme/colors";
+import { useTabBarInset } from "../../hooks/useTabBarInset";
 
 export default function MessagesListScreen({ navigation }) {
   const rootNavigation = useNavigation();
+  const tabBarInset = useTabBarInset();
   const {
     filterConversations,
     isLoading,
@@ -83,7 +85,7 @@ export default function MessagesListScreen({ navigation }) {
 
         {!isLoading && showList ? (
           <ScrollView
-            contentContainerStyle={styles.list}
+            contentContainerStyle={[styles.list, { paddingBottom: tabBarInset }]}
             refreshControl={
               <RefreshControl
                 refreshing={Boolean(isRefetching)}
@@ -145,7 +147,6 @@ const styles = StyleSheet.create({
   list: {
     gap: 8,
     marginTop: 8,
-    paddingBottom: 120,
   },
   conversationRow: {
     flexDirection: "row",

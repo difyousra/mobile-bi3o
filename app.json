@@ -7,7 +7,12 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Bi3oo utilise le micro pour envoyer des messages vocaux.",
+        "NSCameraUsageDescription": "Bi3oo utilise l'appareil photo pour envoyer des photos dans les messages.",
+        "NSPhotoLibraryUsageDescription": "Bi3oo accède à vos photos pour les envoyer dans les messages."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -15,13 +20,31 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+      },
+      "permissions": [
+        "RECORD_AUDIO",
+        "CAMERA",
+        "READ_MEDIA_IMAGES"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Bi3oo utilise le micro pour envoyer des messages vocaux."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Bi3oo accède à vos photos pour les envoyer dans les messages.",
+          "cameraPermission": "Bi3oo utilise l'appareil photo pour envoyer des photos dans les messages."
+        }
+      ]
     ]
   }
 }

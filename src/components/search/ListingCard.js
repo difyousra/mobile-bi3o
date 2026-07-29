@@ -64,6 +64,14 @@ export default function ListingCard({
             color={isFavorite ? colors.primary : colors.textDark}
           />
         </TouchableOpacity>
+        {Number(listing.favorisCount) > 0 ? (
+          <View style={styles.favCountBadge}>
+            <Ionicons name="heart" size={11} color={colors.primary} />
+            <Text style={styles.favCountText}>
+              {Number(listing.favorisCount)}
+            </Text>
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.body}>
@@ -148,6 +156,23 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
+  },
+  favCountBadge: {
+    position: "absolute",
+    bottom: 12,
+    right: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.95)",
+  },
+  favCountText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.textHeading,
   },
   body: {
     padding: 14,

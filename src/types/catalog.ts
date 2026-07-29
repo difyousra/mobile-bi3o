@@ -13,6 +13,8 @@ export type AdCard = {
   sousCategorieId?: number;
   userId?: number;
   vendeurPublicNom?: string;
+  favorisCount?: number;
+  views?: number;
   photos?: Array<{
     id?: number;
     url?: string;

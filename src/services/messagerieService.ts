@@ -117,19 +117,19 @@ export async function archiveConversation(
 }
 
 /**
- * POST /messagerie/conversations/{id}/images — multipart (même style que photos annonces).
- * Champ fichier : `files` (cohérent avec publication) ; si 400, essayer côté QA.
+ * POST /messagerie/conversations/{id}/images — multipart champ `file`
+ * (images + audio : webm/ogg/mp3/m4a/wav… acceptés côté backend).
  */
-export async function sendConversationImage(
+export async function sendConversationMedia(
   conversationId: number | string,
-  image: LocalPhoto
+  media: LocalPhoto
 ): Promise<MessageDto> {
   const token = await getAccessToken();
   const form = new FormData();
-  form.append("files", {
-    uri: image.uri,
-    type: image.mimeType ?? "image/jpeg",
-    name: image.fileName ?? "chat.jpg",
+  form.append("file", {
+    uri: media.uri,
+    type: media.mimeType ?? "image/jpeg",
+    name: media.fileName ?? "chat.jpg",
   } as unknown as Blob);
 
   const controller = new AbortController();
@@ -153,7 +153,7 @@ export async function sendConversationImage(
     const data = text ? JSON.parse(text) : null;
     if (!response.ok) {
       throw Object.assign(
-        new Error(data?.message ?? `Upload image chat (${response.status})`),
+        new Error(data?.message ?? `Upload média chat (${response.status})`),
         { status: response.status, data }
       );
     }
@@ -161,4 +161,12 @@ export async function sendConversationImage(
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** @deprecated préférer sendConversationMedia */
+export async function sendConversationImage(
+  conversationId: number | string,
+  image: LocalPhoto
+): Promise<MessageDto> {
+  return sendConversationMedia(conversationId, image);
 }
