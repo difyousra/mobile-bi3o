@@ -148,16 +148,23 @@ export default function SellerProfileScreen({ route, navigation }) {
               <View
                 style={[
                   styles.typeBadge,
-                  seller.typeCompte === "PRO" && styles.typeBadgePro,
+                  (seller.typeCompte === "PRO" ||
+                    seller.typeCompte === "PROFESSIONNEL") &&
+                    styles.typeBadgePro,
                 ]}
               >
                 <Text
                   style={[
                     styles.typeBadgeText,
-                    seller.typeCompte === "PRO" && styles.typeBadgeTextPro,
+                    (seller.typeCompte === "PRO" ||
+                      seller.typeCompte === "PROFESSIONNEL") &&
+                      styles.typeBadgeTextPro,
                   ]}
                 >
-                  {seller.typeCompte}
+                  {seller.typeCompte === "PRO" ||
+                  seller.typeCompte === "PROFESSIONNEL"
+                    ? "Pro"
+                    : "Particulier"}
                 </Text>
               </View>
             </View>

@@ -157,38 +157,78 @@ export async function fetchSavedSearches(): Promise<SavedSearch[]> {
 
   return rows
     .map((row: any) => {
-      const id = row?.id;
-      const name = row?.name ?? row?.label ?? row?.titre;
+      const idNum = Number(row?.id);
+      if (!Number.isFinite(idNum)) return null;
+
+      const name = String(row?.name ?? row?.label ?? row?.titre ?? "").trim();
       const queryJson = row?.queryJson ?? row?.query_json;
       let query: string | undefined;
+      let filters: Record<string, unknown> | undefined;
+
       if (typeof queryJson === "string" && queryJson.trim()) {
         try {
           const parsed = JSON.parse(queryJson);
-          query =
-            (typeof parsed?.q === "string" && parsed.q) ||
-            (typeof parsed?.search === "string" && parsed.search) ||
-            undefined;
-          // Normalisation simple: si c’est '?q=Audi', garder 'Audi'
-          if (typeof query === "string" && query.startsWith("?q=")) {
-            query = query.replace("?q=", "");
+          if (parsed && typeof parsed === "object") {
+            filters = parsed as Record<string, unknown>;
+            query =
+              (typeof parsed.q === "string" && parsed.q) ||
+              (typeof parsed.search === "string" && parsed.search) ||
+              (typeof parsed.query === "string" && parsed.query) ||
+              undefined;
+            if (typeof query === "string" && query.startsWith("?q=")) {
+              query = decodeURIComponent(query.replace(/^\?q=/, ""));
+            }
           }
         } catch {
-          // ignore: on garde query undefined
+          // queryJson non JSON → traiter comme texte brut
+          query = queryJson;
         }
+      } else if (queryJson && typeof queryJson === "object") {
+        filters = queryJson as Record<string, unknown>;
+        query =
+          (typeof (queryJson as any).q === "string" && (queryJson as any).q) ||
+          undefined;
       }
+
       return {
-        id,
-        label: name,
-        query,
+        id: idNum,
+        label: name || query || `Recherche #${idNum}`,
+        query: query || name || "",
+        queryJson: typeof queryJson === "string" ? queryJson : undefined,
+        filters,
         createdAt: row?.createdAt,
       } as SavedSearch;
     })
-    .filter((s): s is SavedSearch => typeof s?.id === "number");
+    .filter((s): s is SavedSearch => s != null);
 }
 
 /**
- * GET /users/me/following
- * Used by the "vendeurs" tab in Favorites.
+ * POST /me/recherches
+ * Corps backend : { name, queryJson } (pas query/label).
+ */
+export async function createSavedSearch(payload: {
+  query: string;
+  label?: string;
+  filters?: Record<string, unknown>;
+}): Promise<SavedSearch | unknown> {
+  const q = String(payload.query ?? "").trim();
+  const name = String(payload.label ?? q).trim().slice(0, 80);
+  const queryJson = JSON.stringify({
+    q,
+    ...(payload.filters && typeof payload.filters === "object"
+      ? payload.filters
+      : {}),
+  });
+
+  const { data } = await apiClient.post("/me/recherches", {
+    name: name || "Recherche",
+    queryJson,
+  });
+  return data;
+}
+
+/**
+ * GET /users/me/following — onglet « Mes vendeurs ».
  */
 export async function fetchFollowedSellers(params?: {
   page?: number;
@@ -198,19 +238,6 @@ export async function fetchFollowedSellers(params?: {
     params: { page: params?.page ?? 0, size: params?.size ?? 50 },
   });
   return asPage<FollowedSellerDto>(data) as FollowedSellersPage;
-}
-
-/**
- * POST /me/recherches
- * Corps minimal aligné sur l’usage recherche (query texte).
- * Si 400 → afficher l’erreur API sans inventer d’autres champs.
- */
-export async function createSavedSearch(payload: {
-  query: string;
-  label?: string;
-}): Promise<SavedSearch | unknown> {
-  const { data } = await apiClient.post("/me/recherches", payload);
-  return data;
 }
 
 /** DELETE /me/recherches/{id} */

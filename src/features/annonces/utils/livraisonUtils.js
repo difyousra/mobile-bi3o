@@ -36,3 +36,25 @@ export function isLivraisonDisponibleOui(attributs = {}) {
   if (raw === false || isLivraisonNonValue(raw)) return false;
   return false;
 }
+
+/** true | false | null (absent / non renseigné) depuis valeurs API */
+export function resolveAttributLivraison(valeurs = []) {
+  if (!Array.isArray(valeurs)) return null;
+
+  for (const valeur of valeurs) {
+    if (!valeur || !isLivraisonAttributeName(valeur.attributNom)) continue;
+    const raw = valeur.valueText ?? valeur.valueNumber;
+    if (raw == null || String(raw).trim() === "") return null;
+    if (isLivraisonOuiValue(raw)) return true;
+    if (isLivraisonNonValue(raw)) return false;
+    return null;
+  }
+
+  return null;
+}
+
+export function isAnnonceLivraisonDisponible(raw) {
+  if (typeof raw?.livraisonDisponible === "boolean") return raw.livraisonDisponible;
+  if (typeof raw?.attributLivraison === "boolean") return raw.attributLivraison;
+  return resolveAttributLivraison(raw?.valeurs) === true;
+}

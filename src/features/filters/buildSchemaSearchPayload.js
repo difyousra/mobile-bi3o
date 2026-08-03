@@ -2,6 +2,7 @@
  * Convertit les filtres UI (objet plat) en payload API pour POST /annonces/search/all-attributes.
  * Aligné sur le web : buildSchemaSearchPayload.js
  */
+import { isFilterFieldVisible } from './filterSchemaRuntime';
 
 function encodeSegmentedNumber(value) {
   const raw = String(value || '').trim();
@@ -93,6 +94,7 @@ export function buildSchemaSearchPayload(filters = {}, filterSchema = []) {
 
   for (const field of filterSchema) {
     if (field.type === 'location' || field.type === 'sort') continue;
+    if (!isFilterFieldVisible(field, filters)) continue;
     // types spéciaux véhicule → traités comme select/tags standards
     const fieldType = (field.type === 'vehicleBrand' || field.type === 'vehicleModel')
       ? 'select'
@@ -110,6 +112,29 @@ export function buildSchemaSearchPayload(filters = {}, filterSchema = []) {
         const parsedMax = max ? Number(max) : null;
         if (Number.isFinite(parsedMin) && parsedMin > 0) payload.prixMin = parsedMin;
         if (Number.isFinite(parsedMax) && parsedMax > 0) payload.prixMax = parsedMax;
+        continue;
+      }
+
+      // Dates séjour location saisonnière → champs racine API (pas EAV)
+      const rootMap = normalizedField.payloadRoot;
+      if (
+        rootMap &&
+        typeof rootMap === 'object' &&
+        (rootMap.min || rootMap.max)
+      ) {
+        const arrivee = String(min || '').trim();
+        const depart = String(max || '').trim();
+        const iso = /^\d{4}-\d{2}-\d{2}$/;
+        if (
+          arrivee &&
+          depart &&
+          iso.test(arrivee) &&
+          iso.test(depart) &&
+          depart > arrivee
+        ) {
+          if (rootMap.min) payload[rootMap.min] = arrivee;
+          if (rootMap.max) payload[rootMap.max] = depart;
+        }
         continue;
       }
 
@@ -146,6 +171,7 @@ export function countActiveSchemaFilters(filters = {}, filterSchema = []) {
   let count = 0;
   for (const field of filterSchema) {
     if (field.type === 'location' || field.type === 'sort') continue;
+    if (!isFilterFieldVisible(field, filters)) continue;
     if (field.type === 'range' || field.type === 'dateRange') {
       const min = filters[field.minParam || 'min'];
       const max = filters[field.maxParam || 'max'];

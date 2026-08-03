@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Switch,
   Alert,
   ActivityIndicator,
+  TextInput,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import PublishStepLayout from "../../components/publish/PublishStepLayout";
@@ -50,6 +51,22 @@ import {
   LIVRAISON_FINALIZER_ATTR_KEYS,
 } from "../../features/annonces/utils/livraisonFinalizer";
 import { isLivraisonDisponibleOui } from "../../features/annonces/utils/livraisonUtils";
+import {
+  PRICE_UNIT_OPTIONS,
+  getFinalPriceDa,
+  getDisplayedPriceLabel,
+  getPriceUnitHint,
+  getPriceUnitSuffix,
+  normalizePriceUnit,
+  formatPriceDa,
+} from "../../features/annonces/utils/priceUnit";
+import { useExchangeRate } from "../../hooks/useCatalog";
+import {
+  dzdToEur,
+  extractOfficialRate,
+  extractParallelSellRate,
+  formatEurAmount,
+} from "../../services/exchangeService";
 import { colors } from "../../theme/colors";
 import { showDevMessage } from "../../utils/devFeedback";
 
@@ -100,6 +117,9 @@ export function PublishGenericStepScreen({
   const [local, setLocal] = useState({ ...draft });
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const [generateDescriptionError, setGenerateDescriptionError] = useState("");
+  const { data: exchangeRate } = useExchangeRate();
+  const parallelRate = extractParallelSellRate(exchangeRate);
+  const officialRate = extractOfficialRate(exchangeRate);
   const activeSubcategoryId = draft?.sousCategorieId ?? local?.sousCategorieId;
   const subcategoryFormConfig = getSubcategoryFormConfig(activeSubcategoryId);
   const immobilierConfig = getImmobilierSubcategoryConfig(
@@ -166,22 +186,25 @@ export function PublishGenericStepScreen({
             : null
   );
 
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
   const update = (key, value) => {
-    const next = { ...local, [key]: value };
-    setLocal(next);
-    onChange?.(next);
+    setLocal((prev) => {
+      const next = { ...prev, [key]: value };
+      // Différer l’update parent : ne jamais appeler setState parent dans un updater
+      queueMicrotask(() => onChangeRef.current?.(next));
+      return next;
+    });
   };
 
-  const mergeLocal = useCallback(
-    (patch) => {
-      setLocal((prev) => {
-        const next = { ...prev, ...patch };
-        onChange?.(next);
-        return next;
-      });
-    },
-    [onChange]
-  );
+  const mergeLocal = useCallback((patch) => {
+    setLocal((prev) => {
+      const next = { ...prev, ...patch };
+      queueMicrotask(() => onChangeRef.current?.(next));
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (config.type !== "price") return;
@@ -246,13 +269,11 @@ export function PublishGenericStepScreen({
     try {
       const priceOptional = Boolean(emploiConfig?.priceOptional);
       const isDonation = !priceOptional && Boolean(local.isDonation);
-      const parsedPrice = String(local.price || "")
-        .trim()
-        .replace(/\s/g, "")
-        .replace(",", ".");
+      const priceUnit = normalizePriceUnit(local.priceUnit);
+      const computed = getFinalPriceDa(local.price, priceUnit, isDonation);
       const prix =
-        !isDonation && parsedPrice && Number(parsedPrice) >= 1
-          ? String(Math.round(Number(parsedPrice)))
+        !isDonation && Number.isFinite(computed) && computed >= 1
+          ? String(Math.round(computed))
           : "";
 
       const text = await generateAnnonceDescription({
@@ -561,12 +582,31 @@ export function PublishGenericStepScreen({
       const livraisonActive = isLivraisonDisponibleOui(local.attributs || {});
       const priceOptional = Boolean(emploiConfig?.priceOptional);
       const isDonation = !priceOptional && Boolean(local.isDonation);
+      const priceUnit = normalizePriceUnit(local.priceUnit);
+      const displayedPrice = getDisplayedPriceLabel(local.price, priceUnit, isDonation);
+      const unitHint = getPriceUnitHint(local.price, priceUnit, isDonation);
+      const unitSuffix = getPriceUnitSuffix(priceUnit);
+      const finalPriceDa = getFinalPriceDa(local.price, priceUnit, isDonation);
+      const eurParallel =
+        !isDonation && Number.isFinite(finalPriceDa) && finalPriceDa >= 1
+          ? dzdToEur(finalPriceDa, parallelRate)
+          : null;
+      const eurOfficial =
+        !isDonation && Number.isFinite(finalPriceDa) && finalPriceDa >= 1
+          ? dzdToEur(finalPriceDa, officialRate)
+          : null;
+
       return (
         <View style={styles.priceSection}>
           {!priceOptional ? (
             <TouchableOpacity
               style={styles.donationRow}
-              onPress={() => mergeLocal({ isDonation: !isDonation, price: !isDonation ? "" : local.price })}
+              onPress={() =>
+                mergeLocal({
+                  isDonation: !isDonation,
+                  price: !isDonation ? "" : local.price,
+                })
+              }
               activeOpacity={0.8}
             >
               <View style={[styles.checkbox, isDonation && styles.checkboxActive]}>
@@ -577,23 +617,114 @@ export function PublishGenericStepScreen({
               <Text style={styles.donationText}>Je fais un don</Text>
             </TouchableOpacity>
           ) : null}
-          <PublishFormField
-            label={priceOptional ? "Prix de l'article (optionnel)" : "Prix de l'article"}
-            value={local.price ?? ""}
-            onChangeText={(v) => update("price", v)}
-            placeholder={
-              isDonation ? "" : priceOptional ? "Laisser vide si non applicable" : "450"
-            }
-            maxLength={10}
-            editable={!isDonation}
-            hint={
-              isDonation
-                ? "Annonce en don : aucun prix ne sera envoyé."
-                : priceOptional
-                  ? "Le prix n'est pas obligatoire pour cette sous-catégorie."
-                  : "Conseil : Comparez avec des objets similaires pour vendre plus vite."
-            }
-          />
+
+          <View style={styles.priceFieldWrap}>
+            <Text style={styles.priceFieldLabel}>
+              {priceOptional ? "Prix de l'article (optionnel)" : "Prix de l'article"}
+              {!isDonation && !priceOptional ? (
+                <Text style={styles.priceRequired}> *</Text>
+              ) : null}
+            </Text>
+            <View
+              style={[
+                styles.priceInputWrap,
+                isDonation && styles.priceInputWrapDisabled,
+              ]}
+            >
+              <TextInput
+                style={styles.priceInput}
+                value={local.price ?? ""}
+                onChangeText={(v) => update("price", v)}
+                placeholder={
+                  isDonation
+                    ? ""
+                    : priceOptional
+                      ? "Laisser vide si non applicable"
+                      : "Ex. 450"
+                }
+                placeholderTextColor="rgba(0, 0, 0, 0.19)"
+                keyboardType="decimal-pad"
+                editable={!isDonation}
+                maxLength={16}
+              />
+              <Text style={styles.priceUnitSuffix}>{unitSuffix}</Text>
+            </View>
+          </View>
+
+          <View style={[styles.priceUnitBlock, isDonation && styles.priceUnitBlockDisabled]}>
+            <Text style={styles.priceUnitLegend}>Comment saisir le montant</Text>
+            <View style={styles.priceUnitOptions}>
+              {PRICE_UNIT_OPTIONS.map(({ value, label }) => {
+                const active = priceUnit === value;
+                return (
+                  <TouchableOpacity
+                    key={value}
+                    style={[styles.priceUnitOption, active && styles.priceUnitOptionActive]}
+                    onPress={() => !isDonation && update("priceUnit", value)}
+                    disabled={isDonation}
+                    activeOpacity={0.8}
+                  >
+                    <View style={[styles.radioOuter, active && styles.radioOuterActive]}>
+                      {active ? <View style={styles.radioInner} /> : null}
+                    </View>
+                    <Text
+                      style={[
+                        styles.priceUnitOptionText,
+                        active && styles.priceUnitOptionTextActive,
+                      ]}
+                    >
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {displayedPrice ? (
+            <View
+              style={[
+                styles.pricePreview,
+                isDonation ? styles.pricePreviewDonation : styles.pricePreviewSale,
+              ]}
+            >
+              <Text style={styles.pricePreviewText}>
+                Prix affiché : {displayedPrice}
+              </Text>
+              {unitHint ? (
+                <Text style={styles.pricePreviewHint}>
+                  Saisie : {unitHint}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
+
+          {eurParallel != null ? (
+            <View style={styles.eurConversionBox}>
+              <Text style={styles.eurConversionBasis}>
+                Conversion sur {formatPriceDa(Math.round(finalPriceDa))} DA
+              </Text>
+              <Text style={styles.eurConversionLine}>
+                ≈ {formatEurAmount(eurParallel)} €{" "}
+                <Text style={styles.eurConversionLabel}>(Marché parallèle)</Text>
+              </Text>
+              {eurOfficial != null ? (
+                <Text style={styles.eurConversionLine}>
+                  ≈ {formatEurAmount(eurOfficial)} €{" "}
+                  <Text style={styles.eurConversionLabel}>(Banque)</Text>
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
+
+          <Text style={styles.priceHint}>
+            {isDonation
+              ? "Annonce en don : aucun prix ne sera envoyé."
+              : priceOptional
+                ? "Le prix n'est pas obligatoire pour cette sous-catégorie."
+                : "Conseil : Comparez avec des objets similaires pour vendre plus vite. Millions = ×1 000 000 DA, Centimes = ÷100."}
+          </Text>
+
           {isDonation ? (
             <View style={styles.donationBanner}>
               <Text style={styles.donationBannerText}>
@@ -719,7 +850,13 @@ export function PublishGenericStepScreen({
                     {local.title || "Titre de l'annonce"}
                   </Text>
                   <Text style={styles.previewPrice}>
-                    {local.isDonation ? "Don" : local.price ? `${local.price} €` : "—"}
+                    {local.isDonation
+                      ? "Don"
+                      : getDisplayedPriceLabel(
+                          local.price,
+                          local.priceUnit,
+                          false
+                        ) || "—"}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -803,7 +940,13 @@ export function PublishGenericStepScreen({
                 {local.title || "Votre annonce"}
               </Text>
               <Text style={styles.successPrice}>
-                {local.isDonation ? "Don" : local.price ? `${local.price} €` : "—"}
+                {local.isDonation
+                  ? "Don"
+                  : getDisplayedPriceLabel(
+                      local.price,
+                      local.priceUnit,
+                      false
+                    ) || "—"}
               </Text>
               <View style={styles.badgeRow}>
                 <View style={styles.chip}>
@@ -1204,12 +1347,16 @@ export function PublishGenericStepScreen({
     if (config.type === "price") {
       const priceOptional = Boolean(emploiConfig?.priceOptional);
       const isDonation = !priceOptional && Boolean(local.isDonation);
-      if (!priceOptional && !isDonation && !String(local.price ?? "").trim()) {
-        showDevMessage(
-          "Prix requis",
-          "Indiquez un prix pour votre annonce."
-        );
-        return;
+      const priceUnit = normalizePriceUnit(local.priceUnit);
+      if (!priceOptional && !isDonation) {
+        const finalDa = getFinalPriceDa(local.price, priceUnit, false);
+        if (!Number.isFinite(finalDa) || finalDa < 1) {
+          showDevMessage(
+            "Prix requis",
+            "Indiquez un prix d'au moins 1 DA (selon l'unité choisie)."
+          );
+          return;
+        }
       }
       if (isDonation) {
         mergeLocal({ price: "" });
@@ -1282,7 +1429,11 @@ export function PublishBoostScreen({ draft, onBack, onClose, onFinish }) {
             {draft?.title || "Votre annonce"}
           </Text>
           <Text style={styles.boostPreviewMeta}>
-            {draft?.price ? `${draft.price} €` : "—"} · {draft?.city || "Lyon"}
+            {draft?.isDonation
+              ? "Don"
+              : getDisplayedPriceLabel(draft?.price, draft?.priceUnit, false) ||
+                "—"}{" "}
+            · {draft?.city || "Lyon"}
             {draft?.postalCode ? ` (${draft.postalCode})` : ""}
           </Text>
           <View style={styles.boostStatusRow}>
@@ -1393,6 +1544,144 @@ const styles = StyleSheet.create({
     color: colors.textHeading,
   },
   priceSection: { gap: 16 },
+  priceFieldWrap: { gap: 8 },
+  priceFieldLabel: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.textHeading,
+  },
+  priceRequired: { color: colors.primary },
+  priceInputWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 56,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    borderRadius: 8,
+    backgroundColor: colors.white,
+    paddingHorizontal: 16,
+  },
+  priceInputWrapDisabled: {
+    opacity: 0.55,
+    backgroundColor: "#F5F5F5",
+  },
+  priceInput: {
+    flex: 1,
+    fontSize: 16,
+    color: colors.textHeading,
+    paddingVertical: 0,
+  },
+  priceUnitSuffix: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.textMuted,
+    marginLeft: 8,
+  },
+  priceUnitBlock: { gap: 10 },
+  priceUnitBlockDisabled: { opacity: 0.5 },
+  priceUnitLegend: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.textMuted,
+  },
+  priceUnitOptions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  priceUnitOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+  },
+  priceUnitOptionActive: {
+    borderColor: colors.primary,
+    backgroundColor: "#FFF0F2",
+  },
+  priceUnitOptionText: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: colors.textMuted,
+  },
+  priceUnitOptionTextActive: {
+    color: colors.primary,
+    fontWeight: "700",
+  },
+  radioOuter: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  radioOuterActive: {
+    borderColor: colors.primary,
+  },
+  radioInner: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: colors.primary,
+  },
+  pricePreview: {
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 4,
+  },
+  pricePreviewSale: {
+    backgroundColor: "#F0F7F4",
+  },
+  pricePreviewDonation: {
+    backgroundColor: colors.brandLight,
+  },
+  pricePreviewText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.textHeading,
+  },
+  pricePreviewHint: {
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  eurConversionBox: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 6,
+  },
+  eurConversionBasis: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.textMuted,
+    marginBottom: 2,
+  },
+  eurConversionLine: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.textHeading,
+  },
+  eurConversionLabel: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: colors.textMuted,
+  },
+  priceHint: {
+    fontSize: 12,
+    color: colors.textMuted,
+    lineHeight: 18,
+  },
   donationRow: {
     flexDirection: "row",
     alignItems: "center",

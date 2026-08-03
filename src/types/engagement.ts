@@ -35,6 +35,8 @@ export type SavedSearch = {
   query?: string;
   titre?: string;
   label?: string;
+  queryJson?: string;
+  filters?: Record<string, unknown>;
   createdAt?: string;
 };
 

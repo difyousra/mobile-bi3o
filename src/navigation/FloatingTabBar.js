@@ -101,12 +101,11 @@ export default function FloatingTabBar({ navigationRef, navState }) {
   return (
     <View
       style={[
-        styles.outer,
-        { paddingBottom: Math.max(insets.bottom, 12) },
+        styles.bar,
+        { paddingBottom: Math.max(insets.bottom, 8) },
       ]}
-      pointerEvents="box-none"
     >
-      <View style={styles.pill}>
+      <View style={styles.inner}>
         {TAB_ROUTES.map((name) => {
           const isFocused = activeTab === name;
 
@@ -156,42 +155,42 @@ export default function FloatingTabBar({ navigationRef, navState }) {
 }
 
 const styles = StyleSheet.create({
-  outer: {
+  bar: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    alignItems: "center",
+    width: "100%",
+    backgroundColor: colors.white,
+    borderTopWidth: 1,
+    borderTopColor: "#E8EAED",
     zIndex: 100,
     elevation: 100,
-  },
-  pill: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: "#F5F5F5",
-    borderRadius: 16,
-    padding: 8,
-    marginHorizontal: 16,
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: -2 },
       },
       android: {
-        elevation: 6,
+        elevation: 12,
       },
     }),
   },
+  inner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    width: "100%",
+    paddingHorizontal: 8,
+    paddingTop: 8,
+  },
   tab: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: 4,
+    paddingVertical: 4,
   },
   iconWrap: {
     width: 44,
@@ -204,6 +203,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(18, 25, 38, 0.03)",
   },
   publishWrap: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
   },

@@ -1,8 +1,11 @@
 import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { MultiDropdownField } from "./immobilier/ImmobilierFieldControls";
 import PublishFormField from "./PublishFormField";
-import { LIVRAISON_PARTENAIRE_OPTIONS, normalizeLivraisonPartners } from "../../features/annonces/utils/livraisonFinalizer";
+import {
+  LIVRAISON_PARTENAIRE_OPTIONS,
+  normalizeLivraisonPartners,
+} from "../../features/annonces/utils/livraisonFinalizer";
+import { LivraisonPartnersGrid } from "../product/AdDetailLivraisonCard";
 import { colors } from "../../theme/colors";
 
 export default function LivraisonFinalizerCard({
@@ -10,64 +13,105 @@ export default function LivraisonFinalizerCard({
   onAttributChange,
 }) {
   const selected = normalizeLivraisonPartners(attributs.partenaires_de_livraison);
-  const value = selected.join(",");
+
+  const togglePartner = (label) => {
+    const set = new Set(selected);
+    if (set.has(label)) set.delete(label);
+    else set.add(label);
+    const next = LIVRAISON_PARTENAIRE_OPTIONS.filter((name) => set.has(name));
+    onAttributChange?.("partenaires_de_livraison", next);
+  };
 
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <View style={styles.iconWrap}>
-          <Ionicons name="cube-outline" size={18} color={colors.primary} />
+        <View style={styles.titleRow}>
+          <View style={styles.iconWrap}>
+            <Ionicons name="car-outline" size={16} color="#475569" />
+          </View>
+          <View style={styles.headerText}>
+            <Text style={styles.title}>En livraison</Text>
+            <Text style={styles.subtitle}>
+              Les frais de livraison sont à la charge de l'acheteur
+            </Text>
+          </View>
         </View>
-        <View style={styles.headerText}>
-          <Text style={styles.title}>Livraison</Text>
-          <Text style={styles.subtitle}>
-            Précisez vos méthodes de livraison pour cette annonce.
-          </Text>
+        <View style={styles.activeBadge}>
+          <Text style={styles.activeBadgeText}>Activé</Text>
         </View>
       </View>
 
-      <MultiDropdownField
-        label="Partenaires de livraison"
-        options={LIVRAISON_PARTENAIRE_OPTIONS}
-        value={value}
-        onChange={(next) =>
-          onAttributChange?.("partenaires_de_livraison", normalizeLivraisonPartners(next))
-        }
+      <LivraisonPartnersGrid
+        selected={selected}
+        readOnly={false}
+        onToggle={togglePartner}
       />
 
-      <PublishFormField
-        label="Bureau ou point relais"
-        value={attributs.bureau_ou_point_relais ?? ""}
-        onChangeText={(next) => onAttributChange?.("bureau_ou_point_relais", next)}
-        placeholder="Ex: EMS Kouba, Point relais Yalidine Hydra"
-      />
+      <View style={styles.fields}>
+        <PublishFormField
+          label="Bureau ou point relais"
+          value={attributs.bureau_ou_point_relais ?? ""}
+          onChangeText={(next) => onAttributChange?.("bureau_ou_point_relais", next)}
+          placeholder="Ex. : bureau de poste, relais Yalidine, adresse du point de retrait…"
+        />
+        <Text style={styles.hint}>
+          Indiquez où le colis peut être déposé ou récupéré selon le partenaire choisi.
+        </Text>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
+    marginTop: 6,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: "#E5E7EB",
     borderRadius: 16,
-    backgroundColor: colors.white,
-    padding: 16,
-    gap: 16,
+    backgroundColor: "#FFFFFF",
+    overflow: "hidden",
   },
   header: {
     flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
     gap: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  titleRow: {
+    flex: 1,
+    flexDirection: "row",
+    gap: 10,
     alignItems: "flex-start",
   },
   iconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.brandLight,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#F1F5F9",
     alignItems: "center",
     justifyContent: "center",
   },
   headerText: { flex: 1, gap: 2 },
-  title: { fontSize: 15, fontWeight: "700", color: colors.textHeading },
-  subtitle: { fontSize: 12, color: colors.textMuted },
+  title: { fontSize: 15, fontWeight: "700", color: "#0F172A" },
+  subtitle: { fontSize: 12, color: "#64748B", lineHeight: 16 },
+  activeBadge: {
+    backgroundColor: "#ECFDF5",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+  },
+  activeBadgeText: { fontSize: 11, fontWeight: "700", color: "#047857" },
+  fields: {
+    paddingHorizontal: 18,
+    paddingTop: 8,
+    paddingBottom: 16,
+    gap: 6,
+  },
+  hint: { fontSize: 12, color: "#64748B", lineHeight: 17 },
 });

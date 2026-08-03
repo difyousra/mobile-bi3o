@@ -3,23 +3,32 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
 
 export default function SavedSellerRow({ seller, onPress, onUnfollow }) {
+  const hasAvatar = Boolean(seller.avatar);
+
   return (
     <TouchableOpacity
       style={styles.row}
       activeOpacity={0.85}
       onPress={() => onPress(seller)}
     >
-      <Image source={{ uri: seller.avatar }} style={styles.avatar} />
+      {hasAvatar ? (
+        <Image source={{ uri: seller.avatar }} style={styles.avatar} />
+      ) : (
+        <View style={[styles.avatar, styles.avatarFallback]}>
+          <Ionicons name="person" size={22} color={colors.iconMuted} />
+        </View>
+      )}
       <View style={styles.info}>
         <Text style={styles.name}>{seller.name}</Text>
         <Text style={styles.meta}>
-          {seller.listings} annonces · ★ {seller.rating.toFixed(1)}
+          {seller.listings} annonce{seller.listings !== 1 ? "s" : ""}
         </Text>
       </View>
       <TouchableOpacity
         style={styles.followButton}
         activeOpacity={0.8}
         onPress={() => onUnfollow(seller.id)}
+        accessibilityLabel="Ne plus suivre"
       >
         <Ionicons name="heart" size={16} color={colors.primary} />
       </TouchableOpacity>
@@ -41,6 +50,10 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     backgroundColor: "#F0F2F5",
+  },
+  avatarFallback: {
+    alignItems: "center",
+    justifyContent: "center",
   },
   info: {
     flex: 1,

@@ -8,6 +8,22 @@ export const LIVRAISON_PARTENAIRE_OPTIONS = [
   "Autre",
 ];
 
+/** Sites officiels des partenaires (tap logo → ouvrir). */
+export const LIVRAISON_PARTNER_WEBSITES = {
+  Yassir: "https://yassir.com/",
+  EMS: "https://www.ems.dz/",
+  "Algérie Poste": "https://www.poste.dz/",
+  Yalidine: "https://yalidine.com/",
+};
+
+/** Chemins assets (miroir web public/images/livraison). */
+export const LIVRAISON_PARTNER_LOGO_KEYS = [
+  "Yassir",
+  "EMS",
+  "Algérie Poste",
+  "Yalidine",
+];
+
 export const LIVRAISON_FINALIZER_ATTR_KEYS = [
   "partenaires_de_livraison",
   "bureau_ou_point_relais",
@@ -44,6 +60,29 @@ export function normalizeLivraisonPartners(raw) {
     .split(/,\s*/)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+/** Partenaires + bureau depuis les valeurs API (détail annonce). */
+export function resolveLivraisonFinalizerFromValeurs(valeurs = []) {
+  let partenaires_de_livraison = [];
+  let bureau_ou_point_relais = "";
+
+  for (const valeur of valeurs) {
+    const key = taxoNomToLivraisonFinalizerKey(valeur?.attributNom);
+    if (!key) continue;
+    const text =
+      valeur?.valueText != null && String(valeur.valueText).trim() !== ""
+        ? String(valeur.valueText).trim()
+        : "";
+    if (key === "partenaires_de_livraison" && text) {
+      partenaires_de_livraison = normalizeLivraisonPartners(text);
+    }
+    if (key === "bureau_ou_point_relais" && text) {
+      bureau_ou_point_relais = text;
+    }
+  }
+
+  return { partenaires_de_livraison, bureau_ou_point_relais };
 }
 
 export function applyLivraisonFinalizerAttrIdsFromTaxo(taxoRows = []) {

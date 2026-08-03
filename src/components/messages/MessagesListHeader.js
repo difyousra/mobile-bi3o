@@ -1,12 +1,14 @@
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, TouchableOpacity, StyleSheet, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
+import BrandLogo from "../common/BrandLogo";
 
 export default function MessagesListHeader({
   onBackPress,
   showBack,
   onNewChatPress,
   onRefreshPress,
+  onLogoPress,
 }) {
   return (
     <View style={styles.row}>
@@ -19,7 +21,7 @@ export default function MessagesListHeader({
           <Ionicons name="arrow-back" size={22} color={colors.white} />
         </TouchableOpacity>
       ) : (
-        <Text style={styles.logo}>Bi3oo</Text>
+        <BrandLogo onPress={onLogoPress} height={30} style={styles.logo} />
       )}
 
       {showBack ? <Text style={styles.title}>Messages</Text> : null}
@@ -54,11 +56,6 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   logo: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: colors.primary,
-    fontStyle: "italic",
-    letterSpacing: -0.5,
     flex: 1,
   },
   title: {

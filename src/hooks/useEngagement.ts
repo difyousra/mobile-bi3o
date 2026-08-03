@@ -183,26 +183,33 @@ export function useMarkAllNotificationsRead() {
  * Backend : GET /users/me/following
  */
 export function useFollowedSellers() {
+  const { isAuthenticated } = useAuth();
   return useQuery({
     queryKey: queryKeys.followedSellers,
     queryFn: () => engagement.fetchFollowedSellers({ page: 0, size: 50 }),
     staleTime: 60_000,
+    enabled: isAuthenticated,
   });
 }
 
 export function useSavedSearches() {
+  const { isAuthenticated } = useAuth();
   return useQuery({
     queryKey: queryKeys.savedSearches,
     queryFn: engagement.fetchSavedSearches,
     staleTime: 60_000,
+    enabled: isAuthenticated,
   });
 }
 
 export function useCreateSavedSearch() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: { query: string; label?: string }) =>
-      engagement.createSavedSearch(payload),
+    mutationFn: (payload: {
+      query: string;
+      label?: string;
+      filters?: Record<string, unknown>;
+    }) => engagement.createSavedSearch(payload),
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.savedSearches });
     },

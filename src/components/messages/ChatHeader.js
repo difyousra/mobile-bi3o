@@ -1,6 +1,7 @@
 import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
+import BrandLogo from "../common/BrandLogo";
 
 export default function ChatHeader({
   variant = "seller",
@@ -35,7 +36,7 @@ export default function ChatHeader({
           </View>
         </TouchableOpacity>
       ) : (
-        <Text style={styles.logo}>Bi3oo</Text>
+        <BrandLogo height={28} style={{ flex: 1 }} />
       )}
 
       <TouchableOpacity

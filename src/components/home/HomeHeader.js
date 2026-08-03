@@ -1,14 +1,15 @@
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
+import BrandLogo from "../common/BrandLogo";
 import { useUnreadNotificationsCount } from "../../hooks/useEngagement";
 
-export default function HomeHeader({ onNotificationPress }) {
+export default function HomeHeader({ onNotificationPress, onLogoPress }) {
   const { data: unread = 0 } = useUnreadNotificationsCount();
 
   return (
     <View style={styles.row}>
-      <Text style={styles.logo}>Bi3oo</Text>
+      <BrandLogo onPress={onLogoPress} height={30} />
 
       <View style={styles.actions}>
         <TouchableOpacity
@@ -30,13 +31,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 14,
-  },
-  logo: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: colors.primary,
-    fontStyle: "italic",
-    letterSpacing: -0.5,
   },
   actions: {
     flexDirection: "row",

@@ -16,7 +16,9 @@ export const queryKeys = {
     attributs?: object[],
     prixMin?: number | null,
     prixMax?: number | null,
-    type?: string | null
+    type?: string | null,
+    disponibiliteDateArrivee?: string | null,
+    disponibiliteDateDepart?: string | null
   ) =>
     [
       "annonces",
@@ -29,6 +31,8 @@ export const queryKeys = {
       prixMin ?? null,
       prixMax ?? null,
       type ?? null,
+      disponibiliteDateArrivee ?? null,
+      disponibiliteDateDepart ?? null,
     ] as const,
   suggestions: (q: string) => ["annonces", "suggestions", q] as const,
   sellerPublic: (id: number) => ["users", "public", id] as const,

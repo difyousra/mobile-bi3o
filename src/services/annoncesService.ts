@@ -100,14 +100,26 @@ export async function searchAllAttributes(
   body: SearchAllAttributesRequest,
   params?: { page?: number; size?: number }
 ): Promise<PublicAdsPage> {
+  const payload: Record<string, unknown> = {
+    titre: body.titre ?? "",
+    attributs: body.attributs ?? [],
+  };
+  // Singuliers requis par AnnonceSearchRequest (filtre dispo saisonnière inclus)
+  if (body.categorieId != null) payload.categorieId = body.categorieId;
+  if (body.sousCategorieId != null) payload.sousCategorieId = body.sousCategorieId;
+  if (body.prixMin != null) payload.prixMin = body.prixMin;
+  if (body.prixMax != null) payload.prixMax = body.prixMax;
+  if (body.type) payload.type = body.type;
+  if (body.disponibiliteDateArrivee) {
+    payload.disponibiliteDateArrivee = body.disponibiliteDateArrivee;
+  }
+  if (body.disponibiliteDateDepart) {
+    payload.disponibiliteDateDepart = body.disponibiliteDateDepart;
+  }
+
   const { data } = await apiClient.post<unknown>(
     "/annonces/search/all-attributes",
-    {
-      titre: body.titre ?? "",
-      categorieIds: body.categorieIds ?? [],
-      sousCategorieIds: body.sousCategorieIds ?? [],
-      attributs: body.attributs ?? [],
-    },
+    payload,
     {
       params: {
         page: params?.page ?? 0,

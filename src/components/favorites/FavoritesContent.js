@@ -25,6 +25,7 @@ import {
   useUnreadNotificationsCount,
 } from "../../hooks/useEngagement";
 import { normalizeProduct } from "../../utils/productMapper";
+import { resolveMediaUrl } from "../../utils/mediaUrl";
 import { showDevMessage } from "../../utils/devFeedback";
 import { colors } from "../../theme/colors";
 import { useTabBarInset } from "../../hooks/useTabBarInset";
@@ -41,8 +42,12 @@ export default function FavoritesContent() {
     isError,
     refetch,
   } = useFavorites();
-  const { data: savedSearches = [], refetch: refetchSearches } =
-    useSavedSearches();
+  const {
+    data: savedSearches = [],
+    isLoading: searchesLoading,
+    isError: searchesError,
+    refetch: refetchSearches,
+  } = useSavedSearches();
   const deleteSearch = useDeleteSavedSearch();
   const { data: unreadCount = 0 } = useUnreadNotificationsCount();
   const {
@@ -79,10 +84,6 @@ export default function FavoritesContent() {
     });
   }, [savedSearches, searchQuery]);
 
-  const handleChatPress = () => {
-    navigation.navigate("Messages");
-  };
-
   const handleNotificationPress = () => {
     navigation.navigate("Notifications");
   };
@@ -113,6 +114,9 @@ export default function FavoritesContent() {
     <>
       <HomeHeader
         onNotificationPress={handleNotificationPress}
+        onLogoPress={() =>
+          navigation.navigate("MainTabs", { screen: "Home" })
+        }
       />
       {unreadCount > 0 ? (
         <Text style={styles.unreadHint}>
@@ -189,12 +193,36 @@ export default function FavoritesContent() {
           data={filteredSearches}
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={[styles.list, { paddingBottom: tabBarInset }]}
-          ListHeaderComponent={renderHeader()}
+          refreshControl={
+            <RefreshControl
+              refreshing={Boolean(searchesLoading)}
+              onRefresh={onRefresh}
+            />
+          }
+          ListHeaderComponent={
+            <>
+              {renderHeader()}
+              {searchesLoading && filteredSearches.length === 0 ? (
+                <ActivityIndicator
+                  color={colors.primary}
+                  style={{ marginVertical: 24 }}
+                />
+              ) : null}
+              {searchesError ? (
+                <Text style={styles.error}>
+                  Impossible de charger vos recherches sauvegardées.
+                </Text>
+              ) : null}
+            </>
+          }
           ListEmptyComponent={
-            <Text style={styles.empty}>
-              Aucune recherche sauvegardée. Utilisez « Save Search » dans
-              Recherche.
-            </Text>
+            !searchesLoading && !searchesError ? (
+              <Text style={styles.empty}>
+                Aucune recherche sauvegardée.{"\n"}
+                Dans Recherche, saisissez un mot-clé puis appuyez sur
+                « Enregistrer ».
+              </Text>
+            ) : null
           }
           renderItem={({ item }) => {
             const label = item.label ?? item.titre ?? item.query ?? "Recherche";
@@ -204,11 +232,15 @@ export default function FavoritesContent() {
                   style={styles.searchMain}
                   onPress={() =>
                     navigation.navigate("Search", {
-                      initialQuery: item.query ?? item.titre ?? "",
+                      initialQuery: item.query ?? item.label ?? "",
+                      filters: item.filters,
                     })
                   }
                 >
                   <Text style={styles.searchLabel}>{label}</Text>
+                  {item.query && item.query !== label ? (
+                    <Text style={styles.searchMeta}>{item.query}</Text>
+                  ) : null}
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => deleteSearch.mutate(item.id)}
@@ -232,7 +264,11 @@ export default function FavoritesContent() {
       const q = searchQuery.trim().toLowerCase();
       if (!q) return sellers;
       return sellers.filter((s) =>
-        String(s?.displayName ?? s?.nom ?? s?.prenom ?? "")
+        String(
+          s?.displayName ??
+            [s?.prenom, s?.nom].filter(Boolean).join(" ") ??
+            ""
+        )
           .toLowerCase()
           .includes(q)
       );
@@ -244,26 +280,47 @@ export default function FavoritesContent() {
           data={filteredSellers}
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={[styles.list, { paddingBottom: tabBarInset }]}
-          ListHeaderComponent={renderHeader()}
+          ListHeaderComponent={
+            <>
+              {renderHeader()}
+              {sellersLoading && filteredSellers.length === 0 ? (
+                <ActivityIndicator
+                  color={colors.primary}
+                  style={{ marginVertical: 24 }}
+                />
+              ) : null}
+              {sellersError ? (
+                <Text style={styles.error}>
+                  Impossible de charger les vendeurs suivis.
+                </Text>
+              ) : null}
+            </>
+          }
           ListEmptyComponent={
             !sellersLoading && !sellersError ? (
-              <Text style={styles.empty}>Aucun vendeur suivi.</Text>
+              <Text style={styles.empty}>
+                Aucun vendeur suivi.{"\n"}
+                Sur une annonce, ouvrez le profil vendeur et appuyez sur
+                « Suivre ».
+              </Text>
             ) : null
           }
           refreshControl={
             <RefreshControl
-              refreshing={Boolean(isLoading || sellersLoading)}
+              refreshing={Boolean(sellersLoading)}
               onRefresh={onRefresh}
             />
           }
           renderItem={({ item }) => {
+            const name =
+              item.displayName ||
+              [item.prenom, item.nom].filter(Boolean).join(" ") ||
+              `Vendeur #${item.id}`;
+            const avatar = resolveMediaUrl(item.photoUrl) || "";
             const seller = {
               id: item.id,
-              name:
-                item.displayName ??
-                [item.prenom, item.nom].filter(Boolean).join(" ") ??
-                `Vendeur #${item.id}`,
-              avatar: item.photoUrl ?? "",
+              name,
+              avatar,
               listings: Number(item.adsCount ?? 0),
               rating: 0,
             };
@@ -334,6 +391,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.textDark,
     fontWeight: "500",
+  },
+  searchMeta: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 2,
   },
   delete: {
     color: colors.primary,

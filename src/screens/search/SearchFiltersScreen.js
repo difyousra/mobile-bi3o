@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Modal,
   FlatList,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -30,9 +31,9 @@ import {
   getDynamicFiltersLabel,
 } from "../../features/filters/categoryFilterSchemas";
 import {
-  isImmobilierSectionVisible,
   resolveImmobilierLinkageProfile,
 } from "../../features/filters/immobilierFilterAttributes";
+import { isFilterFieldVisible } from "../../features/filters/filterSchemaRuntime";
 import { buildSchemaSearchPayload, countActiveSchemaFilters } from "../../features/filters/buildSchemaSearchPayload";
 
 /* ─── Composants de rendu de champ ─────────────────────────────────────────── */
@@ -63,6 +64,42 @@ function RangeField({ field, filters, onChange }) {
           placeholderTextColor={colors.placeholder}
           keyboardType="numeric"
         />
+      </View>
+    </View>
+  );
+}
+
+/** Plage de dates ISO (AAAA-MM-JJ) — aligné new front FilterDateRangeField. */
+function DateRangeField({ field, filters, onChange }) {
+  const minKey = field.minParam || 'min';
+  const maxKey = field.maxParam || 'max';
+  const webDateProps =
+    Platform.OS === 'web'
+      ? { type: 'date' }
+      : { placeholder: 'AAAA-MM-JJ', placeholderTextColor: colors.placeholder };
+
+  return (
+    <View>
+      {field.hint ? <Text style={fStyles.hint}>{field.hint}</Text> : null}
+      <View style={fStyles.rangeRow}>
+        <View style={fStyles.rangeField}>
+          <Text style={fStyles.rangeLabel}>Arrivée</Text>
+          <TextInput
+            style={fStyles.rangeInput}
+            value={String(filters[minKey] || '')}
+            onChangeText={(v) => onChange({ [minKey]: v })}
+            {...webDateProps}
+          />
+        </View>
+        <View style={fStyles.rangeField}>
+          <Text style={fStyles.rangeLabel}>Départ</Text>
+          <TextInput
+            style={fStyles.rangeInput}
+            value={String(filters[maxKey] || '')}
+            onChangeText={(v) => onChange({ [maxKey]: v })}
+            {...webDateProps}
+          />
+        </View>
       </View>
     </View>
   );
@@ -288,7 +325,8 @@ function VehicleModelField({ field, filters, onChange }) {
 }
 
 function FilterField({ field, filters, onChange }) {
-  if (field.type === 'range' || field.type === 'dateRange') return <RangeField field={field} filters={filters} onChange={onChange} />;
+  if (field.type === 'dateRange') return <DateRangeField field={field} filters={filters} onChange={onChange} />;
+  if (field.type === 'range') return <RangeField field={field} filters={filters} onChange={onChange} />;
   if (field.type === 'buttons') return <ButtonsField field={field} filters={filters} onChange={onChange} />;
   if (field.type === 'segmented') return <SegmentedField field={field} filters={filters} onChange={onChange} />;
   if (field.type === 'tags') return <TagsField field={field} filters={filters} onChange={onChange} />;
@@ -456,9 +494,8 @@ export default function SearchFiltersScreen({ navigation, route }) {
   const [priceMax, setPriceMax] = useState(initial.priceMax ?? '');
   const [annonceType, setAnnonceType] = useState(initial.annonceType ?? '');
 
-  // Filtres dynamiques (immobilier, véhicule…) — objet plat
+  // Filtres dynamiques (immobilier, véhicule, électronique…) — objet plat
   const [dynFilters, setDynFilters] = useState(initial.dynFilters ?? {});
-  const updateDynFilter = (patch) => setDynFilters((prev) => ({ ...prev, ...patch }));
 
   const [catPickerVisible, setCatPickerVisible] = useState(false);
   const { chips, isLoading: taxoLoading } = useCategoryChips();
@@ -474,6 +511,26 @@ export default function SearchFiltersScreen({ navigation, route }) {
     () => getFilterSchema({ categorieId, sousCategorieId, taxoAttributs }) ?? [],
     [categorieId, sousCategorieId, taxoAttributs]
   );
+
+  const updateDynFilter = useCallback(
+    (patch) => {
+      setDynFilters((prev) => {
+        const next = { ...prev, ...patch };
+        // clearsOnChange : vider les champs dépendants (ex. marque → modèle)
+        for (const field of dynSchema) {
+          const key = field.param || field.id;
+          if (!(key in patch) || !field.clearsOnChange?.length) continue;
+          field.clearsOnChange.forEach((child) => {
+            const prevVal = prev[child];
+            next[child] = Array.isArray(prevVal) ? [] : '';
+          });
+        }
+        return next;
+      });
+    },
+    [dynSchema]
+  );
+
   const hasDyn = hasDynamicFilters({ categorieId, sousCategorieId });
   const dynLabel = getDynamicFiltersLabel({ categorieId, sousCategorieId });
   // Emploi : salaire remplace le prix générique (comme le web)
@@ -481,20 +538,16 @@ export default function SearchFiltersScreen({ navigation, route }) {
 
   // Linkage immobilier : filtres conditionnels selon type de bien sélectionné
   const linkageProfile = resolveImmobilierLinkageProfile(sousCategorieId);
-  const selectedPropertyTypes = useMemo(() => {
-    const val = dynFilters.propertyType;
-    if (Array.isArray(val)) return val;
-    if (val) return [val];
-    return [];
-  }, [dynFilters.propertyType]);
 
   const visibleDynFields = useMemo(() => {
     return dynSchema.filter((field) => {
       if (field.id === 'price') return false; // géré séparément
-      if (!field.linkageSection) return true;
-      return isImmobilierSectionVisible(linkageProfile, field.linkageSection, selectedPropertyTypes);
+      return isFilterFieldVisible(field, dynFilters, {
+        linkageProfile,
+        linkageSourceField: 'propertyType',
+      });
     });
-  }, [dynSchema, linkageProfile, selectedPropertyTypes]);
+  }, [dynSchema, dynFilters, linkageProfile]);
 
   // Label affiché sur le bouton catégorie
   const catLabel = useMemo(() => {
@@ -537,6 +590,8 @@ export default function SearchFiltersScreen({ navigation, route }) {
           prixMin: apiPayload.prixMin ?? (priceMin ? Number(priceMin) : null),
           prixMax: apiPayload.prixMax ?? (priceMax ? Number(priceMax) : null),
           type: apiPayload.type ?? (annonceType || null),
+          disponibiliteDateArrivee: apiPayload.disponibiliteDateArrivee ?? null,
+          disponibiliteDateDepart: apiPayload.disponibiliteDateDepart ?? null,
           dynFilters, // pour conserver l'état dans le formulaire
         },
       },
@@ -567,7 +622,7 @@ export default function SearchFiltersScreen({ navigation, route }) {
         onSelect={({ categorieId: cid, sousCategorieId: sid }) => {
           setCategorieId(cid);
           setSousCategorieId(sid);
-          setImmFilters({});
+          setDynFilters({});
         }}
         categories={categories}
         sousCategories={sousCategories}
@@ -599,7 +654,7 @@ export default function SearchFiltersScreen({ navigation, route }) {
         {catLabel ? (
           <TouchableOpacity
             style={styles.clearCatBtn}
-            onPress={() => { setCategorieId(null); setSousCategorieId(null); setImmFilters({}); }}
+            onPress={() => { setCategorieId(null); setSousCategorieId(null); setDynFilters({}); }}
           >
             <Ionicons name="close-circle" size={16} color={colors.textMuted} />
             <Text style={styles.clearCatText}>Effacer la catégorie</Text>
@@ -725,6 +780,7 @@ const fStyles = StyleSheet.create({
   rangeRow: { flexDirection: 'row', gap: 12 },
   rangeField: { flex: 1 },
   rangeLabel: { fontSize: 12, color: colors.textMuted, marginBottom: 4 },
+  hint: { fontSize: 12, color: colors.textMuted, marginBottom: 8 },
   rangeInput: {
     borderWidth: 1, borderColor: colors.border, borderRadius: 10,
     paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, color: colors.textHeading,

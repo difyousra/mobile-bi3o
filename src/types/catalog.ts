@@ -13,6 +13,7 @@ export type AdCard = {
   sousCategorieId?: number;
   userId?: number;
   vendeurPublicNom?: string;
+  vendeurEstPro?: boolean;
   favorisCount?: number;
   views?: number;
   photos?: Array<{
@@ -95,15 +96,40 @@ export type PublicAdStats = {
 /** Body Postman — POST /annonces/search/all-attributes */
 export type SearchAllAttributesRequest = {
   titre?: string;
+  /** Singuliers — format backend AnnonceSearchRequest */
+  categorieId?: number;
+  sousCategorieId?: number;
+  /** Pluriels legacy (ignorés par le backend Jackson si inconnus) */
   categorieIds?: number[];
   sousCategorieIds?: number[];
+  prixMin?: number;
+  prixMax?: number;
+  type?: string;
+  disponibiliteDateArrivee?: string;
+  disponibiliteDateDepart?: string;
   attributs?: Array<{
     attributDefiniId?: number;
+    nom?: string;
+    type?: string;
+    equalsText?: string;
     valueText?: string;
+    min?: string | number;
+    max?: string | number;
+    dateMin?: string;
+    dateMax?: string;
   }>;
 };
 
 export type ExchangeRate = {
+  /** 1 EUR = X DZD (taux officiel). */
+  officialRate?: number;
+  /** 1 EUR = X DZD (marché parallèle, achat). */
+  parallelBuy?: number;
+  /** 1 EUR = X DZD (marché parallèle, vente). */
+  parallelSell?: number;
+  displayRateType?: string;
+  updatedAt?: string;
+  /** Alias legacy */
   eurToDzd?: number;
   dzdToEur?: number;
   rate?: number;

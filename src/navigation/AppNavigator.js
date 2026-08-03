@@ -34,6 +34,8 @@ import PrivacyPolicyScreen from "../screens/settings/PrivacyPolicyScreen";
 import TermsOfUseScreen from "../screens/settings/TermsOfUseScreen";
 import AboutBi3ooScreen from "../screens/settings/AboutBi3ooScreen";
 import LegalContactScreen from "../screens/settings/LegalContactScreen";
+import MortgageSimulatorScreen from "../screens/simulators/MortgageSimulatorScreen";
+import VehicleSimulatorScreen from "../screens/simulators/VehicleSimulatorScreen";
 import FloatingTabBar from "./FloatingTabBar";
 import CartScreen from "../screens/CartScreen";
 import { navigationRef } from "./navigationRef";
@@ -82,6 +84,14 @@ export default function AppNavigator() {
           <Stack.Screen name="SearchFilters" component={SearchFiltersScreen} />
           <Stack.Screen name="MapSearch" component={MapSearchScreen} />
           <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
+          <Stack.Screen
+            name="MortgageSimulator"
+            component={MortgageSimulatorScreen}
+          />
+          <Stack.Screen
+            name="VehicleSimulator"
+            component={VehicleSimulatorScreen}
+          />
           <Stack.Screen
             name="ProductReviews"
             component={ProductReviewsScreen}

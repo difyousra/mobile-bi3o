@@ -12,6 +12,7 @@ export default function BuyFlowHeader({ navigation, activeCategory = "clothes" }
         onNotificationPress={() =>
           showDevMessage("Notifications", "Bientôt disponible.")
         }
+        onLogoPress={() => navigation.navigate("MainTabs", { screen: "Home" })}
       />
       <HomeSearchBar
         placeholder="Search clothes. . ."

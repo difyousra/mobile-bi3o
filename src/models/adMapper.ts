@@ -1,5 +1,7 @@
 import type { AdCard, AnnonceValeur, CategoryTreeNode, PublicAdDetail } from "../types/catalog";
 import { resolveMediaUrl } from "../utils/mediaUrl";
+import { isAnnonceLivraisonDisponible } from "../features/annonces/utils/livraisonUtils";
+import { resolveLivraisonFinalizerFromValeurs } from "../features/annonces/utils/livraisonFinalizer";
 
 export type UiAttribut = {
   id?: number;
@@ -37,6 +39,9 @@ export type UiProduct = {
   views?: number;
   /** Attributs catégorie (valeurs[]) */
   attributs: UiAttribut[];
+  livraisonDisponible?: boolean;
+  livraisonPartenaires?: string[];
+  livraisonBureau?: string;
   rating: number;
   reviews: number;
   sold: number;
@@ -121,6 +126,7 @@ export function mapAdCardToUi(
     ville: ad.ville,
     photos: [cover],
     sellerId: (ad as { userId?: number }).userId,
+    vendeurEstPro: Boolean(ad.vendeurEstPro),
     favorisCount: Number((ad as { favorisCount?: number }).favorisCount ?? 0),
     views: Number((ad as { views?: number }).views ?? 0) || undefined,
     attributs: [],
@@ -160,6 +166,7 @@ export function mapPublicAdToUi(
     ([ad.user?.prenom, ad.user?.nom].filter(Boolean).join(" ") || base.seller);
 
   const location = [ad.codePostal, ad.ville].filter(Boolean).join(" ") || ad.ville || base.location;
+  const livraisonFinalizer = resolveLivraisonFinalizerFromValeurs(ad.valeurs);
 
   return {
     ...base,
@@ -168,7 +175,7 @@ export function mapPublicAdToUi(
     description: ad.description ?? base.description,
     seller: sellerName,
     sellerId: ad.userId ?? ad.user?.id,
-    vendeurEstPro: ad.vendeurEstPro,
+    vendeurEstPro: Boolean(ad.vendeurEstPro),
     location,
     ville: ad.ville,
     codePostal: ad.codePostal,
@@ -183,6 +190,9 @@ export function mapPublicAdToUi(
     favorisCount: ad.favorisCount,
     views: ad.views,
     attributs: mapValeurs(ad.valeurs),
+    livraisonDisponible: isAnnonceLivraisonDisponible(ad),
+    livraisonPartenaires: livraisonFinalizer.partenaires_de_livraison,
+    livraisonBureau: livraisonFinalizer.bureau_ou_point_relais,
   };
 }
 
@@ -228,10 +238,14 @@ export function mapAdCardToListing(
   priceEur: number;
   priceDzd: number;
   image: string;
+  favorisCount?: number;
   tag?: { label: string; type: string };
   isPro: boolean;
+  ville?: string;
+  codePostal?: string;
 } {
   const ui = mapAdCardToUi(ad, options);
+  const isPro = Boolean(ad.vendeurEstPro ?? ui.vendeurEstPro);
   return {
     id: ui.id,
     title: ui.title,
@@ -239,7 +253,14 @@ export function mapAdCardToListing(
     priceEur: ui.priceEuro,
     priceDzd: ui.priceDa,
     image: ui.image,
-    isPro: false,
+    favorisCount: ui.favorisCount,
+    isPro,
+    ville: ad.ville,
+    codePostal: ad.codePostal,
+    tag: {
+      label: isPro ? "Pro" : "Particulier",
+      type: isPro ? "pro" : "particulier",
+    },
   };
 }
 

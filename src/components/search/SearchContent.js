@@ -57,8 +57,10 @@ export default function SearchContent({
   const tabBarInset = useTabBarInset();
   const { isFavorite, toggleFavorite } = useFavorites();
   const [searchQuery, setSearchQuery] = useState(initialQuery);
-  const [filters, setFilters] = useState(
-    initialFilters ?? DEFAULT_SEARCH_FILTERS
+  const [filters, setFilters] = useState(() =>
+    initialFilters
+      ? { ...DEFAULT_SEARCH_FILTERS, ...initialFilters }
+      : DEFAULT_SEARCH_FILTERS
   );
   const [sortId, setSortId] = useState("relevance");
   const [currencies, setCurrencies] = useState({});
@@ -75,12 +77,23 @@ export default function SearchContent({
   const prixMin = filters.prixMin ? Number(filters.prixMin) : null;
   const prixMax = filters.prixMax ? Number(filters.prixMax) : null;
   const annonceType = filters.type ?? null;
+  const disponibiliteDateArrivee = filters.disponibiliteDateArrivee ?? null;
+  const disponibiliteDateDepart = filters.disponibiliteDateDepart ?? null;
 
   const { pageData, isLoading, isError, isFetching } = useSearchAds(
     debouncedQuery,
     0,
     24,
-    { categorieId, sousCategorieId, attributs, prixMin, prixMax, type: annonceType }
+    {
+      categorieId,
+      sousCategorieId,
+      attributs,
+      prixMin,
+      prixMax,
+      type: annonceType,
+      disponibiliteDateArrivee,
+      disponibiliteDateDepart,
+    }
   );
 
   const { data: suggestionsRaw } = useSuggestions(debouncedQuery, 6);
@@ -223,6 +236,9 @@ export default function SearchContent({
     <>
       <HomeHeader
         onNotificationPress={handleNotificationPress}
+        onLogoPress={() =>
+          navigation.navigate("MainTabs", { screen: "Home" })
+        }
       />
       <HomeSearchBar
         value={searchQuery}

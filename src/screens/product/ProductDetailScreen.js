@@ -39,6 +39,13 @@ import { fetchPublicSeller } from "../../services/annoncesService";
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "../../api/queryKeys";
 import { resolveMediaUrl } from "../../utils/mediaUrl";
+import SellerTypeBadge from "../../components/common/SellerTypeBadge";
+import AdDetailLivraisonCard from "../../components/product/AdDetailLivraisonCard";
+import MortgageLoanSimulator from "../../features/immobilier/components/MortgageLoanSimulator";
+import VehicleFinancingSimulator from "../../features/vehicules/components/VehicleFinancingSimulator";
+import { isImmobilierAd } from "../../features/immobilier/utils/isImmobilierAd";
+import { isVehicleAd } from "../../features/vehicules/utils/isVehicleAd";
+import { confirmDialog, alertDialog } from "../../utils/confirmDialog";
 
 /* ─── Helpers ──────────────────────────────────────────────────────────────── */
 
@@ -250,12 +257,12 @@ function SellerSection({ annonceId, sellerId, sellerName, vendeurEstPro, navigat
                 <Ionicons name="person" size={22} color={colors.textMuted} />
               </View>
             )}
-            {isPro && (
-              <View style={styles.proBadge}><Text style={styles.proBadgeText}>PRO</Text></View>
-            )}
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.sellerName}>{displayName}</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <Text style={styles.sellerName}>{displayName}</Text>
+              <SellerTypeBadge isPro={isPro} variant="detail" />
+            </View>
             {seller?.ville ? <Text style={styles.sellerMeta}>{seller.ville}</Text> : null}
             {adsCount > 0 ? (
               <Text style={styles.sellerMeta}>{adsCount} annonce{adsCount > 1 ? "s" : ""}</Text>
@@ -528,9 +535,12 @@ export default function ProductDetailScreen({ route, navigation }) {
       return;
     }
     const id = annonceId ?? p.id;
-    if (!id) { Alert.alert("Erreur", "Identifiant d'annonce manquant."); return; }
-    const defaultMsg = "Bonjour, est-ce disponible ?";
-    Alert.alert(
+    if (!id) {
+      alertDialog("Erreur", "Identifiant d'annonce manquant.");
+      return;
+    }
+    const defaultMsg = "Bonjour, votre annonce m'intéresse ! Est-elle toujours disponible ?";
+    confirmDialog(
       "Contacter le vendeur",
       `Envoyer : « ${defaultMsg} »`,
       [
@@ -539,24 +549,43 @@ export default function ProductDetailScreen({ route, navigation }) {
           text: "Envoyer",
           onPress: async () => {
             try {
-              const conv = await startConversation.mutateAsync({ annonceId: id, message: defaultMsg });
+              const conv = await startConversation.mutateAsync({
+                annonceId: id,
+                message: defaultMsg,
+              });
+              const conversationId = conv?.id;
+              if (!conversationId) {
+                throw new Error("Conversation créée mais id manquant.");
+              }
               navigation.navigate("Messages", {
                 screen: "Chat",
                 params: {
-                  conversationId: conv.id,
+                  conversationId,
                   annonceId: id,
                   productTitle: p.title,
                   productImage: p.image,
                   seedConversation: {
-                    id: conv.id,
+                    id: conversationId,
+                    sellerId: p.sellerId,
                     sellerName: p.seller || "Vendeur",
-                    product: { id, title: p.title, price: formatPrice(p.priceDa), image: p.image },
+                    sellerAvatar: null,
+                    lastSeen: "Messagerie Bi3oo",
+                    headerVariant: "seller",
+                    product: {
+                      id,
+                      title: p.title,
+                      price: formatPrice(p.priceDa),
+                      image: p.image,
+                    },
                     messages: [],
                   },
                 },
               });
             } catch (err) {
-              Alert.alert("Messagerie", err?.message ?? "Impossible de démarrer la conversation.");
+              alertDialog(
+                "Messagerie",
+                err?.message ?? "Impossible de démarrer la conversation."
+              );
             }
           },
         },
@@ -615,11 +644,7 @@ export default function ProductDetailScreen({ route, navigation }) {
             <View style={{ flex: 1, gap: 4 }}>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
                 <TypeBadge type={p.type} />
-                {(p.vendeurEstPro) && (
-                  <View style={styles.proBadgeInline}>
-                    <Text style={styles.proBadgeInlineText}>PRO</Text>
-                  </View>
-                )}
+                <SellerTypeBadge isPro={Boolean(p.vendeurEstPro)} variant="inline" />
               </View>
               <Text style={styles.title} numberOfLines={3}>{p.title}</Text>
               <Text style={styles.category}>
@@ -686,6 +711,43 @@ export default function ProductDetailScreen({ route, navigation }) {
           {/* Carte localisation */}
           {(p.codePostal || p.ville) ? (
             <LocationMapCard codePostal={p.codePostal} ville={p.ville} />
+          ) : null}
+
+          {/* Livraison (comme le web) */}
+          <AdDetailLivraisonCard
+            livraisonDisponible={p.livraisonDisponible}
+            partenaires={p.livraisonPartenaires}
+            bureau={p.livraisonBureau}
+          />
+
+          {/* Simulateurs immobilier / véhicule */}
+          {isImmobilierAd(p) ? (
+            <View style={styles.section}>
+              <MortgageLoanSimulator
+                initialPrix={p.priceDa}
+                compact
+                showFullPageLink
+                onOpenFull={() =>
+                  navigation.navigate("MortgageSimulator", {
+                    prix: p.priceDa,
+                    annonceId: annonceId ?? p.id,
+                  })
+                }
+              />
+            </View>
+          ) : null}
+          {isVehicleAd(p) ? (
+            <View style={styles.section}>
+              <VehicleFinancingSimulator
+                initialPrix={p.priceDa}
+                compact
+                showFullPageLink
+                onOpenFull={() =>
+                  navigation.navigate("VehicleSimulator", { prix: p.priceDa })
+                }
+                onContact={handleContact}
+              />
+            </View>
           ) : null}
 
           {/* Vendeur + WhatsApp */}

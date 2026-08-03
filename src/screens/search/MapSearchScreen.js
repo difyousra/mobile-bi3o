@@ -1,4 +1,8 @@
-import { useMemo, useState } from "react";
+/**
+ * Vue carte des annonces — alignée sur CategoryMapView du new front.
+ * Pins par commune (sans filtre lieu) ou par annonce (filtre lieu actif).
+ */
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -6,73 +10,162 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
-import {
-  LISTINGS,
-  filterListings,
-  sortListings,
-} from "../../data/mockListingsData";
 import { DEFAULT_SEARCH_FILTERS } from "../../data/searchFilters";
-import { normalizeListing } from "../../utils/productMapper";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
-const MAP_IMAGE =
-  "https://images.unsplash.com/photo-1524661135-423995f22d0b?w=800&q=80";
-
-const MAP_MARKERS = [
-  { id: "m1", top: "28%", left: "52%" },
-  { id: "m2", top: "42%", left: "28%" },
-  { id: "m3", top: "55%", left: "68%" },
-  { id: "m4", top: "38%", left: "78%" },
-  { id: "m5", top: "62%", left: "40%" },
-];
+import { normalizeListing, formatPrice } from "../../utils/productMapper";
+import {
+  buildCommuneMarkersFromListings,
+  buildListingMarkers,
+} from "../../utils/algeriaLocation";
+import { useSearchAds, useExchangeRate } from "../../hooks/useCatalog";
+import { mapAdCardToListing } from "../../models/adMapper";
+import { extractEurToDzd } from "../../services/exchangeService";
+import ListingsMapView from "../../components/map/ListingsMapView";
 
 export default function MapSearchScreen({ navigation, route }) {
   const searchQuery = route.params?.searchQuery ?? "";
   const filters = route.params?.filters ?? DEFAULT_SEARCH_FILTERS;
   const sortId = route.params?.sortId ?? "relevance";
-  const [selectedId, setSelectedId] = useState(null);
+
+  const [selectedMarkerId, setSelectedMarkerId] = useState(null);
+  const [selectedListingId, setSelectedListingId] = useState(null);
+  const cardsRef = useRef(null);
+
+  const { data: exchange } = useExchangeRate();
+  const eurToDzd = extractEurToDzd(exchange);
+
+  const categorieId = filters.categorieId ? Number(filters.categorieId) : null;
+  const sousCategorieId = filters.sousCategorieId
+    ? Number(filters.sousCategorieId)
+    : null;
+  const attributs = filters.attributs ?? [];
+  const prixMin = filters.prixMin ? Number(filters.prixMin) : null;
+  const prixMax = filters.prixMax ? Number(filters.prixMax) : null;
+  const annonceType = filters.type ?? null;
+  const disponibiliteDateArrivee = filters.disponibiliteDateArrivee ?? null;
+  const disponibiliteDateDepart = filters.disponibiliteDateDepart ?? null;
+  const location = filters.location ?? DEFAULT_SEARCH_FILTERS.location;
+  const hasLocationFilter =
+    Boolean(location) && location !== "Toute l'Algérie";
+
+  const { pageData, isLoading, isError, isFetching } = useSearchAds(
+    searchQuery,
+    0,
+    48,
+    {
+      categorieId,
+      sousCategorieId,
+      attributs,
+      prixMin,
+      prixMax,
+      type: annonceType,
+      disponibiliteDateArrivee,
+      disponibiliteDateDepart,
+    }
+  );
 
   const listings = useMemo(() => {
-    const filtered = filterListings(
-      LISTINGS,
-      searchQuery,
-      filters.location,
-      filters
+    let items = (pageData?.content ?? []).map((ad) =>
+      mapAdCardToListing(ad, { eurToDzd })
     );
-    return sortListings(filtered, sortId);
-  }, [searchQuery, filters, sortId]);
 
-  const handleListingPress = (listing) => {
+    if (hasLocationFilter) {
+      const loc = location.toLowerCase();
+      items = items.filter((l) =>
+        (l.location || "").toLowerCase().includes(loc)
+      );
+    }
+
+    const min = Number(String(filters.priceMin ?? "").replace(/\s/g, ""));
+    const max = Number(String(filters.priceMax ?? "").replace(/\s/g, ""));
+    if (Number.isFinite(min) && filters.priceMin?.trim()) {
+      items = items.filter((l) => l.priceDzd >= min);
+    }
+    if (Number.isFinite(max) && filters.priceMax?.trim()) {
+      items = items.filter((l) => l.priceDzd <= max);
+    }
+
+    if (sortId === "price_asc") {
+      items = [...items].sort((a, b) => a.priceDzd - b.priceDzd);
+    } else if (sortId === "price_desc") {
+      items = [...items].sort((a, b) => b.priceDzd - a.priceDzd);
+    }
+
+    return items;
+  }, [
+    pageData,
+    location,
+    hasLocationFilter,
+    sortId,
+    eurToDzd,
+    filters.priceMin,
+    filters.priceMax,
+  ]);
+
+  const markers = useMemo(() => {
+    if (!listings.length) return [];
+    if (hasLocationFilter) {
+      return buildListingMarkers(listings, 40);
+    }
+    return buildCommuneMarkersFromListings(listings);
+  }, [listings, hasLocationFilter]);
+
+  useEffect(() => {
+    if (!markers.length) {
+      setSelectedMarkerId(null);
+      return;
+    }
+    if (!markers.some((m) => String(m.id) === String(selectedMarkerId))) {
+      setSelectedMarkerId(markers[0].id);
+    }
+  }, [markers, selectedMarkerId]);
+
+  const sheetListings = useMemo(() => {
+    if (!selectedMarkerId) return listings;
+    const marker = markers.find(
+      (m) => String(m.id) === String(selectedMarkerId)
+    );
+    if (marker?.listings?.length) return marker.listings;
+    return listings;
+  }, [listings, markers, selectedMarkerId]);
+
+  const handleMarkerPress = (marker) => {
+    setSelectedMarkerId(marker.id);
+    const first = marker.listings?.[0] ?? marker.listing;
+    if (first) setSelectedListingId(String(first.id));
+  };
+
+  const handleCardPress = (listing) => {
+    setSelectedListingId(String(listing.id));
+    const communeMarker = markers.find((marker) =>
+      marker.listings?.some((item) => String(item.id) === String(listing.id))
+    );
+    setSelectedMarkerId(communeMarker?.id ?? String(listing.id));
+  };
+
+  const handleOpenListing = (listing) => {
     navigation.navigate("ProductDetail", {
       product: normalizeListing(listing),
+      annonceId: listing.id,
     });
   };
 
+  const loading = isLoading || isFetching;
+
   return (
     <View style={styles.root}>
-      <Image source={{ uri: MAP_IMAGE }} style={styles.mapImage} />
+      <ListingsMapView
+        markers={markers}
+        selectedMarkerId={selectedMarkerId}
+        onMarkerPress={handleMarkerPress}
+        style={styles.map}
+      />
 
-      {MAP_MARKERS.map((marker, index) => (
-        <TouchableOpacity
-          key={marker.id}
-          style={[
-            styles.marker,
-            { top: marker.top, left: marker.left },
-            selectedId === marker.id && styles.markerActive,
-          ]}
-          onPress={() => setSelectedId(marker.id)}
-        >
-          <Ionicons name="location" size={22} color={colors.white} />
-        </TouchableOpacity>
-      ))}
-
-      <SafeAreaView style={styles.topBar} edges={["top"]}>
+      <SafeAreaView style={styles.topBar} edges={["top"]} pointerEvents="box-none">
         <TouchableOpacity
           style={styles.roundBtn}
           onPress={() => navigation.goBack()}
@@ -91,32 +184,64 @@ export default function MapSearchScreen({ navigation, route }) {
 
       <View style={styles.bottomSheet}>
         <View style={styles.sheetHandle} />
-        <Text style={styles.sheetTitle}>
-          {listings.length} annonce{listings.length > 1 ? "s" : ""} sur la carte
-        </Text>
+        <View style={styles.sheetHeader}>
+          <Text style={styles.sheetTitle}>
+            {listings.length} annonce{listings.length > 1 ? "s" : ""} sur la carte
+          </Text>
+          {loading ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : null}
+        </View>
+
+        {isError ? (
+          <Text style={styles.status}>Impossible de charger les annonces.</Text>
+        ) : null}
+
+        {!loading && !listings.length ? (
+          <Text style={styles.status}>Aucune annonce à afficher sur la carte.</Text>
+        ) : null}
+
         <ScrollView
+          ref={cardsRef}
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.cardsRow}
         >
-          {listings.map((listing) => (
-            <TouchableOpacity
-              key={listing.id}
-              style={styles.miniCard}
-              onPress={() => handleListingPress(listing)}
-            >
-              <Image source={{ uri: listing.image }} style={styles.miniImage} />
-              <View style={styles.miniBody}>
-                <Text style={styles.miniPrice}>
-                  {listing.priceEur.toLocaleString("fr-FR")} €
-                </Text>
-                <Text style={styles.miniTitle} numberOfLines={2}>
-                  {listing.title}
-                </Text>
-                <Text style={styles.miniLocation}>{listing.location}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
+          {sheetListings.map((listing) => {
+            const selected = String(listing.id) === String(selectedListingId);
+            return (
+              <TouchableOpacity
+                key={listing.id}
+                style={[styles.miniCard, selected && styles.miniCardSelected]}
+                onPress={() => {
+                  if (selected) {
+                    handleOpenListing(listing);
+                    return;
+                  }
+                  handleCardPress(listing);
+                }}
+              >
+                <Image
+                  source={{ uri: listing.image }}
+                  style={styles.miniImage}
+                />
+                <View style={styles.miniBody}>
+                  <Text style={styles.miniPrice}>
+                    {formatPrice(listing.priceDzd, "Da")}
+                  </Text>
+                  <Text style={styles.miniTitle} numberOfLines={2}>
+                    {listing.title}
+                  </Text>
+                  <Text style={styles.miniLocation} numberOfLines={1}>
+                    {listing.location}
+                  </Text>
+                  {selected ? (
+                    <Text style={styles.miniCta}>Voir l'annonce →</Text>
+                  ) : null}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
       </View>
     </View>
@@ -128,32 +253,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#E8EDF2",
   },
-  mapImage: {
+  map: {
     ...StyleSheet.absoluteFillObject,
-    width: SCREEN_WIDTH,
-    height: "100%",
-    opacity: 0.92,
-  },
-  marker: {
-    position: "absolute",
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: colors.white,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  markerActive: {
-    backgroundColor: colors.navy,
-    transform: [{ scale: 1.15 }],
   },
   topBar: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -167,6 +274,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 3,
   },
   listToggle: {
     flexDirection: "row",
@@ -176,6 +287,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 3,
   },
   listToggleText: {
     fontSize: 14,
@@ -202,16 +317,29 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     marginBottom: 12,
   },
+  sheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
   sheetTitle: {
     fontSize: 15,
     fontWeight: "700",
     color: colors.textHeading,
+    flex: 1,
+  },
+  status: {
     paddingHorizontal: 20,
-    marginBottom: 12,
+    marginBottom: 8,
+    fontSize: 13,
+    color: colors.textMuted,
   },
   cardsRow: {
     paddingHorizontal: 16,
     gap: 12,
+    paddingBottom: 4,
   },
   miniCard: {
     width: 220,
@@ -221,9 +349,14 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: colors.white,
   },
+  miniCardSelected: {
+    borderColor: colors.primary,
+    borderWidth: 2,
+  },
   miniImage: {
     width: "100%",
     height: 100,
+    backgroundColor: "#F0F2F5",
   },
   miniBody: {
     padding: 10,
@@ -243,5 +376,11 @@ const styles = StyleSheet.create({
   miniLocation: {
     fontSize: 12,
     color: colors.textMuted,
+  },
+  miniCta: {
+    marginTop: 6,
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.primary,
   },
 });

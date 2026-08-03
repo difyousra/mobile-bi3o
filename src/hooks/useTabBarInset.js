@@ -33,4 +33,6 @@ export const HIDE_FLOATING_TAB_BAR_SCREENS = [
   "BuyPayment",
   "BuyFinish",
   "SearchFilters",
+  "MortgageSimulator",
+  "VehicleSimulator",
 ];

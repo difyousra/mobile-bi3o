@@ -48,22 +48,41 @@ async function searchCatalog(options: {
   prixMin?: number | null;
   prixMax?: number | null;
   type?: string | null;
+  disponibiliteDateArrivee?: string | null;
+  disponibiliteDateDepart?: string | null;
 }): Promise<PublicAdsPage> {
-  const { titre, page, size, categorieId, sousCategorieId, attributs = [], prixMin, prixMax, type } = options;
+  const {
+    titre,
+    page,
+    size,
+    categorieId,
+    sousCategorieId,
+    attributs = [],
+    prixMin,
+    prixMax,
+    type,
+    disponibiliteDateArrivee,
+    disponibiliteDateDepart,
+  } = options;
   const trimmed = titre.trim();
 
   try {
     const body: Record<string, unknown> = {
       titre: trimmed,
-      categorieIds: categorieId ? [categorieId] : [],
-      sousCategorieIds: sousCategorieId ? [sousCategorieId] : [],
       attributs,
     };
+    if (categorieId) body.categorieId = categorieId;
+    if (sousCategorieId) body.sousCategorieId = sousCategorieId;
     if (prixMin) body.prixMin = prixMin;
     if (prixMax) body.prixMax = prixMax;
     if (type) body.type = type;
+    if (disponibiliteDateArrivee) body.disponibiliteDateArrivee = disponibiliteDateArrivee;
+    if (disponibiliteDateDepart) body.disponibiliteDateDepart = disponibiliteDateDepart;
 
-    const remote = await annoncesService.searchAllAttributes(body as Parameters<typeof annoncesService.searchAllAttributes>[0], { page, size });
+    const remote = await annoncesService.searchAllAttributes(
+      body as Parameters<typeof annoncesService.searchAllAttributes>[0],
+      { page, size }
+    );
     return remote;
   } catch {
     // Nginx préprod renvoie souvent 302→dev-login sur search/suggestions.
@@ -191,6 +210,8 @@ export function useSearchAds(
     prixMin?: number | null;
     prixMax?: number | null;
     type?: string | null;
+    disponibiliteDateArrivee?: string | null;
+    disponibiliteDateDepart?: string | null;
   }
 ) {
   const trimmed = titre.trim();
@@ -200,14 +221,32 @@ export function useSearchAds(
   const prixMin = options?.prixMin ?? null;
   const prixMax = options?.prixMax ?? null;
   const type = options?.type ?? null;
+  const disponibiliteDateArrivee = options?.disponibiliteDateArrivee ?? null;
+  const disponibiliteDateDepart = options?.disponibiliteDateDepart ?? null;
   const eurToDzd = exchangeService.extractEurToDzd(useExchangeRate().data);
 
-  const hasAttributeCriteria = attributs.length > 0 || prixMin != null || prixMax != null || type != null;
+  const hasAttributeCriteria =
+    attributs.length > 0 ||
+    prixMin != null ||
+    prixMax != null ||
+    type != null ||
+    Boolean(disponibiliteDateArrivee && disponibiliteDateDepart);
   const hasCriteria =
     trimmed.length > 0 || categorieId != null || sousCategorieId != null || hasAttributeCriteria;
 
   const query = useQuery({
-    queryKey: queryKeys.searchAds(trimmed, page, categorieId, sousCategorieId, attributs, prixMin, prixMax, type),
+    queryKey: queryKeys.searchAds(
+      trimmed,
+      page,
+      categorieId,
+      sousCategorieId,
+      attributs,
+      prixMin,
+      prixMax,
+      type,
+      disponibiliteDateArrivee,
+      disponibiliteDateDepart
+    ),
     queryFn: () =>
       searchCatalog({
         titre: trimmed,
@@ -219,6 +258,8 @@ export function useSearchAds(
         prixMin,
         prixMax,
         type,
+        disponibiliteDateArrivee,
+        disponibiliteDateDepart,
       }),
     enabled: true,
     staleTime: STALE_ADS_MS,

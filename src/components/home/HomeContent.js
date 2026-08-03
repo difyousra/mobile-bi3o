@@ -151,6 +151,9 @@ export default function HomeContent() {
       >
         <HomeHeader
           onNotificationPress={handleNotificationPress}
+          onLogoPress={() =>
+            navigation.navigate("MainTabs", { screen: "Home" })
+          }
         />
 
         <HomeSearchBar

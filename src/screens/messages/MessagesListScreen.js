@@ -61,6 +61,9 @@ export default function MessagesListScreen({ navigation }) {
           onBackPress={() => rootNavigation.goBack()}
           onNewChatPress={handleNewChat}
           onRefreshPress={() => refetch()}
+          onLogoPress={() =>
+            rootNavigation.navigate("MainTabs", { screen: "Home" })
+          }
         />
 
         <HomeSearchBar

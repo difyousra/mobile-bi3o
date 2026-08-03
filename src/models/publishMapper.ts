@@ -3,12 +3,17 @@ import { getSubcategoryFormConfig } from "../features/annonces/config/subcategor
 import { buildValeursFromAttributs } from "../features/annonces/utils/buildValeursFromAttributs";
 import { buildValeursFromTaxonomyDynamic } from "../features/annonces/utils/maisonJardinTaxonomyHelpers";
 import { appendLivraisonFinalizerValeurs } from "../features/annonces/utils/livraisonFinalizer";
+import {
+  getFinalPriceDa,
+  normalizePriceUnit,
+} from "../features/annonces/utils/priceUnit";
 
 type PublishDraft = {
   title?: string;
   description?: string;
   adType?: string;
   price?: string | number;
+  priceUnit?: string;
   isDonation?: boolean;
   city?: string;
   postalCode?: string;
@@ -62,8 +67,11 @@ export function draftToCreateDto(draft: PublishDraft): CreateAnnonceDto {
   const formConfig = getSubcategoryFormConfig(sousCategorieId);
   const isDonation = Boolean(draft.isDonation);
   const priceOptional = Boolean(formConfig?.priceOptional);
-  const rawPrice = String(draft.price ?? "").replace(/\s/g, "").replace(",", ".");
-  const prix = isDonation || (!rawPrice && priceOptional) ? 0 : Number(rawPrice);
+  const priceUnit = normalizePriceUnit(draft.priceUnit as string | undefined);
+  const rawPrice = String(draft.price ?? "").trim();
+  const prix = isDonation || (!rawPrice && priceOptional)
+    ? 0
+    : getFinalPriceDa(rawPrice, priceUnit, false);
   if (!isDonation && !priceOptional && (!Number.isFinite(prix) || prix < 1)) {
     throw new Error("Prix invalide. Indiquez un prix d'au moins 1 Da, ou cochez « Je fais un don ».");
   }
@@ -101,7 +109,7 @@ export function draftToCreateDto(draft: PublishDraft): CreateAnnonceDto {
     titre: String(draft.title ?? "").trim(),
     description: buildDescription(draft),
     type,
-    prix: isDonation ? 0 : prix,
+    prix: isDonation ? 0 : Math.round(prix),
     ville: String(draft.city ?? "").trim() || "16",
     codePostal: String(draft.postalCode ?? "").trim() || "16000",
     sousCategorieId,

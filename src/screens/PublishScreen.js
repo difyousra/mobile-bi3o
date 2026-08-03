@@ -15,6 +15,10 @@ import {
   resolvePublishSteps,
   resolvePublishTotalSteps,
 } from "../data/publishSteps";
+import {
+  getFinalPriceDa,
+  normalizePriceUnit,
+} from "../features/annonces/utils/priceUnit";
 import { colors } from "../theme";
 import { normalizeProduct } from "../utils/productMapper";
 import { usePublishAnnonce } from "../hooks/usePublish";
@@ -46,15 +50,20 @@ function draftToProduct(draft, annonceId) {
     photoUri(draft.photos?.front) ||
     "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&q=80";
 
+  const finalDa = draft.isDonation
+    ? 0
+    : getFinalPriceDa(draft.price, normalizePriceUnit(draft.priceUnit), false);
+  const priceDa = Number.isFinite(finalDa) ? Math.round(finalDa) : 0;
+
   return normalizeProduct({
     id: annonceId ?? `draft-${Date.now()}`,
     title: draft.title || "Mon annonce",
     subtitle: draft.category || "Annonce",
     category: draft.category || "Marketplace",
     image: cover,
-    price: Number(draft.price) || 0,
-    priceDa: Number(draft.price) || 0,
-    priceEuro: Number(draft.price) || 0,
+    price: priceDa,
+    priceDa,
+    priceEuro: priceDa,
     description:
       draft.description || `${draft.title || "Annonce"} publiée sur Bi3oo.`,
     location: draft.location || draft.city || "Alger",

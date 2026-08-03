@@ -1,6 +1,7 @@
 import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
+import SellerTypeBadge from "../common/SellerTypeBadge";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const H_PAD = 16;
@@ -18,6 +19,8 @@ export default function MarketplaceProductCard({
   onToggleFavorite,
   compact = false,
 }) {
+  const isPro = Boolean(product?.isPro ?? product?.vendeurEstPro);
+
   return (
     <TouchableOpacity
       style={[styles.card, compact && styles.cardCompact]}
@@ -26,13 +29,7 @@ export default function MarketplaceProductCard({
     >
       <View style={styles.imageWrap}>
         <Image source={{ uri: product.image }} style={styles.image} />
-        <TouchableOpacity
-          style={styles.officielBadge}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.officielText}>Officiel</Text>
-          <Ionicons name="chevron-down" size={12} color={colors.white} />
-        </TouchableOpacity>
+        <SellerTypeBadge isPro={isPro} variant="overlay" />
         {Number(product.favorisCount) > 0 ? (
           <View style={styles.favCountBadge}>
             <Ionicons name="heart" size={11} color={colors.primary} />
@@ -93,23 +90,6 @@ const styles = StyleSheet.create({
     height: CARD_WIDTH * 0.95,
     borderRadius: 14,
     backgroundColor: "#F4F6F8",
-  },
-  officielBadge: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 2,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    backgroundColor: "rgba(26, 28, 30, 0.85)",
-  },
-  officielText: {
-    fontSize: 10,
-    fontWeight: "600",
-    color: colors.white,
   },
   heartButton: {
     position: "absolute",

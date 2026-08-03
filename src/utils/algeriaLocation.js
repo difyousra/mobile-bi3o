@@ -48,6 +48,114 @@ export function findWilayaByVille(ville) {
   );
 }
 
+export function getWilayaDisplayName(wilaya) {
+  if (!wilaya) return "";
+  return String(wilaya.name || wilaya.ar_name || wilaya.id || "").trim();
+}
+
+export function getCommuneDisplayName(commune) {
+  if (!commune) return "";
+  return String(commune.name || commune.ar_name || "").trim();
+}
+
+export function resolveLocationReference(codePostal, ville) {
+  const commune = findCommuneByPostalCode(codePostal);
+  const wilaya = commune ? findWilayaById(commune.wilaya_id) : findWilayaByVille(ville);
+  const coordinates = getCommuneLatLng(commune) || getWilayaLatLng(wilaya) || {
+    lat: 36.7538,
+    lng: 3.0588,
+  };
+  return { commune, wilaya, coordinates };
+}
+
+function getCommuneLatLng(commune) {
+  if (!commune?.latitude || !commune?.longitude) return null;
+  const lat = Number.parseFloat(commune.latitude);
+  const lng = Number.parseFloat(commune.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { lat, lng };
+}
+
+function getWilayaLatLng(wilaya) {
+  if (!wilaya?.latitude || !wilaya?.longitude) return null;
+  const lat = Number.parseFloat(wilaya.latitude);
+  const lng = Number.parseFloat(wilaya.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { lat, lng };
+}
+
+/** Ligne affichée sur une annonce : « Commune (Wilaya) · 16000 ». */
+export function formatAnnonceLocationLine(codePostal, ville) {
+  const { commune, wilaya } = resolveLocationReference(codePostal, ville);
+  const normalizedCp = normalizePostalCode(codePostal);
+  const cp = normalizedCp || String(codePostal || "").trim();
+  const communeLabel = getCommuneDisplayName(commune);
+  const wilayaLabel = getWilayaDisplayName(wilaya);
+
+  if (commune && wilaya) {
+    const same = normalizeName(commune.name) === normalizeName(wilaya.name);
+    const place = same ? communeLabel : `${communeLabel} (${wilayaLabel})`;
+    return cp ? `${place} · ${cp}` : place;
+  }
+  if (commune) return cp ? `${communeLabel} · ${cp}` : communeLabel;
+  if (wilaya) return cp ? `${wilayaLabel} · ${cp}` : wilayaLabel;
+  return [ville, cp].filter(Boolean).join(" · ");
+}
+
+/** Ligne de suggestion recherche : « 16000 · Alger Centre, Alger ». */
+export function formatCommuneSearchLine(commune, wilayaName = "") {
+  const postCode = commune?.post_code || "";
+  const communeName = getCommuneDisplayName(commune) || commune?.name || "";
+  const wilayaLabel = wilayaName || getWilayaDisplayName(findWilayaById(commune?.wilaya_id));
+  if (!postCode && !communeName) return "";
+  if (wilayaLabel && wilayaLabel !== communeName) {
+    return `${postCode} · ${communeName}, ${wilayaLabel}`;
+  }
+  return `${postCode} · ${communeName}`;
+}
+
+/** Recherche communes par nom / code postal / wilaya. */
+export function searchCommunes(query, limit = 15) {
+  const raw = String(query || "").trim();
+  if (!raw) return [];
+
+  const normalizedQuery = normalizeName(raw);
+  const digits = raw.replace(/\D/g, "");
+  const onlyDigits = digits.length > 0 && /^\d[\d\s]*$/.test(raw.replace(/\s/g, ""));
+  const max = Math.min(Math.max(limit, 1), 40);
+  const results = [];
+
+  const wilayaLabelById = (wilayaId) => getWilayaDisplayName(findWilayaById(wilayaId));
+
+  if (onlyDigits) {
+    for (const commune of COMMUNES) {
+      const cp = String(commune?.post_code || "");
+      if (!cp.startsWith(digits) && normalizePostalCode(cp) !== normalizePostalCode(digits)) {
+        continue;
+      }
+      results.push({ ...commune, wilayaName: wilayaLabelById(commune.wilaya_id) });
+      if (results.length >= max) break;
+    }
+    return results;
+  }
+
+  for (const commune of COMMUNES) {
+    const name = normalizeName(commune?.name);
+    const arName = normalizeName(commune?.ar_name);
+    const wilaya = findWilayaById(commune?.wilaya_id);
+    const wilayaName = normalizeName(wilaya?.name);
+    if (
+      name.includes(normalizedQuery) ||
+      arName.includes(normalizedQuery) ||
+      wilayaName.includes(normalizedQuery)
+    ) {
+      results.push({ ...commune, wilayaName: getWilayaDisplayName(wilaya) });
+      if (results.length >= max) break;
+    }
+  }
+  return results;
+}
+
 /**
  * Résout les coordonnées lat/lng depuis codePostal et/ou ville.
  * Même logique de cascade que le web.
@@ -55,30 +163,79 @@ export function findWilayaByVille(ville) {
  * @returns {{ lat: number, lng: number, label: string | null }}
  */
 export function resolveLocationCoords(codePostal, ville) {
-  const commune = findCommuneByPostalCode(codePostal);
-  const wilaya = commune
-    ? findWilayaById(commune.wilaya_id)
-    : findWilayaByVille(ville);
-
-  if (commune?.latitude && commune?.longitude) {
-    const lat = parseFloat(commune.latitude);
-    const lng = parseFloat(commune.longitude);
-    if (isFinite(lat) && isFinite(lng)) {
-      return { lat, lng, label: commune.name ?? ville ?? null };
-    }
-  }
-
-  if (wilaya?.latitude && wilaya?.longitude) {
-    const lat = parseFloat(wilaya.latitude);
-    const lng = parseFloat(wilaya.longitude);
-    if (isFinite(lat) && isFinite(lng)) {
-      return { lat, lng, label: wilaya.name ?? ville ?? null };
-    }
-  }
-
-  // Fallback : Alger centre
-  return { lat: 36.7538, lng: 3.0588, label: ville ?? null };
+  const { commune, wilaya, coordinates } = resolveLocationReference(codePostal, ville);
+  const label =
+    getCommuneDisplayName(commune) ||
+    getWilayaDisplayName(wilaya) ||
+    (ville ? String(ville) : null);
+  return { lat: coordinates.lat, lng: coordinates.lng, label };
 }
+
+/**
+ * Regroupe les annonces par commune pour afficher un pin par commune.
+ * Aligné sur le new front : buildCommuneMarkersFromListings.
+ */
+export function buildCommuneMarkersFromListings(listings = []) {
+  const communeMap = new Map();
+
+  listings.forEach((listing) => {
+    const ref = resolveLocationReference(listing.codePostal, listing.ville);
+    const commune = ref.commune;
+    const key = commune?.post_code
+      ? normalizePostalCode(commune.post_code)
+      : `${ref.coordinates.lat.toFixed(4)},${ref.coordinates.lng.toFixed(4)}`;
+
+    if (!communeMap.has(key)) {
+      communeMap.set(key, {
+        id: `commune-${key}`,
+        lat: ref.coordinates.lat,
+        lng: ref.coordinates.lng,
+        label: getCommuneDisplayName(commune) || listing.location || "Commune",
+        commune,
+        listings: [],
+      });
+    }
+
+    communeMap.get(key).listings.push(listing);
+  });
+
+  return Array.from(communeMap.values()).map((entry) => ({
+    ...entry,
+    listing: entry.listings[0],
+    listingCount: entry.listings.length,
+  }));
+}
+
+/** Un pin par annonce (max N) — utilisé si filtre lieu actif. */
+export function buildListingMarkers(listings = [], max = 40) {
+  return listings.slice(0, max).map((listing) => {
+    const ref = resolveLocationReference(listing.codePostal, listing.ville);
+    return {
+      id: String(listing.id),
+      lat: ref.coordinates.lat,
+      lng: ref.coordinates.lng,
+      label: listing.title,
+      listing,
+      listings: [listing],
+      listingCount: 1,
+    };
+  });
+}
+
+/** Centre Algérie (vue d’ensemble). */
+export const ALGERIA_REGION = {
+  latitude: 28.0,
+  longitude: 2.5,
+  latitudeDelta: 14,
+  longitudeDelta: 14,
+};
+
+export const ALGIERS_REGION = {
+  latitude: 36.7538,
+  longitude: 3.0588,
+  latitudeDelta: 0.45,
+  longitudeDelta: 0.45,
+};
 
 /**
  * Normalise un numéro algérien pour WhatsApp (wa.me/213XXXXXXXXX).

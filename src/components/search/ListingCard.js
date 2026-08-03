@@ -39,13 +39,18 @@ export default function ListingCard({
           <View
             style={[
               styles.tag,
-              listing.tag.type === "pro" ? styles.tagPro : styles.tagFeatured,
+              listing.tag.type === "pro"
+                ? styles.tagPro
+                : listing.tag.type === "particulier"
+                  ? styles.tagParticulier
+                  : styles.tagFeatured,
             ]}
           >
             <Text
               style={[
                 styles.tagText,
                 listing.tag.type === "featured" && styles.tagTextFeatured,
+                listing.tag.type === "particulier" && styles.tagTextParticulier,
               ]}
             >
               {listing.tag.label}
@@ -130,6 +135,11 @@ const styles = StyleSheet.create({
   tagPro: {
     backgroundColor: colors.primary,
   },
+  tagParticulier: {
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderWidth: 1,
+    borderColor: "rgba(17,24,39,0.12)",
+  },
   tagFeatured: {
     backgroundColor: "rgba(255,255,255,0.92)",
   },
@@ -140,6 +150,9 @@ const styles = StyleSheet.create({
   },
   tagTextFeatured: {
     color: colors.textDark,
+  },
+  tagTextParticulier: {
+    color: "#374151",
   },
   heartButton: {
     position: "absolute",
