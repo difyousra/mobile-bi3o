@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 /**
  * Badge vendeur Pro / Particulier (aligné web SellerTypeBadge).
@@ -11,6 +12,7 @@ export default function SellerTypeBadge({
   variant = "overlay",
   style,
 }) {
+  const { t } = useAppLanguage();
   const pro = Boolean(isPro);
   const isOverlay = variant === "overlay";
   const isDetail = variant === "detail";
@@ -43,7 +45,7 @@ export default function SellerTypeBadge({
               : styles.textParticulier,
         ]}
       >
-        {pro ? "Pro" : "Particulier"}
+        {pro ? t("categoryUi.sellerPro") : t("categoryUi.sellerParticulier")}
       </Text>
       {pro && isOverlay ? (
         <Ionicons name="chevron-down" size={10} color={colors.white} />

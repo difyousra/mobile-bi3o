@@ -1,8 +1,10 @@
 import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function SavedSellerRow({ seller, onPress, onUnfollow }) {
+  const { t } = useAppLanguage();
   const hasAvatar = Boolean(seller.avatar);
 
   return (
@@ -21,14 +23,14 @@ export default function SavedSellerRow({ seller, onPress, onUnfollow }) {
       <View style={styles.info}>
         <Text style={styles.name}>{seller.name}</Text>
         <Text style={styles.meta}>
-          {seller.listings} annonce{seller.listings !== 1 ? "s" : ""}
+          {t("mobile.favorites.listingsCount", { count: seller.listings })}
         </Text>
       </View>
       <TouchableOpacity
         style={styles.followButton}
         activeOpacity={0.8}
         onPress={() => onUnfollow(seller.id)}
-        accessibilityLabel="Ne plus suivre"
+        accessibilityLabel={t("profileUi.unfollow")}
       >
         <Ionicons name="heart" size={16} color={colors.primary} />
       </TouchableOpacity>

@@ -15,16 +15,18 @@ import AuthHeader from "../../components/auth/AuthHeader";
 import AuthInput from "../../components/auth/AuthInput";
 import { useAuth } from "../../context/AuthContext";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function VerifyEmailScreen({ email, onSuccess, onBackPress }) {
   const { verifyEmail, resendOtp, isSubmitting } = useAuth();
+  const { t } = useAppLanguage();
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
 
   const handleVerify = async () => {
     setError("");
     if (!code.trim()) {
-      setError("Saisissez le code reçu par e-mail.");
+      setError(t("authVerify.codeRequired"));
       return;
     }
 
@@ -35,9 +37,9 @@ export default function VerifyEmailScreen({ email, onSuccess, onBackPress }) {
     }
 
     Alert.alert(
-      "E-mail vérifié",
-      result.message ?? "Votre compte est activé. Vous pouvez vous connecter.",
-      [{ text: "OK", onPress: onSuccess }]
+      t("mobile.auth.emailVerifiedTitle"),
+      result.message ?? t("authVerify.verified"),
+      [{ text: t("mobile.common.ok"), onPress: onSuccess }]
     );
   };
 
@@ -48,15 +50,18 @@ export default function VerifyEmailScreen({ email, onSuccess, onBackPress }) {
       setError(result.message);
       return;
     }
-    Alert.alert("Code renvoyé", result.message ?? "Un nouveau code a été envoyé.");
+    Alert.alert(
+      t("mobile.auth.codeResentTitle"),
+      result.message ?? t("authVerify.resent")
+    );
   };
 
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
       <AuthHeader
-        title="Vérification"
-        promptText="Code envoyé à "
+        title={t("authVerify.title")}
+        promptText={t("authVerify.subtitle")}
         linkText={email}
         onBackPress={onBackPress}
       />
@@ -70,12 +75,10 @@ export default function VerifyEmailScreen({ email, onSuccess, onBackPress }) {
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.scrollContent}
           >
-            <Text style={styles.hint}>
-              Entrez le code à 6 chiffres reçu par e-mail (valide 10 minutes).
-            </Text>
+            <Text style={styles.hint}>{t("mobile.auth.verifyHint")}</Text>
 
             <AuthInput
-              placeholder="939181"
+              placeholder={t("authVerify.otpPlaceholder")}
               value={code}
               onChangeText={setCode}
               keyboardType="number-pad"
@@ -93,7 +96,9 @@ export default function VerifyEmailScreen({ email, onSuccess, onBackPress }) {
               {isSubmitting ? (
                 <ActivityIndicator color={colors.white} />
               ) : (
-                <Text style={styles.primaryButtonText}>Vérifier</Text>
+                <Text style={styles.primaryButtonText}>
+                  {t("authVerify.submit")}
+                </Text>
               )}
             </TouchableOpacity>
 
@@ -102,7 +107,7 @@ export default function VerifyEmailScreen({ email, onSuccess, onBackPress }) {
               onPress={handleResend}
               disabled={isSubmitting}
             >
-              <Text style={styles.linkText}>Renvoyer le code</Text>
+              <Text style={styles.linkText}>{t("authVerify.resend")}</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>

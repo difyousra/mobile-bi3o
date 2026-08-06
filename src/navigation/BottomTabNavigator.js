@@ -7,6 +7,7 @@ import MessagesNavigator from "./MessagesNavigator";
 import { withProtectedTab } from "./ProtectedScreen";
 import { useAuth } from "../context/AuthContext";
 import { isProtectedTab, returnToTab } from "./authRoutes";
+import { useAppLanguage } from "../i18n/LanguageProvider";
 
 const Tab = createBottomTabNavigator();
 
@@ -17,6 +18,7 @@ const ProtectedAccount = withProtectedTab(AccountScreen, "Account");
 
 export default function BottomTabNavigator() {
   const { isAuthenticated, requireAuth } = useAuth();
+  const { t } = useAppLanguage();
 
   const protectedTabListeners = (tabName) => ({
     tabPress: (e) => {
@@ -36,30 +38,30 @@ export default function BottomTabNavigator() {
       <Tab.Screen
         name="Home"
         component={HomeScreen}
-        options={{ tabBarLabel: "Accueil" }}
+        options={{ tabBarLabel: t("mobile.tabs.home") }}
       />
       <Tab.Screen
         name="Favorites"
         component={ProtectedFavorites}
-        options={{ tabBarLabel: "Favoris" }}
+        options={{ tabBarLabel: t("mobile.tabs.favorites") }}
         listeners={protectedTabListeners("Favorites")}
       />
       <Tab.Screen
         name="Publish"
         component={ProtectedPublish}
-        options={{ tabBarLabel: "Publier" }}
+        options={{ tabBarLabel: t("mobile.tabs.publish") }}
         listeners={protectedTabListeners("Publish")}
       />
       <Tab.Screen
         name="Messages"
         component={ProtectedMessagesTab}
-        options={{ tabBarLabel: "Messages" }}
+        options={{ tabBarLabel: t("mobile.tabs.messages") }}
         listeners={protectedTabListeners("Messages")}
       />
       <Tab.Screen
         name="Account"
         component={ProtectedAccount}
-        options={{ tabBarLabel: "Compte" }}
+        options={{ tabBarLabel: t("mobile.tabs.account") }}
         listeners={protectedTabListeners("Account")}
       />
     </Tab.Navigator>

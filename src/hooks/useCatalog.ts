@@ -9,6 +9,7 @@ import {
   mapPublicAdToUi,
 } from "../models/adMapper";
 import type { AdCard, PublicAdsPage } from "../types/catalog";
+import { useAppLanguage } from "../i18n/LanguageProvider";
 
 const STALE_TAXO_MS = 30 * 60 * 1000;
 const STALE_ADS_MS = 5 * 60 * 1000;
@@ -35,8 +36,8 @@ function filterByTitre(page: PublicAdsPage, titre: string): PublicAdsPage {
 
 /**
  * Recherche catalogue :
- * 1) tente POST /annonces/search/all-attributes (Postman)
- * 2) si 302/erreur edge → fallback GET by-categorie | sous-categorie | public + filtre titre local
+ * - Catégorie / sous-catégorie seule → GET léger (coverUrl / photos), pas le POST lourd.
+ * - Texte / attributs / prix → POST /annonces/search/all-attributes, fallback GET si échec.
  */
 async function searchCatalog(options: {
   titre: string;
@@ -65,6 +66,27 @@ async function searchCatalog(options: {
     disponibiliteDateDepart,
   } = options;
   const trimmed = titre.trim();
+  const needsFullSearch =
+    trimmed.length > 0 ||
+    attributs.length > 0 ||
+    prixMin != null ||
+    prixMax != null ||
+    Boolean(type) ||
+    Boolean(disponibiliteDateArrivee && disponibiliteDateDepart);
+
+  // Parcours catégorie (Home → résultats) : endpoint public rapide avec coverUrl.
+  if (!needsFullSearch) {
+    if (sousCategorieId) {
+      return annoncesService.fetchAdsBySousCategorie(sousCategorieId, {
+        page,
+        size,
+      });
+    }
+    if (categorieId) {
+      return annoncesService.fetchAdsByCategorie(categorieId, { page, size });
+    }
+    return annoncesService.fetchPublicAds({ page, size });
+  }
 
   try {
     const body: Record<string, unknown> = {
@@ -76,14 +98,17 @@ async function searchCatalog(options: {
     if (prixMin) body.prixMin = prixMin;
     if (prixMax) body.prixMax = prixMax;
     if (type) body.type = type;
-    if (disponibiliteDateArrivee) body.disponibiliteDateArrivee = disponibiliteDateArrivee;
-    if (disponibiliteDateDepart) body.disponibiliteDateDepart = disponibiliteDateDepart;
+    if (disponibiliteDateArrivee) {
+      body.disponibiliteDateArrivee = disponibiliteDateArrivee;
+    }
+    if (disponibiliteDateDepart) {
+      body.disponibiliteDateDepart = disponibiliteDateDepart;
+    }
 
-    const remote = await annoncesService.searchAllAttributes(
+    return await annoncesService.searchAllAttributes(
       body as Parameters<typeof annoncesService.searchAllAttributes>[0],
       { page, size }
     );
-    return remote;
   } catch {
     // Nginx préprod renvoie souvent 302→dev-login sur search/suggestions.
   }
@@ -100,7 +125,10 @@ async function searchCatalog(options: {
       size,
     });
   } else {
-    base = await annoncesService.fetchPublicAds({ page, size: Math.max(size, 48) });
+    base = await annoncesService.fetchPublicAds({
+      page,
+      size: Math.max(size, 48),
+    });
   }
 
   return filterByTitre(base, trimmed);
@@ -124,7 +152,8 @@ export function useSousCategories() {
 
 export function useCategoryChips() {
   const query = useCategoriesTree();
-  const chips = flattenCategoryTree(query.data);
+  const { t } = useAppLanguage();
+  const chips = flattenCategoryTree(query.data, t);
   return { ...query, chips };
 }
 
@@ -146,7 +175,7 @@ export function usePublicAds(options?: {
   const size = options?.size ?? 24;
   const categorieId = options?.categorieId ?? "all";
   const sousCategorieId = options?.sousCategorieId ?? null;
-  const eurToDzd = exchangeService.extractEurToDzd(useExchangeRate().data);
+  const eurToDzd = exchangeService.resolveExchangeRates(useExchangeRate().data).eurToDzd;
 
   const query = useQuery({
     queryKey: [
@@ -182,7 +211,7 @@ export function usePublicAds(options?: {
 }
 
 export function usePublicAd(id: number | string | undefined) {
-  const eurToDzd = exchangeService.extractEurToDzd(useExchangeRate().data);
+  const eurToDzd = exchangeService.resolveExchangeRates(useExchangeRate().data).eurToDzd;
 
   const query = useQuery({
     queryKey: queryKeys.adPublic(id ?? "none"),
@@ -223,7 +252,7 @@ export function useSearchAds(
   const type = options?.type ?? null;
   const disponibiliteDateArrivee = options?.disponibiliteDateArrivee ?? null;
   const disponibiliteDateDepart = options?.disponibiliteDateDepart ?? null;
-  const eurToDzd = exchangeService.extractEurToDzd(useExchangeRate().data);
+  const eurToDzd = exchangeService.resolveExchangeRates(useExchangeRate().data).eurToDzd;
 
   const hasAttributeCriteria =
     attributs.length > 0 ||
@@ -238,6 +267,7 @@ export function useSearchAds(
     queryKey: queryKeys.searchAds(
       trimmed,
       page,
+      size,
       categorieId,
       sousCategorieId,
       attributs,
@@ -303,7 +333,7 @@ export function useSellerPublicAds(
   userId: number | string | undefined,
   size = 6
 ) {
-  const eurToDzd = exchangeService.extractEurToDzd(useExchangeRate().data);
+  const eurToDzd = exchangeService.resolveExchangeRates(useExchangeRate().data).eurToDzd;
   return useQuery({
     queryKey: [...queryKeys.sellerPublic(Number(userId) || 0), "ads"],
     queryFn: () => annoncesService.fetchSellerPublicAds(userId!, { size }),
@@ -328,7 +358,7 @@ export function useSimilarAds(options: {
   excludeId?: number | string;
   size?: number;
 }) {
-  const eurToDzd = exchangeService.extractEurToDzd(useExchangeRate().data);
+  const eurToDzd = exchangeService.resolveExchangeRates(useExchangeRate().data).eurToDzd;
   const { sousCategorieId, categorieId, excludeId, size = 8 } = options;
 
   return useQuery({

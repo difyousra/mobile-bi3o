@@ -11,36 +11,48 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
 import { useWallet } from "../../context/WalletContext";
-import { TRANSACTION_FILTERS } from "../../data/mockProfile";
 import WalletBalanceCard from "../../components/account/WalletBalanceCard";
 import TransactionRow from "../../components/account/TransactionRow";
 import TopUpModal from "../../components/account/TopUpModal";
 import { showDevMessage } from "../../utils/devFeedback";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
+
+const WALLET_FILTERS = [
+  { id: "all", txType: null, labelKey: "mobile.wallet.filterAll" },
+  { id: "topUp", txType: "Top Up", labelKey: "mobile.wallet.filterTopUp" },
+  { id: "purchase", txType: "Purchase", labelKey: "mobile.wallet.filterPurchase" },
+  { id: "refunds", txType: "Refunds", labelKey: "mobile.wallet.filterRefunds" },
+];
 
 export default function MyWalletScreen({ navigation }) {
+  const { t } = useAppLanguage();
   const { balance, transactions, balanceUpdated, topUp } = useWallet();
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [search, setSearch] = useState("");
-  const [activeFilter, setActiveFilter] = useState("All Transaction");
+  const [activeFilter, setActiveFilter] = useState("all");
   const [topUpVisible, setTopUpVisible] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState("1000");
 
+  const activeTxType = WALLET_FILTERS.find((f) => f.id === activeFilter)?.txType ?? null;
+
   const filtered = useMemo(() => {
     return transactions.filter((tx) => {
-      const matchesFilter =
-        activeFilter === "All Transaction" || tx.type === activeFilter;
+      const matchesFilter = !activeTxType || tx.type === activeTxType;
       const matchesSearch =
         !search.trim() ||
         tx.label.toLowerCase().includes(search.toLowerCase()) ||
         tx.type.toLowerCase().includes(search.toLowerCase());
       return matchesFilter && matchesSearch;
     });
-  }, [transactions, activeFilter, search]);
+  }, [transactions, activeTxType, search]);
 
   const handleTopUpConfirm = () => {
     topUp(topUpAmount);
     setTopUpVisible(false);
-    showDevMessage("Top Up", `Rechargement de ${topUpAmount} Da effectué.`);
+    showDevMessage(
+      t("mobile.wallet.topUpDevTitle"),
+      t("mobile.wallet.topUpDevMessage", { amount: topUpAmount })
+    );
   };
 
   return (
@@ -50,7 +62,7 @@ export default function MyWalletScreen({ navigation }) {
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
             <Ionicons name="chevron-back" size={22} color={colors.white} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>My Wallet</Text>
+          <Text style={styles.headerTitle}>{t("wallet.title")}</Text>
           <View style={styles.headerSpacer} />
         </View>
 
@@ -63,17 +75,22 @@ export default function MyWalletScreen({ navigation }) {
             balanceVisible={balanceVisible}
             onToggleVisibility={() => setBalanceVisible((v) => !v)}
             updatedAt={balanceUpdated}
-            onTransfer={() => showDevMessage("Transfer", "Transfert simulé.")}
+            onTransfer={() =>
+              showDevMessage(
+                t("mobile.wallet.transferDevTitle"),
+                t("mobile.wallet.transferDevMessage")
+              )
+            }
             onTopUp={() => setTopUpVisible(true)}
           />
 
           <View style={styles.panel}>
-            <Text style={styles.sectionTitle}>Transaction History</Text>
+            <Text style={styles.sectionTitle}>{t("wallet.transactions")}</Text>
 
             <View style={styles.searchRow}>
               <TextInput
                 style={styles.searchInput}
-                placeholder="Search transactions..."
+                placeholder={t("mobile.wallet.searchPlaceholder")}
                 placeholderTextColor={colors.placeholder}
                 value={search}
                 onChangeText={setSearch}
@@ -88,22 +105,22 @@ export default function MyWalletScreen({ navigation }) {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.filterRow}
             >
-              {TRANSACTION_FILTERS.map((filter) => (
+              {WALLET_FILTERS.map((filter) => (
                 <TouchableOpacity
-                  key={filter}
-                  onPress={() => setActiveFilter(filter)}
+                  key={filter.id}
+                  onPress={() => setActiveFilter(filter.id)}
                   style={[
                     styles.filterChip,
-                    activeFilter === filter && styles.filterChipActive,
+                    activeFilter === filter.id && styles.filterChipActive,
                   ]}
                 >
                   <Text
                     style={[
                       styles.filterText,
-                      activeFilter === filter && styles.filterTextActive,
+                      activeFilter === filter.id && styles.filterTextActive,
                     ]}
                   >
-                    {filter}
+                    {t(filter.labelKey)}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -114,7 +131,7 @@ export default function MyWalletScreen({ navigation }) {
                 <TransactionRow key={tx.id} transaction={tx} />
               ))}
               {filtered.length === 0 ? (
-                <Text style={styles.empty}>Aucune transaction trouvée.</Text>
+                <Text style={styles.empty}>{t("mobile.wallet.noTransactions")}</Text>
               ) : null}
             </View>
           </View>

@@ -1,4 +1,10 @@
-import { TouchableOpacity, Text, StyleSheet, Dimensions } from "react-native";
+import {
+  TouchableOpacity,
+  Text,
+  StyleSheet,
+  Dimensions,
+  ActivityIndicator,
+} from "react-native";
 import GoogleBrandIcon from "./GoogleBrandIcon";
 import { colors } from "../../theme/colors";
 
@@ -10,11 +16,28 @@ const DESIGN_HEIGHT = 812;
 const scaleX = SCREEN_WIDTH / DESIGN_WIDTH;
 const scaleY = SCREEN_HEIGHT / DESIGN_HEIGHT;
 
-export default function SocialButton({ label = "Sign up with Google", onPress }) {
+export default function SocialButton({
+  label = "Sign up with Google",
+  onPress,
+  loading = false,
+  disabled = false,
+}) {
+  const isDisabled = disabled || loading;
   return (
-    <TouchableOpacity style={styles.button} activeOpacity={0.8} onPress={onPress}>
-      <GoogleBrandIcon size={20 * scaleX} />
-      <Text style={styles.label}>{label}</Text>
+    <TouchableOpacity
+      style={[styles.button, isDisabled && styles.buttonDisabled]}
+      activeOpacity={0.8}
+      onPress={onPress}
+      disabled={isDisabled}
+    >
+      {loading ? (
+        <ActivityIndicator color={colors.primary} />
+      ) : (
+        <>
+          <GoogleBrandIcon size={20 * scaleX} />
+          <Text style={styles.label}>{label}</Text>
+        </>
+      )}
     </TouchableOpacity>
   );
 }
@@ -30,6 +53,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 12 * scaleX,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   label: {
     fontSize: 14 * scaleX,

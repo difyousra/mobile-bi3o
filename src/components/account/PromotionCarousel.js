@@ -1,8 +1,11 @@
 import { View, Text, ScrollView, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function PromotionCarousel({ promotions }) {
+  const { t } = useAppLanguage();
+
   return (
     <ScrollView
       horizontal
@@ -20,8 +23,12 @@ export default function PromotionCarousel({ promotions }) {
           </View>
           <View style={styles.divider} />
           <View style={styles.bottom}>
-            <Text style={styles.meta}>Valid Until: {promo.validUntil}</Text>
-            <Text style={styles.code}>Code : {promo.code}</Text>
+            <Text style={styles.meta}>
+              {t("mobile.profileUi.validUntil", { date: promo.validUntil })}
+            </Text>
+            <Text style={styles.code}>
+              {t("mobile.profileUi.promoCode", { code: promo.code })}
+            </Text>
           </View>
         </View>
       ))}

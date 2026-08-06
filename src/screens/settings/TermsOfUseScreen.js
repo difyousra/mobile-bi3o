@@ -5,9 +5,12 @@ import { colors } from "../../theme/colors";
 import SettingsScreenHeader from "../../components/settings/SettingsScreenHeader";
 import LegalDocumentBody from "../../components/settings/LegalDocumentBody";
 import { CGU_SECTIONS_FR } from "../../data/legal/cguBundles.fr";
-import { LEGAL_COPY_FR } from "../../data/legal/legalCopy.fr";
+import { CGU_SECTIONS_EN } from "../../data/legal/cguBundles.en";
+import { CGU_SECTIONS_AR } from "../../data/legal/cguBundles.ar";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function TermsOfUseScreen({ navigation, route }) {
+  const { t, language } = useAppLanguage();
   const sectionId = route?.params?.sectionId;
   const scrollRef = useRef(null);
   const onlyInterdictions = sectionId === "interdictions";
@@ -23,7 +26,11 @@ export default function TermsOfUseScreen({ navigation, route }) {
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <SettingsScreenHeader
-        title={onlyInterdictions ? "Interdictions" : "CGU"}
+        title={
+          onlyInterdictions
+            ? t("mobile.legal.bans")
+            : t("mobile.legal.terms")
+        }
         onBack={() => navigation.goBack()}
       />
       <ScrollView
@@ -33,15 +40,30 @@ export default function TermsOfUseScreen({ navigation, route }) {
       >
         {!onlyInterdictions ? (
           <>
-            <Text style={styles.h1}>{LEGAL_COPY_FR.terms.h1}</Text>
-            <Text style={styles.meta}>{LEGAL_COPY_FR.terms.updated}</Text>
-            <Text style={styles.intro}>{LEGAL_COPY_FR.terms.cguIntro}</Text>
+            <Text style={styles.h1}>{t("legal.terms.h1")}</Text>
+            <Text style={styles.meta}>
+              {t("legal.terms.updated", {
+                date: t("mobile.legal.cguUpdatedDate"),
+              })}
+            </Text>
+            <Text style={styles.intro}>{t("legal.terms.cguIntro")}</Text>
           </>
         ) : null}
-        <LegalDocumentBody
-          sections={CGU_SECTIONS_FR}
-          filterId={onlyInterdictions ? "interdictions" : undefined}
-        />
+        {(() => {
+          const sections =
+            language === "ar"
+              ? CGU_SECTIONS_AR
+              : language === "en"
+                ? CGU_SECTIONS_EN
+                : CGU_SECTIONS_FR;
+
+          return (
+            <LegalDocumentBody
+              sections={sections}
+              filterId={onlyInterdictions ? "interdictions" : undefined}
+            />
+          );
+        })()}
       </ScrollView>
     </SafeAreaView>
   );

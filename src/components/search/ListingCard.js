@@ -1,67 +1,86 @@
+/**
+ * Carte annonce résultats — style Leboncoin :
+ * image arrondie, pas de border/shadow, séparateur fin entre cards.
+ */
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
   Image,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
-import { formatPrice } from "../../data/mockListingsData";
+import PriceConversionRow from "../common/PriceConversionRow";
+import { sellerInitials } from "../../utils/formatListingDisplay";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const H_PAD = 16;
-const CARD_WIDTH = SCREEN_WIDTH - H_PAD * 2;
+const FALLBACK_IMAGE =
+  "https://new.bi3oo.com/uploads/1_vehicules/1_voitures/ann_31/2025/09/pexels-trksami-20277838_19e3a356740e426398e293fc5ac0ef2b.jpg";
+
+function ListingImage({ uri, style }) {
+  const [src, setSrc] = useState(uri || FALLBACK_IMAGE);
+  useEffect(() => {
+    setSrc(uri || FALLBACK_IMAGE);
+  }, [uri]);
+
+  return (
+    <Image
+      source={{ uri: src }}
+      style={style}
+      resizeMode="cover"
+      onError={() => {
+        if (src !== FALLBACK_IMAGE) setSrc(FALLBACK_IMAGE);
+      }}
+    />
+  );
+}
+
+function buildAttrsLine(listing) {
+  const parts = [];
+  if (listing.attrsLine) return listing.attrsLine;
+  if (listing.subtitle && listing.subtitle !== listing.location) {
+    parts.push(listing.subtitle);
+  }
+  if (listing.date) parts.push(listing.date);
+  return parts.filter(Boolean).join(" · ");
+}
 
 export default function ListingCard({
   listing,
-  currency,
   isFavorite,
   onPress,
   onToggleFavorite,
-  onToggleCurrency,
+  rates,
+  compact = false,
+  showDivider = true,
 }) {
-  const price =
-    currency === "EUR" ? listing.priceEur : listing.priceDzd;
-  const currencySymbol = currency === "EUR" ? "€" : "DZD";
+  const { t } = useAppLanguage();
+  const sellerName = String(listing.sellerName || "").trim();
+  const attrsLine = buildAttrsLine(listing);
+  const isPro = Boolean(listing.isPro);
 
   return (
     <TouchableOpacity
-      style={styles.card}
-      activeOpacity={0.95}
+      style={[styles.card, compact && styles.cardCompact]}
+      activeOpacity={0.92}
       onPress={() => onPress(listing)}
     >
-      <View style={styles.imageWrap}>
-        <Image source={{ uri: listing.image }} style={styles.image} />
+      <View style={[styles.imageWrap, compact && styles.imageWrapCompact]}>
+        <ListingImage uri={listing.image} style={styles.image} />
 
-        {listing.tag ? (
-          <View
-            style={[
-              styles.tag,
-              listing.tag.type === "pro"
-                ? styles.tagPro
-                : listing.tag.type === "particulier"
-                  ? styles.tagParticulier
-                  : styles.tagFeatured,
-            ]}
-          >
-            <Text
-              style={[
-                styles.tagText,
-                listing.tag.type === "featured" && styles.tagTextFeatured,
-                listing.tag.type === "particulier" && styles.tagTextParticulier,
-              ]}
-            >
-              {listing.tag.label}
-            </Text>
+        {listing.featured || listing.tag?.type === "featured" ? (
+          <View style={styles.featuredBadge}>
+            <Text style={styles.featuredBadgeText}>{t("mobile.search.featuredBadge")}</Text>
           </View>
         ) : null}
 
         <TouchableOpacity
-          style={styles.heartButton}
-          activeOpacity={0.8}
-          onPress={() => onToggleFavorite(listing.id)}
+          style={styles.favoriteBtn}
+          activeOpacity={0.85}
+          onPress={() => onToggleFavorite?.(listing.id)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Ionicons
             name={isFavorite ? "heart" : "heart-outline"}
@@ -69,37 +88,97 @@ export default function ListingCard({
             color={isFavorite ? colors.primary : colors.textDark}
           />
         </TouchableOpacity>
-        {Number(listing.favorisCount) > 0 ? (
-          <View style={styles.favCountBadge}>
-            <Ionicons name="heart" size={11} color={colors.primary} />
-            <Text style={styles.favCountText}>
-              {Number(listing.favorisCount)}
-            </Text>
-          </View>
-        ) : null}
       </View>
 
       <View style={styles.body}>
-        <View style={styles.priceRow}>
-          <Text style={styles.price}>{formatPrice(price, currency)}</Text>
-          <TouchableOpacity
-            style={styles.currencyButton}
-            activeOpacity={0.8}
-            onPress={() => onToggleCurrency(listing.id)}
-          >
-            <Text style={styles.currencyText}>{currencySymbol}</Text>
-            <Ionicons name="chevron-down" size={12} color={colors.textDark} />
-          </TouchableOpacity>
-        </View>
-
         <Text style={styles.title} numberOfLines={2}>
           {listing.title}
         </Text>
 
-        <View style={styles.locationRow}>
-          <Ionicons name="location-outline" size={14} color={colors.textMuted} />
-          <Text style={styles.location}>{listing.location}</Text>
-        </View>
+        <PriceConversionRow listing={listing} rates={rates} />
+
+        {isPro ? (
+          <View style={styles.proBadge}>
+            <Text style={styles.proBadgeText}>{t("categoryUi.sellerPro")}</Text>
+          </View>
+        ) : null}
+
+        {attrsLine ? (
+          <Text style={styles.attrs} numberOfLines={1}>
+            {attrsLine}
+          </Text>
+        ) : null}
+
+        {(sellerName || listing.location) && (
+          <View style={styles.sellerRow}>
+            <View style={styles.avatar}>
+              {listing.sellerPhotoUrl ? (
+                <Image
+                  source={{ uri: listing.sellerPhotoUrl }}
+                  style={styles.avatarImg}
+                />
+              ) : (
+                <Text style={styles.avatarInitials}>
+                  {sellerInitials(sellerName || "?")}
+                </Text>
+              )}
+            </View>
+            <View style={styles.sellerText}>
+              {sellerName ? (
+                <Text style={styles.sellerName} numberOfLines={1}>
+                  {sellerName}
+                </Text>
+              ) : null}
+              {listing.location ? (
+                <Text style={styles.sellerLocation} numberOfLines={1}>
+                  {listing.location}
+                </Text>
+              ) : null}
+            </View>
+          </View>
+        )}
+      </View>
+
+      {showDivider && !compact ? <View style={styles.divider} /> : null}
+    </TouchableOpacity>
+  );
+}
+
+/** Mini-carte horizontale (vue carte). */
+export function ListingMapCard({
+  listing,
+  selected = false,
+  onPress,
+  onOpen,
+  rates,
+}) {
+  const { t } = useAppLanguage();
+
+  return (
+    <TouchableOpacity
+      style={[styles.miniCard, selected && styles.miniCardSelected]}
+      activeOpacity={0.92}
+      onPress={() => {
+        if (selected) onOpen?.(listing);
+        else onPress?.(listing);
+      }}
+    >
+      <View style={styles.miniMedia}>
+        <ListingImage uri={listing.image} style={styles.miniImage} />
+      </View>
+      <View style={styles.miniBody}>
+        <PriceConversionRow listing={listing} rates={rates} size="sm" />
+        <Text style={styles.miniTitle} numberOfLines={2}>
+          {listing.title}
+        </Text>
+        {listing.location ? (
+          <Text style={styles.miniLocation} numberOfLines={1}>
+            {listing.location}
+          </Text>
+        ) : null}
+        {selected ? (
+          <Text style={styles.miniCta}>{t("mobile.search.viewListingCta")}</Text>
+        ) : null}
       </View>
     </TouchableOpacity>
   );
@@ -107,130 +186,164 @@ export default function ListingCard({
 
 const styles = StyleSheet.create({
   card: {
-    width: CARD_WIDTH,
-    marginBottom: 20,
-    borderRadius: 16,
+    width: "100%",
     backgroundColor: colors.white,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: colors.border,
+    paddingTop: 14,
+  },
+  cardCompact: {
+    width: 240,
+    paddingTop: 0,
   },
   imageWrap: {
     position: "relative",
-    height: 200,
+    height: 210,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#F4F6F8",
+  },
+  imageWrapCompact: {
+    height: 120,
   },
   image: {
     width: "100%",
     height: "100%",
-    backgroundColor: "#F4F6F8",
   },
-  tag: {
+  featuredBadge: {
     position: "absolute",
-    bottom: 12,
-    left: 12,
+    top: 10,
+    left: 10,
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: "#5B21B6",
   },
-  tagPro: {
-    backgroundColor: colors.primary,
-  },
-  tagParticulier: {
-    backgroundColor: "rgba(255,255,255,0.92)",
-    borderWidth: 1,
-    borderColor: "rgba(17,24,39,0.12)",
-  },
-  tagFeatured: {
-    backgroundColor: "rgba(255,255,255,0.92)",
-  },
-  tagText: {
+  featuredBadgeText: {
     fontSize: 11,
     fontWeight: "700",
     color: colors.white,
   },
-  tagTextFeatured: {
-    color: colors.textDark,
-  },
-  tagTextParticulier: {
-    color: "#374151",
-  },
-  heartButton: {
+  favoriteBtn: {
     position: "absolute",
-    top: 12,
-    right: 12,
+    top: 10,
+    right: 10,
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.white,
+    backgroundColor: "rgba(255,255,255,0.96)",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
   },
-  favCountBadge: {
-    position: "absolute",
-    bottom: 12,
-    right: 12,
+  body: {
+    paddingTop: 12,
+    paddingBottom: 14,
+    gap: 6,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.textHeading,
+    lineHeight: 22,
+  },
+  proBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.white,
+  },
+  proBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.primary,
+  },
+  attrs: {
+    fontSize: 13,
+    color: colors.textMuted,
+    lineHeight: 18,
+  },
+  sellerRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.95)",
+    gap: 10,
+    marginTop: 4,
   },
-  favCountText: {
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 6,
+    backgroundColor: "#EEF1F5",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  avatarImg: {
+    width: "100%",
+    height: "100%",
+  },
+  avatarInitials: {
     fontSize: 12,
     fontWeight: "700",
     color: colors.textHeading,
   },
-  body: {
-    padding: 14,
-    gap: 6,
+  sellerText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 1,
   },
-  priceRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+  sellerName: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: colors.textMuted,
   },
-  price: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: colors.textDark,
-  },
-  currencyButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 2,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-  },
-  currencyText: {
+  sellerLocation: {
     fontSize: 12,
-    fontWeight: "600",
-    color: colors.textDark,
+    color: colors.textMuted,
   },
-  title: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: colors.textDark,
-    lineHeight: 20,
-  },
-  locationRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "#E5E7EB",
     marginTop: 2,
   },
-  location: {
+  miniCard: {
+    width: 220,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: colors.white,
+  },
+  miniCardSelected: {
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  miniMedia: {
+    height: 100,
+    position: "relative",
+    borderRadius: 10,
+    overflow: "hidden",
+  },
+  miniImage: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#F0F2F5",
+  },
+  miniBody: {
+    paddingTop: 10,
+    gap: 4,
+  },
+  miniTitle: {
     fontSize: 13,
+    fontWeight: "600",
+    color: colors.textHeading,
+  },
+  miniLocation: {
+    fontSize: 12,
     color: colors.textMuted,
+  },
+  miniCta: {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.primary,
   },
 });

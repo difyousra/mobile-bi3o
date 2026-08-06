@@ -18,12 +18,14 @@ import {
   searchCommunes,
 } from "../../utils/algeriaLocation";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function LocationPickerField({
   city,
   postalCode,
   onChange,
 }) {
+  const { t } = useAppLanguage();
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const suggestions = useMemo(
@@ -33,6 +35,7 @@ export default function LocationPickerField({
 
   const locationLabel = formatAnnonceLocationLine(postalCode, city);
   const wilaya = findWilayaById(city);
+  const locationPlaceholder = t("categoryUi.locationSearchPlaceholder");
 
   const applyCommune = (row) => {
     const wilayaId = String(row.wilaya_id ?? "");
@@ -54,11 +57,11 @@ export default function LocationPickerField({
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.label}>Code postal ou commune *</Text>
+      <Text style={styles.label}>{t("createAdWizard.location.postalLabel")}</Text>
       <TouchableOpacity style={styles.searchButton} onPress={() => setOpen(true)}>
         <Ionicons name="search-outline" size={18} color={colors.iconMuted} />
         <Text style={[styles.searchText, !locationLabel && styles.placeholder]}>
-          {locationLabel || "Wilaya, commune ou code postal"}
+          {locationLabel || locationPlaceholder}
         </Text>
       </TouchableOpacity>
 
@@ -71,7 +74,7 @@ export default function LocationPickerField({
             <Text style={styles.summaryTitle}>{locationLabel}</Text>
             {wilaya ? (
               <Text style={styles.summarySubtitle}>
-                Wilaya · {getWilayaDisplayName(wilaya)}
+                {t("createAdWizard.location.wilayaPrefix")} {getWilayaDisplayName(wilaya)}
               </Text>
             ) : null}
           </View>
@@ -83,7 +86,7 @@ export default function LocationPickerField({
         <View style={styles.mapPlaceholder}>
           <Ionicons name="map-outline" size={24} color={colors.iconMuted} />
           <Text style={styles.mapPlaceholderText}>
-            Recherchez votre commune. La wilaya et le code postal seront remplis automatiquement.
+            {t("createAdWizard.location.subtitle")}
           </Text>
         </View>
       )}
@@ -92,7 +95,7 @@ export default function LocationPickerField({
         <Pressable style={styles.modalOverlay} onPress={() => setOpen(false)}>
           <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Localisation</Text>
+              <Text style={styles.modalTitle}>{t("createAdWizard.steps.location")}</Text>
               <TouchableOpacity onPress={() => setOpen(false)}>
                 <Ionicons name="close" size={22} color={colors.navy} />
               </TouchableOpacity>
@@ -101,13 +104,13 @@ export default function LocationPickerField({
               style={styles.input}
               value={searchTerm}
               onChangeText={setSearchTerm}
-              placeholder="Wilaya, commune ou code postal"
+              placeholder={locationPlaceholder}
               placeholderTextColor={colors.placeholder}
               autoFocus
             />
             <ScrollView style={styles.list}>
               {suggestions.length === 0 ? (
-                <Text style={styles.emptyText}>Aucune suggestion</Text>
+                <Text style={styles.emptyText}>{t("mobile.publish.locationNoSuggestions")}</Text>
               ) : (
                 suggestions.map((row) => (
                   <TouchableOpacity

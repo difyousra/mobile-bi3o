@@ -2,6 +2,7 @@ import { View, TouchableOpacity, StyleSheet, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
 import BrandLogo from "../common/BrandLogo";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function MessagesListHeader({
   onBackPress,
@@ -10,6 +11,8 @@ export default function MessagesListHeader({
   onRefreshPress,
   onLogoPress,
 }) {
+  const { t } = useAppLanguage();
+
   return (
     <View style={styles.row}>
       {showBack ? (
@@ -24,7 +27,9 @@ export default function MessagesListHeader({
         <BrandLogo onPress={onLogoPress} height={30} style={styles.logo} />
       )}
 
-      {showBack ? <Text style={styles.title}>Messages</Text> : null}
+      {showBack ? (
+        <Text style={styles.title}>{t("common.messages")}</Text>
+      ) : null}
 
       <View style={[styles.actions, showBack && styles.actionsCompact]}>
         <TouchableOpacity

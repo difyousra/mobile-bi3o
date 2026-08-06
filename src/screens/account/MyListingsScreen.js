@@ -21,15 +21,12 @@ import {
   useReactivateAnnonce,
   useDeleteAnnonce,
 } from "../../hooks/usePublish";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 // Contrat UI <-> API :
 // - Backend renvoie status textuels (ACTIVE/PAUSED/ARCHIVE...) qui sont normalisés dans normalizeStatus()
 // - Donc les onglets doivent correspondre aux valeurs normalisées : active / paused / sold
-const LISTING_TABS = [
-  { id: "active", label: "Actives" },
-  { id: "paused", label: "En pause" },
-  { id: "sold", label: "Vendues" },
-];
+const LISTING_TAB_IDS = ["active", "paused", "sold"];
 
 function normalizeStatus(item) {
   const raw = String(item.status ?? item.statut ?? "ACTIVE").toUpperCase();
@@ -40,7 +37,7 @@ function normalizeStatus(item) {
   return "active";
 }
 
-function mapManagedItem(item) {
+function mapManagedItem(item, defaultTitle) {
   const photoFromList =
     Array.isArray(item.photos) && item.photos.length
       ? resolveMediaUrl(
@@ -52,7 +49,7 @@ function mapManagedItem(item) {
 
   return {
     id: item.id,
-    title: item.titre ?? item.title ?? "Annonce",
+    title: item.titre ?? item.title ?? defaultTitle,
     price: Number(item.prix ?? item.price ?? 0),
     image:
       resolveMediaUrl(item.coverUrl ?? item.image) ??
@@ -67,6 +64,7 @@ function mapManagedItem(item) {
 }
 
 export default function MyListingsScreen({ navigation }) {
+  const { t } = useAppLanguage();
   const [activeTab, setActiveTab] = useState("active");
   const { data, isLoading, isError, refetch, isRefetching } = useMyManagedAds(
     0,
@@ -76,13 +74,28 @@ export default function MyListingsScreen({ navigation }) {
   const reactivateMutation = useReactivateAnnonce();
   const deleteMutation = useDeleteAnnonce();
 
+  const defaultTitle = t("mobile.myListings.defaultTitle");
+
+  const listingTabs = useMemo(
+    () =>
+      LISTING_TAB_IDS.map((id) => ({
+        id,
+        label: t(`mobile.myListings.tab${id.charAt(0).toUpperCase()}${id.slice(1)}`),
+      })),
+    [t]
+  );
+
   const listings = useMemo(() => {
-    const all = (data?.content ?? []).map(mapManagedItem);
+    const all = (data?.content ?? []).map((item) =>
+      mapManagedItem(item, defaultTitle)
+    );
     return all.filter((item) => item.status === activeTab);
-  }, [data, activeTab]);
+  }, [data, activeTab, defaultTitle]);
 
   const totals = useMemo(() => {
-    const all = (data?.content ?? []).map(mapManagedItem);
+    const all = (data?.content ?? []).map((item) =>
+      mapManagedItem(item, defaultTitle)
+    );
     return all.reduce(
       (acc, item) => ({
         views: acc.views + item.views,
@@ -93,12 +106,16 @@ export default function MyListingsScreen({ navigation }) {
       }),
       { views: 0, favoris: 0, messages: 0, whatsapp: 0, count: 0 }
     );
-  }, [data]);
+  }, [data, defaultTitle]);
 
   const confirmAction = (title, message, onConfirm) => {
     Alert.alert(title, message, [
-      { text: "Annuler", style: "cancel" },
-      { text: "Confirmer", style: "destructive", onPress: onConfirm },
+      { text: t("mobile.common.cancel"), style: "cancel" },
+      {
+        text: t("mobile.myListings.confirm"),
+        style: "destructive",
+        onPress: onConfirm,
+      },
     ]);
   };
 
@@ -108,7 +125,7 @@ export default function MyListingsScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={22} color={colors.textHeading} />
         </TouchableOpacity>
-        <Text style={styles.title}>Mes annonces</Text>
+        <Text style={styles.title}>{t("layout.myAds")}</Text>
         <View style={{ width: 22 }} />
       </View>
 
@@ -119,33 +136,35 @@ export default function MyListingsScreen({ navigation }) {
         }
       >
         <View style={styles.ctaCard}>
-          <Text style={styles.ctaTitle}>Publier une nouvelle annonce</Text>
-          <Text style={styles.ctaSub}>
-            Vendez rapidement vos articles sur Bi3oo.
-          </Text>
+          <Text style={styles.ctaTitle}>{t("profileUi.sellFasterTitle")}</Text>
+          <Text style={styles.ctaSub}>{t("profileUi.sellFasterDesc")}</Text>
           <TouchableOpacity
             style={styles.ctaBtn}
             onPress={() =>
               navigation.navigate("MainTabs", { screen: "Publish" })
             }
           >
-            <Text style={styles.ctaBtnText}>Créer une annonce</Text>
+            <Text style={styles.ctaBtnText}>{t("profileUi.postAdBtn")}</Text>
           </TouchableOpacity>
         </View>
 
         {totals.count > 0 ? (
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryTitle}>Performances globales</Text>
+            <Text style={styles.summaryTitle}>
+              {t("mobile.myListings.globalPerformance")}
+            </Text>
             <View style={styles.summaryRow}>
               <View style={styles.summaryItem}>
                 <Ionicons name="eye-outline" size={18} color={colors.navy} />
                 <Text style={styles.summaryValue}>{totals.views}</Text>
-                <Text style={styles.summaryLabel}>Vues</Text>
+                <Text style={styles.summaryLabel}>{t("mobile.myListings.views")}</Text>
               </View>
               <View style={styles.summaryItem}>
                 <Ionicons name="heart-outline" size={18} color={colors.primary} />
                 <Text style={styles.summaryValue}>{totals.favoris}</Text>
-                <Text style={styles.summaryLabel}>Favoris</Text>
+                <Text style={styles.summaryLabel}>
+                  {t("mobile.myListings.favorites")}
+                </Text>
               </View>
               <View style={styles.summaryItem}>
                 <Ionicons
@@ -154,7 +173,7 @@ export default function MyListingsScreen({ navigation }) {
                   color={colors.navy}
                 />
                 <Text style={styles.summaryValue}>{totals.messages}</Text>
-                <Text style={styles.summaryLabel}>Messages</Text>
+                <Text style={styles.summaryLabel}>{t("common.messages")}</Text>
               </View>
               <View style={styles.summaryItem}>
                 <Ionicons
@@ -163,14 +182,16 @@ export default function MyListingsScreen({ navigation }) {
                   color="#25D366"
                 />
                 <Text style={styles.summaryValue}>{totals.whatsapp}</Text>
-                <Text style={styles.summaryLabel}>WhatsApp</Text>
+                <Text style={styles.summaryLabel}>
+                  {t("mobile.myListings.whatsapp")}
+                </Text>
               </View>
             </View>
           </View>
         ) : null}
 
         <View style={styles.tabs}>
-          {LISTING_TABS.map((tab) => (
+          {listingTabs.map((tab) => (
             <TouchableOpacity
               key={tab.id}
               style={[styles.tab, activeTab === tab.id && styles.tabActive]}
@@ -193,13 +214,11 @@ export default function MyListingsScreen({ navigation }) {
         ) : null}
 
         {isError ? (
-          <Text style={styles.empty}>
-            Impossible de charger vos annonces (JWT requis).
-          </Text>
+          <Text style={styles.empty}>{t("mobile.myListings.loadError")}</Text>
         ) : null}
 
         {!isLoading && listings.length === 0 ? (
-          <Text style={styles.empty}>Aucune annonce dans cette catégorie.</Text>
+          <Text style={styles.empty}>{t("profileUi.emptyCategory")}</Text>
         ) : (
           listings.map((item) => (
             <View key={item.id} style={styles.card}>
@@ -246,35 +265,39 @@ export default function MyListingsScreen({ navigation }) {
                       style={styles.actionBtn}
                       onPress={() =>
                         confirmAction(
-                          "Suspendre",
-                          "Mettre cette annonce en pause ?",
+                          t("mobile.myListings.suspendTitle"),
+                          t("mobile.myListings.suspendBody"),
                           () => pauseMutation.mutate(item.id)
                         )
                       }
                     >
-                      <Text style={styles.actionText}>Pause</Text>
+                      <Text style={styles.actionText}>
+                        {t("mobile.myListings.pause")}
+                      </Text>
                     </TouchableOpacity>
                   ) : item.status === "paused" ? (
                     <TouchableOpacity
                       style={styles.actionBtn}
                       onPress={() => reactivateMutation.mutate(item.id)}
                     >
-                      <Text style={styles.actionText}>Réactiver</Text>
+                      <Text style={styles.actionText}>
+                        {t("mobile.myListings.reactivate")}
+                      </Text>
                     </TouchableOpacity>
                   ) : null}
                   <TouchableOpacity
                     style={styles.actionBtn}
                     onPress={() =>
-                      confirmAction(
-                        "Supprimer",
-                        "Supprimer définitivement cette annonce ?",
-                        () => deleteMutation.mutate(item.id)
-                      )
-                    }
-                  >
-                    <Text style={[styles.actionText, styles.danger]}>
-                      Supprimer
-                    </Text>
+                        confirmAction(
+                          t("mobile.myListings.deleteTitle"),
+                          t("profileUi.confirmDelete"),
+                          () => deleteMutation.mutate(item.id)
+                        )
+                      }
+                    >
+                      <Text style={[styles.actionText, styles.danger]}>
+                        {t("mobile.common.delete")}
+                      </Text>
                   </TouchableOpacity>
                 </View>
               </View>

@@ -16,6 +16,7 @@ import { useMutation } from "@tanstack/react-query";
 import { colors } from "../../theme/colors";
 import { useAuth } from "../../context/AuthContext";
 import { useProfileMe } from "../../hooks/useProfile";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 import * as profileService from "../../services/profileService";
 
 function Field({ label, value, onChangeText, keyboardType }) {
@@ -52,6 +53,7 @@ function TextAreaField({ label, value, onChangeText }) {
 }
 
 export default function EditProfileScreen({ navigation }) {
+  const { t } = useAppLanguage();
   const { user, refreshUser } = useAuth();
   const userId = user?.id;
 
@@ -93,21 +95,26 @@ export default function EditProfileScreen({ navigation }) {
     onSuccess: async () => {
       await refreshUser?.();
       await refetch?.();
-      Alert.alert("Profil", "Informations enregistrées.");
+      Alert.alert(
+        t("profilePublicUi.editTitle"),
+        t("profilePublicUi.successSaved")
+      );
       navigation.goBack();
     },
     onError: (e) => {
       Alert.alert(
-        "Erreur",
-        e?.message ??
-          "Impossible d'enregistrer le profil (PATCH /profiles/account/{userId})."
+        t("mobile.common.error"),
+        e?.message ?? t("profilePublicUi.errorSave")
       );
     },
   });
 
   const handleSave = () => {
     if (!userId) {
-      Alert.alert("Profil", "Session invalide.");
+      Alert.alert(
+        t("profilePublicUi.editTitle"),
+        t("mobile.account.sessionInvalid")
+      );
       return;
     }
     patchMutation.mutate({
@@ -140,7 +147,7 @@ export default function EditProfileScreen({ navigation }) {
             color={colors.textHeading}
           />
         </TouchableOpacity>
-        <Text style={styles.title}>Modifier le profil</Text>
+        <Text style={styles.title}>{t("profilePublicUi.editTitle")}</Text>
         <View style={{ width: 22 }} />
       </View>
 
@@ -153,47 +160,47 @@ export default function EditProfileScreen({ navigation }) {
         ) : null}
 
         <TextAreaField
-          label="Biographie"
+          label={t("profilePublicUi.bio")}
           value={form.biographie}
           onChangeText={(v) => setForm((p) => ({ ...p, biographie: v }))}
         />
 
         <Field
-          label="Prénom"
+          label={t("profilePublicUi.firstName")}
           value={form.prenom}
           onChangeText={(v) => setForm((p) => ({ ...p, prenom: v }))}
         />
         <Field
-          label="Nom"
+          label={t("profilePublicUi.lastName")}
           value={form.nom}
           onChangeText={(v) => setForm((p) => ({ ...p, nom: v }))}
         />
         <Field
-          label="Téléphone"
+          label={t("profilePublicUi.phone")}
           value={form.telephone}
           keyboardType="phone-pad"
           onChangeText={(v) => setForm((p) => ({ ...p, telephone: v }))}
         />
         <Field
-          label="WhatsApp"
+          label={t("profilePublicUi.whatsapp")}
           value={form.whatsapp}
           keyboardType="phone-pad"
           onChangeText={(v) => setForm((p) => ({ ...p, whatsapp: v }))}
         />
         <Field
-          label="Site web"
+          label={t("profilePublicUi.website")}
           value={form.siteWeb}
           onChangeText={(v) => setForm((p) => ({ ...p, siteWeb: v }))}
         />
         <Field
-          label="Facebook"
+          label={t("profilePublicUi.facebook")}
           value={form.facebookUrl}
           onChangeText={(v) =>
             setForm((p) => ({ ...p, facebookUrl: v }))
           }
         />
         <Field
-          label="Instagram"
+          label={t("profilePublicUi.instagram")}
           value={form.instagramUrl}
           onChangeText={(v) =>
             setForm((p) => ({ ...p, instagramUrl: v }))
@@ -209,7 +216,9 @@ export default function EditProfileScreen({ navigation }) {
           disabled={patchMutation.isPending}
         >
           <Text style={styles.saveText}>
-            {patchMutation.isPending ? "Enregistrement..." : "Enregistrer"}
+            {patchMutation.isPending
+              ? t("profilePublicUi.saving")
+              : t("profilePublicUi.saveChanges")}
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -276,4 +285,3 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 });
-

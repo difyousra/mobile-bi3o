@@ -11,6 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
 import { formatRecordingDuration } from "../../hooks/useVoiceRecorder";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 const EMOJI_LIST = [
   "😀", "😁", "😂", "🤣", "😊", "😍", "😘", "😉", "😇", "🙂",
@@ -30,6 +31,7 @@ export default function ChatInput({
   recordingMs = 0,
   sendingMedia = false,
 }) {
+  const { t } = useAppLanguage();
   const [emojiOpen, setEmojiOpen] = useState(false);
   const canSend = value.trim().length > 0;
   const showMic = !canSend && !isRecording;
@@ -45,7 +47,7 @@ export default function ChatInput({
           activeOpacity={0.7}
           onPress={onCancelRecording}
           style={styles.sideButton}
-          accessibilityLabel="Annuler l'enregistrement"
+          accessibilityLabel={t("messagesUi.voiceCancel")}
         >
           <Ionicons name="trash-outline" size={22} color="#DC2626" />
         </TouchableOpacity>
@@ -55,14 +57,14 @@ export default function ChatInput({
           <Text style={styles.recordingTime}>
             {formatRecordingDuration(recordingMs)}
           </Text>
-          <Text style={styles.recordingHint}>Enregistrement…</Text>
+          <Text style={styles.recordingHint}>{t("messagesUi.voiceRecording")}</Text>
         </View>
 
         <TouchableOpacity
           style={styles.sendButton}
           activeOpacity={0.85}
           onPress={onStopRecording}
-          accessibilityLabel="Envoyer le message vocal"
+          accessibilityLabel={t("mobile.messages.sendVoice")}
         >
           <Ionicons name="send" size={20} color={colors.white} />
         </TouchableOpacity>
@@ -101,7 +103,7 @@ export default function ChatInput({
             activeOpacity={0.7}
             style={styles.iconButton}
             onPress={() => setEmojiOpen((v) => !v)}
-            accessibilityLabel="Emojis"
+            accessibilityLabel={t("messagesUi.emoji")}
           >
             <Ionicons
               name={emojiOpen ? "happy" : "happy-outline"}
@@ -112,7 +114,7 @@ export default function ChatInput({
 
           <TextInput
             style={styles.input}
-            placeholder="Écrivez votre message…"
+            placeholder={t("mobile.messages.inputPlaceholder")}
             placeholderTextColor={colors.placeholder}
             value={value}
             onChangeText={(text) => {
@@ -131,7 +133,7 @@ export default function ChatInput({
             }}
             style={styles.iconButton}
             disabled={sendingMedia}
-            accessibilityLabel="Joindre une photo"
+            accessibilityLabel={t("mobile.messages.attachPhoto")}
           >
             {sendingMedia ? (
               <ActivityIndicator size="small" color={colors.iconMuted} />
@@ -146,7 +148,7 @@ export default function ChatInput({
             style={styles.sendButton}
             activeOpacity={0.85}
             onPress={onMicPress}
-            accessibilityLabel="Message vocal"
+            accessibilityLabel={t("mobile.messages.voiceMessage")}
           >
             <Ionicons name="mic" size={22} color={colors.white} />
           </TouchableOpacity>
@@ -159,7 +161,7 @@ export default function ChatInput({
               onSend?.();
             }}
             disabled={!canSend}
-            accessibilityLabel="Envoyer"
+            accessibilityLabel={t("mobile.messages.send")}
           >
             <Ionicons name="send" size={20} color={colors.white} />
           </TouchableOpacity>

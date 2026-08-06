@@ -1,17 +1,17 @@
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function ProfilePromoBanner({ onDismiss }) {
+  const { t } = useAppLanguage();
+
   return (
     <View style={styles.banner}>
       <View style={styles.iconWrap}>
         <Ionicons name="bicycle-outline" size={20} color={colors.navy} />
       </View>
-      <Text style={styles.text}>
-        Faites-vous livrer vos petits colis pour 0,99€ tout le week-end avec
-        Yassir Relay.
-      </Text>
+      <Text style={styles.text}>{t("mobile.profileUi.relayPromo")}</Text>
       <TouchableOpacity onPress={onDismiss} hitSlop={8}>
         <Ionicons name="close" size={16} color={colors.textMuted} />
       </TouchableOpacity>

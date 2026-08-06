@@ -1,13 +1,18 @@
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function SearchResultsHeader({
   count,
   sortLabel,
   onSortPress,
 }) {
-  const countLabel = count >= 100 ? "100+ résultats" : `${count} résultat${count > 1 ? "s" : ""}`;
+  const { t } = useAppLanguage();
+  const countLabel =
+    count >= 100
+      ? t("mobile.search.resultsCount100Plus")
+      : t("mobile.search.resultsCount", { count });
 
   return (
     <View style={styles.row}>
@@ -17,7 +22,7 @@ export default function SearchResultsHeader({
         activeOpacity={0.8}
         onPress={onSortPress}
       >
-        <Text style={styles.sortText}>Trier par: </Text>
+        <Text style={styles.sortText}>{t("categoryUi.sortBy")} </Text>
         <Text style={styles.sortValue}>{sortLabel}</Text>
         <Ionicons name="chevron-down" size={14} color={colors.textDark} />
       </TouchableOpacity>

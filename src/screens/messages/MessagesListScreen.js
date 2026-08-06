@@ -19,8 +19,10 @@ import { useMessages } from "../../context/MessagesContext";
 import { showDevMessage } from "../../utils/devFeedback";
 import { colors } from "../../theme/colors";
 import { useTabBarInset } from "../../hooks/useTabBarInset";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function MessagesListScreen({ navigation }) {
+  const { t } = useAppLanguage();
   const rootNavigation = useNavigation();
   const tabBarInset = useTabBarInset();
   const {
@@ -44,13 +46,16 @@ export default function MessagesListScreen({ navigation }) {
 
   const handleNewChat = () => {
     Alert.alert(
-      "Nouvelle conversation",
-      "Ouvrez une annonce et appuyez sur Contacter pour démarrer un fil (POST /messagerie/annonces/{id}/conversations)."
+      t("mobile.messages.newChatTitle"),
+      t("mobile.messages.newChatBody")
     );
   };
 
   const handleFilterPress = () => {
-    showDevMessage("Filtres", "Filtres de messages non documentés côté API.");
+    showDevMessage(
+      t("mobile.messages.filtersDevTitle"),
+      t("mobile.messages.filtersDevBody")
+    );
   };
 
   return (
@@ -70,7 +75,7 @@ export default function MessagesListScreen({ navigation }) {
           value={searchQuery}
           onChangeText={setSearchQuery}
           onFilterPress={handleFilterPress}
-          placeholder="Rechercher une conversation"
+          placeholder={t("mobile.search.conversationPlaceholder")}
         />
 
         {isLoading ? (
@@ -81,9 +86,7 @@ export default function MessagesListScreen({ navigation }) {
         ) : null}
 
         {isError ? (
-          <Text style={styles.error}>
-            Impossible de charger les conversations (JWT requis).
-          </Text>
+          <Text style={styles.error}>{t("messagesUi.loadInboxError")}</Text>
         ) : null}
 
         {!isLoading && showList ? (

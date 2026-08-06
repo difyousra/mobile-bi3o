@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, Pressable, StyleSheet } from "react-native";
 import { colors } from "../../theme/colors";
 
 export default function FavoritesTabs({ tabs, activeId, onSelect }) {
@@ -8,17 +8,25 @@ export default function FavoritesTabs({ tabs, activeId, onSelect }) {
         const isActive = tab.id === activeId;
 
         return (
-          <TouchableOpacity
+          <Pressable
             key={tab.id}
-            style={styles.tab}
-            activeOpacity={0.8}
-            onPress={() => onSelect(tab.id)}
+            style={({ pressed }) => [
+              styles.tab,
+              pressed && styles.tabPressed,
+            ]}
+            onPress={() => onSelect?.(tab.id)}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: isActive }}
+            hitSlop={8}
           >
-            <Text style={[styles.label, isActive && styles.labelActive]}>
+            <Text
+              style={[styles.label, isActive && styles.labelActive]}
+              numberOfLines={1}
+            >
               {tab.label}
             </Text>
             {isActive ? <View style={styles.indicator} /> : null}
-          </TouchableOpacity>
+          </Pressable>
         );
       })}
     </View>
@@ -28,7 +36,7 @@ export default function FavoritesTabs({ tabs, activeId, onSelect }) {
 const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
-    marginBottom: 18,
+    marginBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
@@ -36,7 +44,13 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     paddingBottom: 12,
+    paddingTop: 4,
     position: "relative",
+    minHeight: 44,
+    justifyContent: "center",
+  },
+  tabPressed: {
+    opacity: 0.7,
   },
   label: {
     fontSize: 13,

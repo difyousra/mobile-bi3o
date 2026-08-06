@@ -9,14 +9,16 @@ import {
   SettingsListRow,
 } from "../../components/settings/SettingsListRows";
 import { useUserPreferences } from "../../hooks/useUserPreferences";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function PrivacySettingsScreen({ navigation }) {
   const { prefs, ready, setPreference } = useUserPreferences();
+  const { t } = useAppLanguage();
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <SettingsScreenHeader
-        title="Confidentialité"
+        title={t("mobile.accountSettings.privacy")}
         onBack={() => navigation.goBack()}
       />
       {!ready ? (
@@ -28,28 +30,24 @@ export default function PrivacySettingsScreen({ navigation }) {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          <SettingsIntro>
-            Gérez la visibilité de votre profil et le traitement de vos données
-            personnelles. Pour en savoir plus, consultez la politique de
-            confidentialité Bi3oo.
-          </SettingsIntro>
+          <SettingsIntro>{t("mobile.settings.privacy.intro")}</SettingsIntro>
 
           <SettingsSectionCard>
             <SettingsSwitchRow
-              label="Profil visible"
-              subtitle="Les autres utilisateurs peuvent voir votre profil public."
+              label={t("mobile.settings.privacy.profileVisible")}
+              subtitle={t("mobile.settings.privacy.profileVisibleHint")}
               value={prefs.profileVisible}
               onValueChange={(v) => setPreference("profileVisible", v)}
             />
             <SettingsSwitchRow
-              label="Afficher mon téléphone"
-              subtitle="Sur vos annonces, si vous avez renseigné un numéro."
+              label={t("mobile.settings.privacy.showPhone")}
+              subtitle={t("mobile.settings.privacy.showPhoneHint")}
               value={prefs.showPhoneOnAds}
               onValueChange={(v) => setPreference("showPhoneOnAds", v)}
             />
             <SettingsSwitchRow
-              label="Personnalisation"
-              subtitle="Autoriser Bi3oo à adapter l’expérience à partir de votre activité."
+              label={t("mobile.settings.privacy.personalization")}
+              subtitle={t("mobile.settings.privacy.personalizationHint")}
               value={prefs.allowPersonalizedAds}
               onValueChange={(v) => setPreference("allowPersonalizedAds", v)}
               isLast
@@ -58,7 +56,7 @@ export default function PrivacySettingsScreen({ navigation }) {
 
           <SettingsSectionCard style={styles.secondCard}>
             <SettingsListRow
-              label="Politique de confidentialité"
+              label={t("mobile.legal.privacy")}
               onPress={() => navigation.navigate("PrivacyPolicy")}
               isLast
             />

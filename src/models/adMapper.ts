@@ -2,6 +2,14 @@ import type { AdCard, AnnonceValeur, CategoryTreeNode, PublicAdDetail } from "..
 import { resolveMediaUrl } from "../utils/mediaUrl";
 import { isAnnonceLivraisonDisponible } from "../features/annonces/utils/livraisonUtils";
 import { resolveLivraisonFinalizerFromValeurs } from "../features/annonces/utils/livraisonFinalizer";
+import { getCategoryIonicon } from "../features/categories/categoryIcons";
+import {
+  formatListingLocation,
+  formatListingPostedAt,
+  formatListingPriceDZD,
+  formatListingPriceEUR,
+  shouldHideEurConversion,
+} from "../utils/formatListingDisplay";
 
 export type UiAttribut = {
   id?: number;
@@ -49,7 +57,7 @@ export type UiProduct = {
 };
 
 const PLACEHOLDER_IMAGE =
-  "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&q=80";
+  "https://new.bi3oo.com/uploads/1_vehicules/1_voitures/ann_31/2025/09/pexels-trksami-20277838_19e3a356740e426398e293fc5ac0ef2b.jpg";
 
 /** Livraison / contact — on les exclut des attributs affichés comme le web */
 const LIVRAISON_NOM_PATTERNS = [
@@ -59,7 +67,11 @@ const LIVRAISON_NOM_PATTERNS = [
 
 function isExcludedAttribut(nom?: string): boolean {
   if (!nom) return false;
-  const n = String(nom).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_");
+  const n = String(nom)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_");
   return LIVRAISON_NOM_PATTERNS.some((p) => n.includes(p));
 }
 
@@ -91,9 +103,30 @@ function mapValeurs(valeurs?: AnnonceValeur[]): UiAttribut[] {
     .filter((a) => a.value && !isExcludedAttribut(a.attributNom));
 }
 
+function pickAdImage(ad: AdCard | PublicAdDetail): string {
+  const cover = resolveMediaUrl(ad.coverUrl);
+  if (cover) return cover;
+
+  const fromPhotoUrls = (ad as PublicAdDetail).photoUrls
+    ?.map((u) => resolveMediaUrl(u))
+    .find(Boolean);
+  if (fromPhotoUrls) return fromPhotoUrls;
+
+  const photos = ad.photos ?? [];
+  const coverPhoto = photos.find((p) => p.cover);
+  const ordered = coverPhoto ? [coverPhoto, ...photos] : photos;
+  const fromPhotos = ordered
+    .map((p) => resolveMediaUrl(p.url ?? p.photoUrl ?? p.chemin))
+    .find(Boolean);
+  if (fromPhotos) return fromPhotos;
+
+  return PLACEHOLDER_IMAGE;
+}
+
 function dzdToEuro(prixDzd: number, rate?: number): number {
-  if (rate && rate > 0) return Math.round((prixDzd / rate) * 100) / 100;
-  return Math.round(prixDzd * 0.007 * 100) / 100;
+  if (rate && rate > 0) return Math.round(prixDzd / rate);
+  // Fallback parallèle (~260 DA/EUR), pas le taux banque (~0.007).
+  return Math.round(prixDzd / 260);
 }
 
 export function mapAdCardToUi(
@@ -101,12 +134,7 @@ export function mapAdCardToUi(
   options?: { eurToDzd?: number }
 ): UiProduct {
   const priceDa = Number(ad.prix ?? 0);
-  const photoFromList =
-    ad.photos
-      ?.map((p) => resolveMediaUrl(p.url ?? p.photoUrl ?? p.chemin))
-      .find(Boolean) ?? undefined;
-  const cover =
-    resolveMediaUrl(ad.coverUrl) ?? photoFromList ?? PLACEHOLDER_IMAGE;
+  const cover = pickAdImage(ad);
 
   return {
     id: String(ad.id),
@@ -120,16 +148,20 @@ export function mapAdCardToUi(
     currency: "Da",
     description: ad.titre,
     seller:
-      (ad as { vendeurPublicNom?: string }).vendeurPublicNom ??
+      ad.vendeurPublicNom ??
       "Vendeur Bi3oo",
-    location: ad.ville ?? "",
+    location: formatListingLocation(ad.ville, ad.codePostal) || ad.ville || "",
     ville: ad.ville,
+    codePostal: ad.codePostal,
     photos: [cover],
     sellerId: (ad as { userId?: number }).userId,
     vendeurEstPro: Boolean(ad.vendeurEstPro),
-    favorisCount: Number((ad as { favorisCount?: number }).favorisCount ?? 0),
+    createdAt: ad.createdAt,
+    favorisCount: Number(ad.favorisCount ?? 0),
     views: Number((ad as { views?: number }).views ?? 0) || undefined,
     attributs: [],
+    categorieId: ad.categorieId,
+    sousCategorieId: ad.sousCategorieId,
     rating: 0,
     reviews: 0,
     sold: 0,
@@ -165,7 +197,12 @@ export function mapPublicAdToUi(
     ad.vendeurPublicNom ??
     ([ad.user?.prenom, ad.user?.nom].filter(Boolean).join(" ") || base.seller);
 
-  const location = [ad.codePostal, ad.ville].filter(Boolean).join(" ") || ad.ville || base.location;
+  const location =
+    formatListingLocation(ad.ville, ad.codePostal) ||
+    [ad.codePostal, ad.ville].filter(Boolean).join(" ") ||
+    ad.ville ||
+    base.location;
+
   const livraisonFinalizer = resolveLivraisonFinalizerFromValeurs(ad.valeurs);
 
   return {
@@ -196,12 +233,36 @@ export function mapPublicAdToUi(
   };
 }
 
-export function categoryLabel(node: CategoryTreeNode): string {
-  return node.nom ?? node.name ?? node.label ?? `Cat ${node.id}`;
+type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
+
+export function categoryLabel(
+  node: CategoryTreeNode,
+  t?: TranslateFn
+): string {
+  const fallback = node.nom ?? node.name ?? node.label ?? `Cat ${node.id}`;
+  if (!t || node.id == null) return fallback;
+
+  const key = `categoryNames.${node.id}`;
+  const localized = t(key, { defaultValue: fallback });
+  return localized && localized !== key ? localized : fallback;
+}
+
+/** Sous-catégorie : dictionnaire `subcategoryNames` (IDs distincts des racines). */
+export function subcategoryLabel(
+  node: { id?: number | string; nom?: string; name?: string; label?: string },
+  t?: TranslateFn
+): string {
+  const fallback = node.nom ?? node.name ?? node.label ?? `Sous ${node.id}`;
+  if (!t || node.id == null) return fallback;
+
+  const key = `subcategoryNames.${node.id}`;
+  const localized = t(key, { defaultValue: fallback });
+  return localized && localized !== key ? localized : fallback;
 }
 
 export function flattenCategoryTree(
-  tree: CategoryTreeNode[] | CategoryTreeNode | null | undefined
+  tree: CategoryTreeNode[] | CategoryTreeNode | null | undefined,
+  t?: (key: string) => string
 ): Array<{ id: string; label: string; icon: string; rawId: number }> {
   const roots = Array.isArray(tree)
     ? tree
@@ -214,13 +275,21 @@ export function flattenCategoryTree(
     label: string;
     icon: string;
     rawId: number;
-  }> = [{ id: "all", label: "Tout", icon: "apps-outline", rawId: 0 }];
+  }> = [
+    {
+      id: "all",
+      label: t ? t("categoryUi.allCategory") : "Tout",
+      icon: "apps-outline",
+      rawId: 0,
+    },
+  ];
 
   for (const node of roots) {
+    const label = categoryLabel(node, t);
     chips.push({
       id: String(node.id),
-      label: categoryLabel(node),
-      icon: "grid-outline",
+      label,
+      icon: getCategoryIonicon(node.id, label),
       rawId: node.id,
     });
   }
@@ -230,33 +299,65 @@ export function flattenCategoryTree(
 
 export function mapAdCardToListing(
   ad: AdCard,
-  options?: { eurToDzd?: number }
+  options?: { eurToDzd?: number; officialRate?: number }
 ): {
   id: string;
   title: string;
   location: string;
+  date: string;
+  createdAt?: string;
+  prix: number;
   priceEur: number;
   priceDzd: number;
+  priceLabel: string;
+  eurLabel: string;
+  eurOfficialLabel: string;
+  hideEurConversion: boolean;
   image: string;
-  favorisCount?: number;
+  favorisCount: number;
   tag?: { label: string; type: string };
   isPro: boolean;
+  sellerName: string;
+  sellerPhotoUrl: string;
   ville?: string;
   codePostal?: string;
+  categorieId?: number;
+  sousCategorieId?: number;
 } {
   const ui = mapAdCardToUi(ad, options);
   const isPro = Boolean(ad.vendeurEstPro ?? ui.vendeurEstPro);
+  const hideEur = shouldHideEurConversion(ad);
+  const priceDzd = ui.priceDa;
+  const sellerName = String(ad.vendeurPublicNom || ui.seller || "").trim();
+  const sellerPhotoUrl =
+    resolveMediaUrl(ad.vendeurPublicPhotoUrl || ad.vendeurPhotoUrl) || "";
+
   return {
     id: ui.id,
     title: ui.title,
-    location: ui.location || "Algérie",
-    priceEur: ui.priceEuro,
-    priceDzd: ui.priceDa,
+    location: formatListingLocation(ad.ville, ad.codePostal) || ui.location || "Algérie",
+    date: formatListingPostedAt(ad.createdAt),
+    createdAt: ad.createdAt,
+    prix: priceDzd,
+    priceEur: hideEur ? 0 : ui.priceEuro,
+    priceDzd,
+    priceLabel: formatListingPriceDZD(priceDzd),
+    eurLabel: hideEur
+      ? ""
+      : formatListingPriceEUR(priceDzd, options?.eurToDzd),
+    eurOfficialLabel: hideEur
+      ? ""
+      : formatListingPriceEUR(priceDzd, options?.officialRate),
+    hideEurConversion: hideEur,
     image: ui.image,
-    favorisCount: ui.favorisCount,
+    favorisCount: Number(ui.favorisCount ?? 0),
     isPro,
+    sellerName,
+    sellerPhotoUrl,
     ville: ad.ville,
     codePostal: ad.codePostal,
+    categorieId: ad.categorieId,
+    sousCategorieId: ad.sousCategorieId,
     tag: {
       label: isPro ? "Pro" : "Particulier",
       type: isPro ? "pro" : "particulier",

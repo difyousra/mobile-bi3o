@@ -1,15 +1,17 @@
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function SearchQueryBanner({ query, onClear }) {
+  const { t } = useAppLanguage();
+
   if (!query.trim()) return null;
 
   return (
     <View style={styles.row}>
       <Text style={styles.text}>
-        Showing search result of{" "}
-        <Text style={styles.query}>&ldquo;{query}&rdquo;</Text>
+        {t("mobile.search.queryBanner", { query })}
       </Text>
       <TouchableOpacity
         style={styles.clearButton}

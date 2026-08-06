@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../theme/colors";
+import { useAppLanguage } from "../../../i18n/LanguageProvider";
 import {
   computeVehicleFinancing,
   DEFAULT_VEHICLE_DURATION_MONTHS,
@@ -27,6 +28,7 @@ export default function VehicleFinancingSimulator({
   onOpenFull,
   onContact,
 }) {
+  const { t } = useAppLanguage();
   const [prix, setPrix] = useState(() => {
     const n = Number(initialPrix) || 0;
     return n > 0 ? String(n) : "";
@@ -62,10 +64,13 @@ export default function VehicleFinancingSimulator({
   };
 
   const apportHint = simulation.apportExceedsPrice
-    ? "L'apport dépasse le prix du véhicule."
+    ? t("vehiculesUi.downPaymentTooHigh")
     : simulation.downPaymentPct > 0
-      ? `Apport actuel : ${simulation.downPaymentPct}% (recommandé ${RECOMMENDED_VEHICLE_APPORT_PCT}%)`
-      : `Apport recommandé : ${RECOMMENDED_VEHICLE_APPORT_PCT}%`;
+      ? t("vehiculesUi.downPaymentCurrentPct", {
+          pct: simulation.downPaymentPct,
+          recommended: RECOMMENDED_VEHICLE_APPORT_PCT,
+        })
+      : t("vehiculesUi.downPaymentHint", { pct: RECOMMENDED_VEHICLE_APPORT_PCT });
 
   const showReadOnlyPrice = compact && Number(prix) > 0;
 
@@ -73,26 +78,28 @@ export default function VehicleFinancingSimulator({
     <View style={[styles.card, compact && styles.cardCompact]}>
       <View style={styles.heading}>
         <Ionicons name="car-outline" size={20} color={colors.primary} />
-        <Text style={styles.title}>Simuler un financement véhicule</Text>
+        <Text style={styles.title}>{t("vehiculesUi.financeTitle")}</Text>
         {!compact ? (
           <View style={styles.rateBadge}>
-            <Text style={styles.rateBadgeText}>{DEFAULT_VEHICLE_RATE}% / an</Text>
+            <Text style={styles.rateBadgeText}>
+              {t("vehiculesUi.rateBadge", { rate: DEFAULT_VEHICLE_RATE })}
+            </Text>
           </View>
         ) : null}
       </View>
 
       <View style={styles.creditType}>
-        <Text style={styles.creditTypeText}>Crédit classique</Text>
+        <Text style={styles.creditTypeText}>{t("vehiculesUi.classicCredit")}</Text>
       </View>
 
       {showReadOnlyPrice ? (
         <View style={styles.priceBox}>
-          <Text style={styles.label}>Prix du véhicule</Text>
+          <Text style={styles.label}>{t("vehiculesUi.vehiclePrice")}</Text>
           <Text style={styles.priceBoxValue}>{fmtVehicleDA(Number(prix))}</Text>
         </View>
       ) : (
         <View style={styles.field}>
-          <Text style={styles.label}>Prix du véhicule</Text>
+          <Text style={styles.label}>{t("vehiculesUi.vehiclePrice")}</Text>
           <View style={styles.inputWrap}>
             <TextInput
               style={styles.input}
@@ -108,7 +115,7 @@ export default function VehicleFinancingSimulator({
       )}
 
       <View style={styles.field}>
-        <Text style={styles.label}>Apport</Text>
+        <Text style={styles.label}>{t("vehiculesUi.downPayment")}</Text>
         <View
           style={[
             styles.inputWrap,
@@ -137,8 +144,10 @@ export default function VehicleFinancingSimulator({
 
       <View style={styles.field}>
         <View style={styles.durationHead}>
-          <Text style={styles.label}>Durée</Text>
-          <Text style={styles.durationValue}>{dureeMois} mois</Text>
+          <Text style={styles.label}>{t("vehiculesUi.loanDuration")}</Text>
+          <Text style={styles.durationValue}>
+            {t("vehiculesUi.durationMonths", { months: dureeMois })}
+          </Text>
         </View>
         <View style={styles.stepper}>
           <TouchableOpacity
@@ -151,7 +160,9 @@ export default function VehicleFinancingSimulator({
           >
             <Ionicons name="remove" size={18} color={colors.textDark} />
           </TouchableOpacity>
-          <Text style={styles.stepValue}>{dureeMois} mois</Text>
+          <Text style={styles.stepValue}>
+            {t("vehiculesUi.durationMonths", { months: dureeMois })}
+          </Text>
           <TouchableOpacity
             style={styles.stepBtn}
             onPress={() =>
@@ -164,36 +175,41 @@ export default function VehicleFinancingSimulator({
           </TouchableOpacity>
         </View>
         <View style={styles.bounds}>
-          <Text style={styles.boundText}>{MIN_VEHICLE_DURATION_MONTHS} mois</Text>
-          <Text style={styles.boundText}>{MAX_VEHICLE_DURATION_MONTHS} mois</Text>
+          <Text style={styles.boundText}>
+            {t("vehiculesUi.durationMonths", { months: MIN_VEHICLE_DURATION_MONTHS })}
+          </Text>
+          <Text style={styles.boundText}>
+            {t("vehiculesUi.durationMonths", { months: MAX_VEHICLE_DURATION_MONTHS })}
+          </Text>
         </View>
       </View>
 
       <View style={styles.results}>
         <View style={styles.resultMain}>
-          <Text style={styles.resultLabel}>Mensualités</Text>
+          <Text style={styles.resultLabel}>{t("vehiculesUi.monthlyPayments")}</Text>
           <Text style={styles.resultMainValue}>
             {fmtVehicleDA(simulation.monthlyPayment)}
-            <Text style={styles.perMonth}> / mois</Text>
+            <Text style={styles.perMonth}> {t("vehiculesUi.perMonth")}</Text>
           </Text>
         </View>
-        <ResultRow label="Montant emprunté" value={fmtVehicleDA(simulation.loanAmount)} />
         <ResultRow
-          label="Coût du crédit"
-          hint={`Taux indicatif ${DEFAULT_VEHICLE_RATE}% / an`}
+          label={t("vehiculesUi.loanAmount")}
+          value={fmtVehicleDA(simulation.loanAmount)}
+        />
+        <ResultRow
+          label={t("vehiculesUi.creditCost")}
+          hint={t("vehiculesUi.interestRateNote", { rate: DEFAULT_VEHICLE_RATE })}
           value={fmtVehicleDA(simulation.creditCost)}
         />
-        <Text style={styles.disclaimer}>
-          Simulation indicative, non contractuelle.
-        </Text>
+        <Text style={styles.disclaimer}>{t("vehiculesUi.disclaimer")}</Text>
         {(showFullPageLink || compact) && onOpenFull ? (
           <TouchableOpacity onPress={onOpenFull} activeOpacity={0.8}>
-            <Text style={styles.fullLink}>Ouvrir le simulateur complet</Text>
+            <Text style={styles.fullLink}>{t("vehiculesUi.openFullSimulator")}</Text>
           </TouchableOpacity>
         ) : null}
         {onContact ? (
           <TouchableOpacity style={styles.contactBtn} onPress={onContact} activeOpacity={0.85}>
-            <Text style={styles.contactBtnText}>Envoyer un message</Text>
+            <Text style={styles.contactBtnText}>{t("vehiculesUi.contactSeller")}</Text>
           </TouchableOpacity>
         ) : null}
       </View>

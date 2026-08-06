@@ -1,21 +1,25 @@
 import { View, TextInput, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function HomeSearchBar({
   value,
   onChangeText,
   onFilterPress,
-  placeholder = "Search clothes...",
+  placeholder,
   onSubmitEditing,
+  showFilterButton = true,
 }) {
+  const { t } = useAppLanguage();
+
   return (
     <View style={styles.row}>
       <View style={styles.searchWrap}>
         <Ionicons name="search-outline" size={18} color={colors.iconMuted} />
         <TextInput
           style={styles.input}
-          placeholder={placeholder}
+          placeholder={placeholder ?? t("mobile.search.placeholder")}
           placeholderTextColor={colors.placeholder}
           value={value}
           onChangeText={onChangeText}
@@ -24,13 +28,15 @@ export default function HomeSearchBar({
         />
       </View>
 
-      <TouchableOpacity
-        style={styles.filterButton}
-        activeOpacity={0.85}
-        onPress={onFilterPress}
-      >
-        <Ionicons name="options-outline" size={20} color={colors.white} />
-      </TouchableOpacity>
+      {showFilterButton && onFilterPress ? (
+        <TouchableOpacity
+          style={styles.filterButton}
+          activeOpacity={0.85}
+          onPress={onFilterPress}
+        >
+          <Ionicons name="options-outline" size={20} color={colors.white} />
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }

@@ -1,8 +1,11 @@
 import { TouchableOpacity, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function SaveSearchButton({ onPress }) {
+  const { t } = useAppLanguage();
+
   return (
     <TouchableOpacity
       style={styles.button}
@@ -10,7 +13,7 @@ export default function SaveSearchButton({ onPress }) {
       onPress={onPress}
     >
       <Ionicons name="notifications-outline" size={18} color={colors.white} />
-      <Text style={styles.label}>Sauvegarder la recherche</Text>
+      <Text style={styles.label}>{t("listings.saveSearch")}</Text>
     </TouchableOpacity>
   );
 }
@@ -18,26 +21,21 @@ export default function SaveSearchButton({ onPress }) {
 const styles = StyleSheet.create({
   button: {
     position: "absolute",
-    left: 16,
-    right: 16,
-    bottom: 90,
+    left: 40,
+    right: 40,
+    bottom: 96,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#1A1C1E",
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primary,
     zIndex: 10,
   },
   label: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "700",
     color: colors.white,
   },
 });

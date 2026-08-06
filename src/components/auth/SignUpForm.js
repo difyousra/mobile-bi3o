@@ -16,6 +16,7 @@ import PhoneInput from "./PhoneInput";
 import SocialButton from "./SocialButton";
 import { useAuth } from "../../context/AuthContext";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -25,18 +26,23 @@ const DESIGN_HEIGHT = 812;
 const scaleX = SCREEN_WIDTH / DESIGN_WIDTH;
 const scaleY = SCREEN_HEIGHT / DESIGN_HEIGHT;
 
-function OrSeparator() {
+function OrSeparator({ label }) {
   return (
     <View style={styles.orRow}>
       <View style={styles.orLine} />
-      <Text style={styles.orText}>Or</Text>
+      <Text style={styles.orText}>{label}</Text>
       <View style={styles.orLine} />
     </View>
   );
 }
 
-export default function SignUpForm({ onRegisterSuccess, onGooglePress }) {
+export default function SignUpForm({
+  onRegisterSuccess,
+  onGooglePress,
+  googleLoading = false,
+}) {
   const { register, isSubmitting } = useAuth();
+  const { t } = useAppLanguage();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -48,7 +54,7 @@ export default function SignUpForm({ onRegisterSuccess, onGooglePress }) {
   const handleSignUp = async () => {
     setError("");
     if (!firstName.trim() || !lastName.trim() || !email.trim() || !password) {
-      setError("Prénom, nom, e-mail et mot de passe sont requis.");
+      setError(t("mobile.auth.registerRequiredFields"));
       return;
     }
 
@@ -81,14 +87,14 @@ export default function SignUpForm({ onRegisterSuccess, onGooglePress }) {
         >
           <View style={styles.nameRow}>
             <AuthInput
-              placeholder="Prénom"
+              placeholder={t("authRegister.firstNamePlaceholder")}
               value={firstName}
               onChangeText={setFirstName}
               style={styles.nameInput}
             />
 
             <AuthInput
-              placeholder="Nom"
+              placeholder={t("authRegister.lastNamePlaceholder")}
               value={lastName}
               onChangeText={setLastName}
               style={styles.nameInput}
@@ -96,7 +102,7 @@ export default function SignUpForm({ onRegisterSuccess, onGooglePress }) {
           </View>
 
           <AuthInput
-            placeholder="jean@example.com"
+            placeholder={t("authRegister.emailPlaceholder")}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -106,7 +112,7 @@ export default function SignUpForm({ onRegisterSuccess, onGooglePress }) {
           <PhoneInput value={phone} onChangeText={setPhone} />
 
           <AuthInput
-            placeholder="Mot de passe"
+            placeholder={t("authRegister.passwordPlaceholder")}
             value={password}
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
@@ -114,6 +120,9 @@ export default function SignUpForm({ onRegisterSuccess, onGooglePress }) {
               <TouchableOpacity
                 onPress={() => setShowPassword((prev) => !prev)}
                 activeOpacity={0.7}
+                accessibilityLabel={
+                  showPassword ? t("auth.hidePassword") : t("auth.showPassword")
+                }
               >
                 <Ionicons
                   name={showPassword ? "eye-outline" : "eye-off-outline"}
@@ -135,13 +144,19 @@ export default function SignUpForm({ onRegisterSuccess, onGooglePress }) {
             {isSubmitting ? (
               <ActivityIndicator color={colors.white} />
             ) : (
-              <Text style={styles.primaryButtonText}>Sign up</Text>
+              <Text style={styles.primaryButtonText}>
+                {t("authRegister.submit")}
+              </Text>
             )}
           </TouchableOpacity>
 
-          <OrSeparator />
+          <OrSeparator label={t("mobile.auth.or")} />
 
-          <SocialButton onPress={onGooglePress} />
+          <SocialButton
+            onPress={onGooglePress}
+            loading={googleLoading}
+            disabled={isSubmitting}
+          />
         </ScrollView>
       </View>
     </KeyboardAvoidingView>

@@ -4,8 +4,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { TouchableOpacity, Text } from "react-native";
 import MortgageLoanSimulator from "../../features/immobilier/components/MortgageLoanSimulator";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function MortgageSimulatorScreen({ navigation, route }) {
+  const { t } = useAppLanguage();
   const initialPrix = Number(route?.params?.prix) || 0;
 
   return (
@@ -18,7 +20,7 @@ export default function MortgageSimulatorScreen({ navigation, route }) {
         >
           <Ionicons name="arrow-back" size={22} color={colors.textDark} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Simulateur immobilier</Text>
+        <Text style={styles.headerTitle}>{t("immobilierUi.simulatorTitle")}</Text>
         <View style={styles.back} />
       </View>
       <ScrollView

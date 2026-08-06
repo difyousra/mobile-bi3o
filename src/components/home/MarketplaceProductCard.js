@@ -2,15 +2,12 @@ import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions } from "rea
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
 import SellerTypeBadge from "../common/SellerTypeBadge";
+import PriceConversionRow from "../common/PriceConversionRow";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const H_PAD = 16;
 const GAP = 12;
 const CARD_WIDTH = (SCREEN_WIDTH - H_PAD * 2 - GAP) / 2;
-
-function formatDa(value) {
-  return `${value.toLocaleString("fr-DZ")} Da`;
-}
 
 export default function MarketplaceProductCard({
   product,
@@ -18,6 +15,7 @@ export default function MarketplaceProductCard({
   onPress,
   onToggleFavorite,
   compact = false,
+  rates,
 }) {
   const isPro = Boolean(product?.isPro ?? product?.vendeurEstPro);
 
@@ -51,11 +49,17 @@ export default function MarketplaceProductCard({
         </TouchableOpacity>
       </View>
 
-      <View style={styles.priceRow}>
-        <Text style={styles.priceDa}>{formatDa(product.priceDa)}</Text>
-        <Text style={styles.priceArrow}>{">>>"}</Text>
-        <Text style={styles.priceEuro}>{product.priceEuro} €</Text>
-      </View>
+      <PriceConversionRow
+        listing={{
+          priceDa: product.priceDa,
+          prix: product.priceDa,
+          categorieId: product.categorieId,
+          sousCategorieId: product.sousCategorieId,
+        }}
+        rates={rates}
+        size="sm"
+        style={styles.priceRow}
+      />
 
       <Text style={styles.title} numberOfLines={2}>
         {product.title}
@@ -120,26 +124,7 @@ const styles = StyleSheet.create({
     color: colors.textHeading,
   },
   priceRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
     marginBottom: 4,
-    flexWrap: "wrap",
-  },
-  priceDa: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: colors.textDark,
-  },
-  priceArrow: {
-    fontSize: 9,
-    fontWeight: "700",
-    color: colors.primary,
-  },
-  priceEuro: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: colors.textDark,
   },
   title: {
     fontSize: 12,

@@ -2,22 +2,29 @@ import { ScrollView, Text, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors } from "../../theme/colors";
 import SettingsScreenHeader from "../../components/settings/SettingsScreenHeader";
-import { LEGAL_COPY_FR } from "../../data/legal/legalCopy.fr";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function PrivacyPolicyScreen({ navigation }) {
-  const { h1, paragraphs } = LEGAL_COPY_FR.privacy;
+  const { t } = useAppLanguage();
+  const paragraphs = [
+    t("legal.privacy.p1"),
+    t("legal.privacy.p2"),
+    t("legal.privacy.p3"),
+    t("legal.privacy.p4"),
+    t("legal.privacy.p5"),
+  ].filter(Boolean);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <SettingsScreenHeader
-        title="Confidentialité"
+        title={t("mobile.legal.privacy")}
         onBack={() => navigation.goBack()}
       />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.h1}>{h1}</Text>
+        <Text style={styles.h1}>{t("legal.privacy.h1")}</Text>
         {paragraphs.map((p) => (
           <Text key={p.slice(0, 40)} style={styles.paragraph}>
             {p}

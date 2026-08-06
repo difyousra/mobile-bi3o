@@ -6,7 +6,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
-  Image,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
@@ -16,17 +15,20 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
 import { DEFAULT_SEARCH_FILTERS } from "../../data/searchFilters";
-import { normalizeListing, formatPrice } from "../../utils/productMapper";
+import { normalizeListing } from "../../utils/productMapper";
 import {
   buildCommuneMarkersFromListings,
   buildListingMarkers,
 } from "../../utils/algeriaLocation";
 import { useSearchAds, useExchangeRate } from "../../hooks/useCatalog";
 import { mapAdCardToListing } from "../../models/adMapper";
-import { extractEurToDzd } from "../../services/exchangeService";
+import { resolveExchangeRates } from "../../services/exchangeService";
 import ListingsMapView from "../../components/map/ListingsMapView";
+import { ListingMapCard } from "../../components/search/ListingCard";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function MapSearchScreen({ navigation, route }) {
+  const { t } = useAppLanguage();
   const searchQuery = route.params?.searchQuery ?? "";
   const filters = route.params?.filters ?? DEFAULT_SEARCH_FILTERS;
   const sortId = route.params?.sortId ?? "relevance";
@@ -36,7 +38,11 @@ export default function MapSearchScreen({ navigation, route }) {
   const cardsRef = useRef(null);
 
   const { data: exchange } = useExchangeRate();
-  const eurToDzd = extractEurToDzd(exchange);
+  const priceRates = useMemo(
+    () => resolveExchangeRates(exchange),
+    [exchange]
+  );
+  const { eurToDzd, officialRate } = priceRates;
 
   const categorieId = filters.categorieId ? Number(filters.categorieId) : null;
   const sousCategorieId = filters.sousCategorieId
@@ -70,7 +76,7 @@ export default function MapSearchScreen({ navigation, route }) {
 
   const listings = useMemo(() => {
     let items = (pageData?.content ?? []).map((ad) =>
-      mapAdCardToListing(ad, { eurToDzd })
+      mapAdCardToListing(ad, { eurToDzd, officialRate })
     );
 
     if (hasLocationFilter) {
@@ -90,9 +96,24 @@ export default function MapSearchScreen({ navigation, route }) {
     }
 
     if (sortId === "price_asc") {
-      items = [...items].sort((a, b) => a.priceDzd - b.priceDzd);
+      items = [...items].sort(
+        (a, b) => Number(a.priceDzd ?? 0) - Number(b.priceDzd ?? 0)
+      );
     } else if (sortId === "price_desc") {
-      items = [...items].sort((a, b) => b.priceDzd - a.priceDzd);
+      items = [...items].sort(
+        (a, b) => Number(b.priceDzd ?? 0) - Number(a.priceDzd ?? 0)
+      );
+    } else {
+      items = [...items].sort((a, b) => {
+        const ad = a.createdAt ? Date.parse(String(a.createdAt)) : NaN;
+        const bd = b.createdAt ? Date.parse(String(b.createdAt)) : NaN;
+        if (Number.isFinite(ad) && Number.isFinite(bd) && ad !== bd) {
+          return bd - ad;
+        }
+        const ai = Number.parseInt(String(a.id ?? "0"), 10) || 0;
+        const bi = Number.parseInt(String(b.id ?? "0"), 10) || 0;
+        return bi - ai;
+      });
     }
 
     return items;
@@ -102,6 +123,7 @@ export default function MapSearchScreen({ navigation, route }) {
     hasLocationFilter,
     sortId,
     eurToDzd,
+    officialRate,
     filters.priceMin,
     filters.priceMax,
   ]);
@@ -178,7 +200,7 @@ export default function MapSearchScreen({ navigation, route }) {
           onPress={() => navigation.goBack()}
         >
           <Ionicons name="list-outline" size={16} color={colors.textHeading} />
-          <Text style={styles.listToggleText}>Liste</Text>
+          <Text style={styles.listToggleText}>{t("mobile.search.listView")}</Text>
         </TouchableOpacity>
       </SafeAreaView>
 
@@ -186,7 +208,7 @@ export default function MapSearchScreen({ navigation, route }) {
         <View style={styles.sheetHandle} />
         <View style={styles.sheetHeader}>
           <Text style={styles.sheetTitle}>
-            {listings.length} annonce{listings.length > 1 ? "s" : ""} sur la carte
+            {t("mobile.search.mapListingsCount", { count: listings.length })}
           </Text>
           {loading ? (
             <ActivityIndicator size="small" color={colors.primary} />
@@ -194,11 +216,11 @@ export default function MapSearchScreen({ navigation, route }) {
         </View>
 
         {isError ? (
-          <Text style={styles.status}>Impossible de charger les annonces.</Text>
+          <Text style={styles.status}>{t("mobile.search.mapLoadError")}</Text>
         ) : null}
 
         {!loading && !listings.length ? (
-          <Text style={styles.status}>Aucune annonce à afficher sur la carte.</Text>
+          <Text style={styles.status}>{t("mobile.search.mapEmpty")}</Text>
         ) : null}
 
         <ScrollView
@@ -210,36 +232,14 @@ export default function MapSearchScreen({ navigation, route }) {
           {sheetListings.map((listing) => {
             const selected = String(listing.id) === String(selectedListingId);
             return (
-              <TouchableOpacity
+              <ListingMapCard
                 key={listing.id}
-                style={[styles.miniCard, selected && styles.miniCardSelected]}
-                onPress={() => {
-                  if (selected) {
-                    handleOpenListing(listing);
-                    return;
-                  }
-                  handleCardPress(listing);
-                }}
-              >
-                <Image
-                  source={{ uri: listing.image }}
-                  style={styles.miniImage}
-                />
-                <View style={styles.miniBody}>
-                  <Text style={styles.miniPrice}>
-                    {formatPrice(listing.priceDzd, "Da")}
-                  </Text>
-                  <Text style={styles.miniTitle} numberOfLines={2}>
-                    {listing.title}
-                  </Text>
-                  <Text style={styles.miniLocation} numberOfLines={1}>
-                    {listing.location}
-                  </Text>
-                  {selected ? (
-                    <Text style={styles.miniCta}>Voir l'annonce →</Text>
-                  ) : null}
-                </View>
-              </TouchableOpacity>
+                listing={listing}
+                selected={selected}
+                rates={priceRates}
+                onPress={handleCardPress}
+                onOpen={handleOpenListing}
+              />
             );
           })}
         </ScrollView>
@@ -340,47 +340,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     gap: 12,
     paddingBottom: 4,
-  },
-  miniCard: {
-    width: 220,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: "hidden",
-    backgroundColor: colors.white,
-  },
-  miniCardSelected: {
-    borderColor: colors.primary,
-    borderWidth: 2,
-  },
-  miniImage: {
-    width: "100%",
-    height: 100,
-    backgroundColor: "#F0F2F5",
-  },
-  miniBody: {
-    padding: 10,
-  },
-  miniPrice: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: colors.primary,
-    marginBottom: 4,
-  },
-  miniTitle: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.textHeading,
-    marginBottom: 2,
-  },
-  miniLocation: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  miniCta: {
-    marginTop: 6,
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.primary,
   },
 });

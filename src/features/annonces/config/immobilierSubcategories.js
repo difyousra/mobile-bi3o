@@ -772,6 +772,7 @@ const venteImmobiliere = {
   id: 41,
   slug: "vente-immobiliere",
   label: "Vente immobilière",
+  tipsI18nKey: "forms.deposit.subforms.venteImmobiliere",
   fields: saleFields,
   clearAttributsOnChange: {
     type_bien: TYPE_BIEN_CLEAR_ON_CHANGE,
@@ -782,6 +783,7 @@ const locations = {
   id: 42,
   slug: "locations",
   label: "Locations",
+  tipsI18nKey: "forms.deposit.subforms.locationsImmobilier",
   fields: locationFields,
   clearAttributsOnChange: {
     type_bien: TYPE_BIEN_CLEAR_ON_CHANGE,
@@ -792,6 +794,7 @@ const colocations = {
   id: 43,
   slug: "colocations",
   label: "Colocations",
+  tipsI18nKey: "forms.deposit.subforms.colocations",
   fields: [
     {
       ...COMMON_RESIDENTIAL_FIELDS.typeBien,
@@ -805,6 +808,7 @@ const bureauCommercial = {
   id: 44,
   slug: "bureau-commercial",
   label: "Bureaux et commerces",
+  tipsI18nKey: "forms.deposit.subforms.bureauCommercial",
   fields: bureauFields,
 };
 

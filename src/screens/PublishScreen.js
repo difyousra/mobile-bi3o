@@ -22,6 +22,7 @@ import {
 import { colors } from "../theme";
 import { normalizeProduct } from "../utils/productMapper";
 import { usePublishAnnonce } from "../hooks/usePublish";
+import { useAppLanguage } from "../i18n/LanguageProvider";
 
 function photoUri(value) {
   if (!value) return null;
@@ -44,7 +45,7 @@ function notify(title, message, buttons) {
   Alert.alert(title, message, buttons);
 }
 
-function draftToProduct(draft, annonceId) {
+function draftToProduct(draft, annonceId, t) {
   const cover =
     photoUri(draft.photos?.primary) ||
     photoUri(draft.photos?.front) ||
@@ -54,24 +55,35 @@ function draftToProduct(draft, annonceId) {
     ? 0
     : getFinalPriceDa(draft.price, normalizePriceUnit(draft.priceUnit), false);
   const priceDa = Number.isFinite(finalDa) ? Math.round(finalDa) : 0;
+  const title =
+    draft.title || t?.("mobile.publish.myListingFallback") || "Mon annonce";
+  const category =
+    draft.category || t?.("mobile.publish.categoryFallback") || "Catégorie";
 
   return normalizeProduct({
     id: annonceId ?? `draft-${Date.now()}`,
-    title: draft.title || "Mon annonce",
-    subtitle: draft.category || "Annonce",
-    category: draft.category || "Marketplace",
+    title,
+    subtitle: category,
+    category,
     image: cover,
     price: priceDa,
     priceDa,
     priceEuro: priceDa,
     description:
-      draft.description || `${draft.title || "Annonce"} publiée sur Bi3oo.`,
-    location: draft.location || draft.city || "Alger",
-    seller: "Moi",
+      draft.description ||
+      t?.("mobile.publish.listingPublishedDesc", { title }) ||
+      `${title} publiée sur Bi3oo.`,
+    location:
+      draft.location ||
+      draft.city ||
+      t?.("mobile.publish.cityFallback") ||
+      "",
+    seller: t?.("mobile.publish.sellerMe") || "Moi",
   });
 }
 
 export default function PublishScreen() {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const publishMutation = usePublishAnnonce();
   const [stepIndex, setStepIndex] = useState(0);
@@ -106,23 +118,31 @@ export default function PublishScreen() {
       const result = await publishMutation.mutateAsync(fullDraft);
       setCreatedId(result.id);
 
-      notify("Annonce publiée", `Votre annonce a été publiée (ID ${result.id}).`, [
+      notify(t("mobile.publish.publishedAlertTitle"), t("mobile.publish.publishedAlertBody", { id: result.id }), [
         {
-          text: "Voir l'annonce",
+          text: t("categoryUi.viewListing"),
           onPress: () => {
             navigation.navigate("ProductDetail", {
-              product: draftToProduct(fullDraft, result.id),
+              product: draftToProduct(fullDraft, result.id, t),
               annonceId: result.id,
             });
             reset();
           },
         },
-        { text: "OK", style: "cancel", onPress: reset },
+        { text: t("common.ok"), style: "cancel", onPress: reset },
       ]);
     } catch (error) {
+      const codeMessages = {
+        SOUS_CATEGORIE_REQUIRED: t("mobile.publish.errorSousCategorieRequired"),
+        INVALID_PRICE: t("mobile.publish.errorInvalidPrice"),
+        INVALID_PRICE_SHORT: t("mobile.publish.errorInvalidPriceShort"),
+        MODERATION_REJECTED: t("mobile.publish.errorModerationRejected"),
+        MISSING_CREATED_ID: t("mobile.publish.errorMissingCreatedId"),
+      };
       const message =
-        error?.message ??
-        "Publication impossible. Vérifiez les champs et la connexion.";
+        codeMessages[error?.code] ||
+        error?.message ||
+        t("mobile.publish.publishErrorDefault");
 
       if (error?.code === "MODERATION_REJECTED") {
         const priceStepIndex = steps.findIndex((step) => step.type === "price");
@@ -130,14 +150,14 @@ export default function PublishScreen() {
           setStepIndex(priceStepIndex);
         }
         notify(
-          "Modération refusée",
-          `${message}\n\nModifiez le titre ou la description, puis republiez.`,
-          [{ text: "Modifier le texte" }]
+          t("mobile.publish.moderationRejectedTitle"),
+          t("mobile.publish.moderationRejectedBody", { message }),
+          [{ text: t("mobile.publish.editTextAction") }]
         );
         return;
       }
 
-      notify("Erreur publication", message, [{ text: "OK" }]);
+      notify(t("mobile.publish.publishErrorTitle"), message, [{ text: t("common.ok") }]);
     }
   };
 
@@ -158,7 +178,7 @@ export default function PublishScreen() {
 
   const handleViewListing = () => {
     navigation.navigate("ProductDetail", {
-      product: draftToProduct(draft, createdId),
+      product: draftToProduct(draft, createdId, t),
       annonceId: createdId,
     });
   };
@@ -167,9 +187,7 @@ export default function PublishScreen() {
     return (
       <SafeAreaView style={styles.loading}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>
-          Vérification modération & publication…
-        </Text>
+        <Text style={styles.loadingText}>{t("mobile.publish.moderating")}</Text>
       </SafeAreaView>
     );
   }
@@ -202,7 +220,7 @@ export default function PublishScreen() {
   if (!currentStep) {
     return (
       <SafeAreaView style={styles.placeholder}>
-        <Text style={styles.title}>Étape inconnue</Text>
+        <Text style={styles.title}>{t("mobile.publish.unknownStep")}</Text>
       </SafeAreaView>
     );
   }

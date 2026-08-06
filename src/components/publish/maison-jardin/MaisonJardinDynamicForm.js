@@ -20,6 +20,11 @@ import {
 } from "../immobilier/ImmobilierFieldControls";
 import PublishFormField from "../PublishFormField";
 import { colors } from "../../../theme/colors";
+import { useAppLanguage } from "../../../i18n/LanguageProvider";
+import {
+  localizeOptionList,
+  translateSubformFieldLabel,
+} from "../../../i18n/subformFieldLabels";
 
 export default function MaisonJardinDynamicForm({
   config,
@@ -29,6 +34,7 @@ export default function MaisonJardinDynamicForm({
   onAttributsChange,
   onMetaChange,
 }) {
+  const { t } = useAppLanguage();
   const { data: taxoAttributs = [], isLoading: taxoLoading } =
     useSubcategoryAttributs(config?.id);
   const onMetaChangeRef = useRef(onMetaChange);
@@ -104,10 +110,14 @@ export default function MaisonJardinDynamicForm({
 
   const renderAttr = (attr, { labelOverride, disabled, isPrimary = false } = {}) => {
     if (!attr) return null;
-    const label = labelOverride || attr.name || attr.key;
+    const tipsKey = config?.tipsI18nKey || "forms.deposit.subforms.maisonJardin";
+    const label =
+      labelOverride ||
+      translateSubformFieldLabel(t, tipsKey, attr.key, attr.name || attr.key);
     const currentValue = attributs?.[attr.key] || "";
     const formType = mapApiTypeToForm(attr.type);
     const isList = attr.type === "LISTE" || attr.values.length > 0;
+    const localizedValues = localizeOptionList(t, tipsKey, attr.key, attr.values || []);
 
     if (isList) {
       const livraisonPair = !disabled ? resolveOuiNonPair(attr.values) : null;
@@ -131,7 +141,7 @@ export default function MaisonJardinDynamicForm({
             key={attr.id}
             label={label}
             required={attr.required}
-            options={attr.values}
+            options={localizedValues}
             value={currentValue}
             variant={isPrimary ? "filled" : "outline"}
             onChange={(next) => setAttrValue(attr.key, next)}
@@ -145,10 +155,14 @@ export default function MaisonJardinDynamicForm({
             key={attr.id}
             label={label}
             required={attr.required}
-            options={attr.values}
+            options={localizedValues}
             value={currentValue}
             disabled={disabled}
-            placeholder={disabled ? "Sélectionnez d'abord le type" : "Sélectionner"}
+            placeholder={
+              disabled
+                ? t("mobile.publish.selectTypeFirst")
+                : t("createAdWizard.selectOption")
+            }
             onChange={(next) => setAttrValue(attr.key, next)}
           />
         );
@@ -161,8 +175,12 @@ export default function MaisonJardinDynamicForm({
           required={attr.required}
           value={currentValue}
           disabled={disabled}
-          placeholder={disabled ? "Sélectionnez d'abord le type" : "Sélectionner"}
-          options={attr.values}
+          placeholder={
+            disabled
+              ? t("mobile.publish.selectTypeFirst")
+              : t("createAdWizard.selectOption")
+          }
+          options={localizedValues}
           onChange={(next) => setAttrValue(attr.key, next)}
         />
       );
@@ -211,20 +229,20 @@ export default function MaisonJardinDynamicForm({
       {taxoLoading ? (
         <View style={styles.loadingRow}>
           <ActivityIndicator color={colors.primary} />
-          <Text style={styles.loadingText}>Chargement des attributs…</Text>
+          <Text style={styles.loadingText}>{t("mobile.publish.loadingAttributes")}</Text>
         </View>
       ) : null}
 
       {!taxoLoading ? (
         <Text style={styles.requiredHint}>
-          Les champs marqués * sont obligatoires.
+          {t("mobile.publish.requiredFieldsMarked")}
         </Text>
       ) : null}
 
       {renderAttr(primaryAttr, { isPrimary: true })}
       {primaryAttr && activeLinkedProductAttr
         ? renderAttr(activeLinkedProductAttr, {
-            labelOverride: activeLinkedProductAttr.name || "Produit",
+            labelOverride: activeLinkedProductAttr.name || t("mobile.publish.productLabel"),
           })
         : null}
       {visibleAttributes.map((attr) => renderAttr(attr))}

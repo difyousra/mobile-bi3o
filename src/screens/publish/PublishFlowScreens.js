@@ -63,12 +63,17 @@ import {
 import { useExchangeRate } from "../../hooks/useCatalog";
 import {
   dzdToEur,
-  extractOfficialRate,
-  extractParallelSellRate,
   formatEurAmount,
+  resolveExchangeRates,
 } from "../../services/exchangeService";
 import { colors } from "../../theme/colors";
 import { showDevMessage } from "../../utils/devFeedback";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
+import { localizePublishStepCopy } from "../../i18n/publishStepLabels";
+import {
+  resolveSubformTips,
+  resolveSubformTipsTitle,
+} from "../../i18n/subformTips";
 
 function CounterField({ label, value, onChange, min = 0, max = 99 }) {
   return (
@@ -114,12 +119,13 @@ export function PublishGenericStepScreen({
   stepNumber,
   totalSteps = PUBLISH_TOTAL_STEPS,
 }) {
+  const { t } = useAppLanguage();
   const [local, setLocal] = useState({ ...draft });
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const [generateDescriptionError, setGenerateDescriptionError] = useState("");
   const { data: exchangeRate } = useExchangeRate();
-  const parallelRate = extractParallelSellRate(exchangeRate);
-  const officialRate = extractOfficialRate(exchangeRate);
+  const { parallelSell: parallelRate, officialRate } =
+    resolveExchangeRates(exchangeRate);
   const activeSubcategoryId = draft?.sousCategorieId ?? local?.sousCategorieId;
   const subcategoryFormConfig = getSubcategoryFormConfig(activeSubcategoryId);
   const immobilierConfig = getImmobilierSubcategoryConfig(
@@ -253,13 +259,13 @@ export function PublishGenericStepScreen({
   }, [config.type, local.attributs, mergeLocal]);
 
   const pickValue = (field) => {
-    const options = [field.placeholder, "Autre"];
-    Alert.alert(field.label, "Sélectionnez une option", [
+    const options = [field.placeholder, t("mobile.publish.other")];
+    Alert.alert(field.label, t("mobile.publish.selectOption"), [
       ...options.map((opt) => ({
         text: opt,
         onPress: () => update(field.key, opt),
       })),
-      { text: "Annuler", style: "cancel" },
+      { text: t("mobile.common.cancel"), style: "cancel" },
     ]);
   };
 
@@ -294,21 +300,55 @@ export function PublishGenericStepScreen({
       mergeLocal({ description: text });
     } catch (error) {
       const message =
-        error?.message || "Erreur lors de la génération de la description.";
+        error?.message || t("mobile.publish.generateError");
       setGenerateDescriptionError(message);
-      showDevMessage("Génération", message);
+      showDevMessage(t("forms.deposit.generateDescription"), message);
     } finally {
       setIsGeneratingDescription(false);
     }
   };
 
+  const localizedStep = localizePublishStepCopy(
+    config,
+    t,
+    subcategoryFormConfig
+  );
+
+  const subformTips = resolveSubformTips(t, subcategoryFormConfig?.tipsI18nKey);
+  const subformTipsTitle = resolveSubformTipsTitle(
+    t,
+    subcategoryFormConfig?.tipsI18nKey
+  );
+
+  const renderSubformTipsBanner = () =>
+    subformTips.length ? (
+      <View style={styles.tipBanner}>
+        <Ionicons name="bulb-outline" size={18} color={colors.primary} />
+        <View style={{ flex: 1, gap: 4 }}>
+          {subformTipsTitle ? (
+            <Text style={[styles.tipText, { fontWeight: "700" }]}>
+              {subformTipsTitle}
+            </Text>
+          ) : null}
+          {subformTips.map((tip) => (
+            <Text key={tip} style={styles.tipText}>
+              • {tip}
+            </Text>
+          ))}
+        </View>
+      </View>
+    ) : null;
+
   const renderFields = () => {
     if (config.type === "photos") {
       return (
-        <PublishPhotoGrid
-          value={local.photos}
-          onChange={(photos) => update("photos", photos)}
-        />
+        <>
+          {renderSubformTipsBanner()}
+          <PublishPhotoGrid
+            value={local.photos}
+            onChange={(photos) => update("photos", photos)}
+          />
+        </>
       );
     }
 
@@ -316,7 +356,7 @@ export function PublishGenericStepScreen({
       if (!immobilierConfig) {
         return (
           <Text style={styles.tipText}>
-            Sous-catégorie immobilier introuvable.
+            {t("mobile.publish.subcategoryMissing", { type: t("mobile.publish.domainImmobilier") })}
           </Text>
         );
       }
@@ -336,14 +376,14 @@ export function PublishGenericStepScreen({
       if (!vehicleConfig) {
         return (
           <Text style={styles.tipText}>
-            Sous-catégorie véhicule introuvable.
+            {t("mobile.publish.subcategoryMissing", { type: t("mobile.publish.domainVehicle") })}
           </Text>
         );
       }
       if (vehicleConfig.noDetails) {
         return (
           <Text style={styles.tipText}>
-            Aucun détail supplémentaire requis pour cette sous-catégorie.
+            {t("mobile.publish.noExtraDetails")}
           </Text>
         );
       }
@@ -363,7 +403,7 @@ export function PublishGenericStepScreen({
       if (!electroniqueConfig) {
         return (
           <Text style={styles.tipText}>
-            Sous-catégorie électronique introuvable.
+            {t("mobile.publish.subcategoryMissing", { type: t("mobile.publish.domainElectronique") })}
           </Text>
         );
       }
@@ -383,7 +423,7 @@ export function PublishGenericStepScreen({
       if (!animauxConfig) {
         return (
           <Text style={styles.tipText}>
-            Sous-catégorie animaux introuvable.
+            {t("mobile.publish.subcategoryMissing", { type: t("mobile.publish.domainAnimaux") })}
           </Text>
         );
       }
@@ -403,7 +443,7 @@ export function PublishGenericStepScreen({
       if (!maisonJardinConfig) {
         return (
           <Text style={styles.tipText}>
-            Sous-catégorie maison et jardin introuvable.
+            {t("mobile.publish.subcategoryMissing", { type: t("mobile.publish.domainMaisonJardin") })}
           </Text>
         );
       }
@@ -423,7 +463,7 @@ export function PublishGenericStepScreen({
       if (!loisirsConfig) {
         return (
           <Text style={styles.tipText}>
-            Sous-catégorie loisirs introuvable.
+            {t("mobile.publish.subcategoryMissing", { type: t("mobile.publish.domainLoisirs") })}
           </Text>
         );
       }
@@ -443,7 +483,7 @@ export function PublishGenericStepScreen({
       if (!locationsVacancesConfig) {
         return (
           <Text style={styles.tipText}>
-            Sous-catégorie locations de vacances introuvable.
+            {t("mobile.publish.subcategoryMissing", { type: t("mobile.publish.domainVacances") })}
           </Text>
         );
       }
@@ -463,7 +503,7 @@ export function PublishGenericStepScreen({
       if (!materielProfessionnelConfig) {
         return (
           <Text style={styles.tipText}>
-            Sous-catégorie matériel professionnel introuvable.
+            {t("mobile.publish.subcategoryMissing", { type: t("mobile.publish.domainMateriel") })}
           </Text>
         );
       }
@@ -488,11 +528,11 @@ export function PublishGenericStepScreen({
             onChange={(patch) => mergeLocal(patch)}
           />
           <PublishFormField
-            label="Adresse (privée)"
+            label={t("mobile.publish.privateAddress")}
             value={local.address ?? ""}
             onChangeText={(v) => update("address", v)}
-            placeholder="Rue, quartier, repère..."
-            hint="Votre adresse exacte reste privée. Seuls la wilaya et le code postal sont utilisés pour publier."
+            placeholder={t("mobile.publish.privateAddressPh")}
+            hint={t("mobile.publish.privateAddressHint")}
           />
         </View>
       );
@@ -502,7 +542,7 @@ export function PublishGenericStepScreen({
       if (!modeConfig) {
         return (
           <Text style={styles.tipText}>
-            Sous-catégorie mode introuvable.
+            {t("mobile.publish.subcategoryMissing", { type: t("mobile.publish.typeMode") })}
           </Text>
         );
       }
@@ -522,7 +562,7 @@ export function PublishGenericStepScreen({
       if (!serviceConfig) {
         return (
           <Text style={styles.tipText}>
-            Sous-catégorie service introuvable.
+            {t("mobile.publish.subcategoryMissing", { type: t("mobile.publish.typeService") })}
           </Text>
         );
       }
@@ -542,7 +582,7 @@ export function PublishGenericStepScreen({
       if (!emploiConfig) {
         return (
           <Text style={styles.tipText}>
-            Sous-catégorie emploi introuvable.
+            {t("mobile.publish.subcategoryMissing", { type: t("mobile.publish.typeEmploi") })}
           </Text>
         );
       }
@@ -562,7 +602,7 @@ export function PublishGenericStepScreen({
       if (!familleConfig) {
         return (
           <Text style={styles.tipText}>
-            Sous-catégorie famille introuvable.
+            {t("mobile.publish.subcategoryMissing", { type: t("mobile.publish.typeFamille") })}
           </Text>
         );
       }
@@ -614,13 +654,15 @@ export function PublishGenericStepScreen({
                   <Ionicons name="checkmark" size={14} color={colors.white} />
                 ) : null}
               </View>
-              <Text style={styles.donationText}>Je fais un don</Text>
+              <Text style={styles.donationText}>{t("forms.deposit.donationCheckbox")}</Text>
             </TouchableOpacity>
           ) : null}
 
           <View style={styles.priceFieldWrap}>
             <Text style={styles.priceFieldLabel}>
-              {priceOptional ? "Prix de l'article (optionnel)" : "Prix de l'article"}
+              {priceOptional
+                ? t("mobile.publish.priceLabelOptional")
+                : t("mobile.publish.priceLabel")}
               {!isDonation && !priceOptional ? (
                 <Text style={styles.priceRequired}> *</Text>
               ) : null}
@@ -639,8 +681,8 @@ export function PublishGenericStepScreen({
                   isDonation
                     ? ""
                     : priceOptional
-                      ? "Laisser vide si non applicable"
-                      : "Ex. 450"
+                      ? t("mobile.publish.pricePhOptional")
+                      : t("forms.deposit.priceExamplePlaceholder")
                 }
                 placeholderTextColor="rgba(0, 0, 0, 0.19)"
                 keyboardType="decimal-pad"
@@ -652,10 +694,11 @@ export function PublishGenericStepScreen({
           </View>
 
           <View style={[styles.priceUnitBlock, isDonation && styles.priceUnitBlockDisabled]}>
-            <Text style={styles.priceUnitLegend}>Comment saisir le montant</Text>
+            <Text style={styles.priceUnitLegend}>{t("forms.deposit.priceHowToLegend")}</Text>
             <View style={styles.priceUnitOptions}>
-              {PRICE_UNIT_OPTIONS.map(({ value, label }) => {
+              {PRICE_UNIT_OPTIONS.map(({ value }) => {
                 const active = priceUnit === value;
+                const label = getPriceUnitSuffix(value);
                 return (
                   <TouchableOpacity
                     key={value}
@@ -689,11 +732,11 @@ export function PublishGenericStepScreen({
               ]}
             >
               <Text style={styles.pricePreviewText}>
-                Prix affiché : {displayedPrice}
+                {t("forms.deposit.priceDisplayed", { value: displayedPrice })}
               </Text>
               {unitHint ? (
                 <Text style={styles.pricePreviewHint}>
-                  Saisie : {unitHint}
+                  {t("mobile.publish.priceEntry", { hint: unitHint })}
                 </Text>
               ) : null}
             </View>
@@ -702,11 +745,13 @@ export function PublishGenericStepScreen({
           {eurParallel != null ? (
             <View style={styles.eurConversionBox}>
               <Text style={styles.eurConversionBasis}>
-                Conversion sur {formatPriceDa(Math.round(finalPriceDa))} DA
+                {t("mobile.publish.conversionOn", {
+                  amount: formatPriceDa(Math.round(finalPriceDa)),
+                })}
               </Text>
               <Text style={styles.eurConversionLine}>
                 ≈ {formatEurAmount(eurParallel)} €{" "}
-                <Text style={styles.eurConversionLabel}>(Marché parallèle)</Text>
+                <Text style={styles.eurConversionLabel}>{t("mobile.publish.parallelMarketLabel")}</Text>
               </Text>
               {eurOfficial != null ? (
                 <Text style={styles.eurConversionLine}>
@@ -714,15 +759,20 @@ export function PublishGenericStepScreen({
                   <Text style={styles.eurConversionLabel}>(Banque)</Text>
                 </Text>
               ) : null}
+              {eurParallel != null && eurOfficial != null && eurParallel < eurOfficial ? (
+                <Text style={styles.eurConversionHint}>
+                  {t("mobile.publish.parallelHint")}
+                </Text>
+              ) : null}
             </View>
           ) : null}
 
           <Text style={styles.priceHint}>
             {isDonation
-              ? "Annonce en don : aucun prix ne sera envoyé."
+              ? t("mobile.publish.donationNoPrice")
               : priceOptional
-                ? "Le prix n'est pas obligatoire pour cette sous-catégorie."
-                : "Conseil : Comparez avec des objets similaires pour vendre plus vite. Millions = ×1 000 000 DA, Centimes = ÷100."}
+                ? t("mobile.publish.priceNotRequired")
+                : t("mobile.publish.priceTipCompare")}
           </Text>
 
           {isDonation ? (
@@ -738,9 +788,9 @@ export function PublishGenericStepScreen({
                 <Ionicons name="shield-checkmark" size={18} color={colors.navy} />
               </View>
               <View style={styles.secureTexts}>
-                <Text style={styles.secureTitle}>Paiement sécurisé</Text>
+                <Text style={styles.secureTitle}>{t("mobile.publish.securePayment")}</Text>
                 <View style={styles.recommendedBadge}>
-                  <Text style={styles.recommendedText}>Recommandé</Text>
+                  <Text style={styles.recommendedText}>{t("mobile.publish.recommended")}</Text>
                 </View>
               </View>
               <Switch
@@ -751,7 +801,7 @@ export function PublishGenericStepScreen({
               />
             </View>
             <Text style={styles.secureSub}>
-              Activez le paiement en ligne pour rassurer les acheteurs.
+              {t("mobile.publish.onlinePaymentHint")}
             </Text>
           </View>
           {livraisonActive ? (
@@ -769,7 +819,9 @@ export function PublishGenericStepScreen({
           ) : null}
           <View style={styles.descriptionSection}>
             <View style={styles.descriptionHeader}>
-              <Text style={styles.descriptionLabel}>Description *</Text>
+              <Text style={styles.descriptionLabel}>
+                {t("forms.deposit.labelDescription")} *
+              </Text>
               <TouchableOpacity
                 style={[
                   styles.generateBtn,
@@ -785,18 +837,23 @@ export function PublishGenericStepScreen({
                   <Ionicons name="sparkles-outline" size={16} color={colors.primary} />
                 )}
                 <Text style={styles.generateBtnText}>
-                  {isGeneratingDescription ? "Génération…" : "Générer"}
+                  {isGeneratingDescription
+                    ? t("mobile.publish.generating")
+                    : t("forms.deposit.generateDescription")}
                 </Text>
               </TouchableOpacity>
             </View>
             <Text style={styles.descriptionHint}>
-              Le texte proposé reprend le titre, le prix, le lieu et ce que vous avez déjà indiqué. Si vous n'avez pas mis de prix, il ne sera pas inventé.
+              {t("forms.deposit.generateDescriptionHint")}
+            </Text>
+            <Text style={styles.descriptionHint}>
+              {t("mobile.publish.aiDisclaimer")}
             </Text>
             <PublishFormField
               label=""
               value={local.description ?? ""}
               onChangeText={(v) => update("description", v)}
-              placeholder="État, dimensions, caractéristiques utiles, modalités de retrait ou de livraison…"
+              placeholder={t("forms.deposit.descriptionPlaceholder")}
               maxLength={2000}
               multiline
             />
@@ -807,10 +864,13 @@ export function PublishGenericStepScreen({
           <TouchableOpacity
             style={styles.estimateBtn}
             onPress={() =>
-              showDevMessage("Estimation", "Estimation de prix simulée : 420–480 €.")
+              showDevMessage(
+                t("mobile.publish.estimateTitle"),
+                t("mobile.publish.estimateSimulated")
+              )
             }
           >
-            <Text style={styles.estimateText}>Estimer ma proposition</Text>
+            <Text style={styles.estimateText}>{t("mobile.publish.estimateCta")}</Text>
           </TouchableOpacity>
         </View>
       );
@@ -847,11 +907,11 @@ export function PublishGenericStepScreen({
               <View style={styles.previewTitleRow}>
                 <View style={styles.previewTitleCol}>
                   <Text style={styles.previewTitle}>
-                    {local.title || "Titre de l'annonce"}
+                    {local.title || t("mobile.publish.titleFallback")}
                   </Text>
                   <Text style={styles.previewPrice}>
                     {local.isDonation
-                      ? "Don"
+                      ? t("mobile.publish.donationShort")
                       : getDisplayedPriceLabel(
                           local.price,
                           local.priceUnit,
@@ -861,16 +921,16 @@ export function PublishGenericStepScreen({
                 </View>
                 <TouchableOpacity
                   onPress={() =>
-                    showDevMessage("Modifier", "Retour aux étapes précédentes.")
+                    showDevMessage(t("mobile.common.edit"), t("mobile.publish.backToSteps"))
                   }
                 >
-                  <Text style={styles.modifyLink}>Modifier</Text>
+                  <Text style={styles.modifyLink}>{t("mobile.common.edit")}</Text>
                 </TouchableOpacity>
               </View>
               <View style={styles.badgeRow}>
                 <View style={styles.chip}>
                   <Text style={styles.chipText}>
-                    {local.category || "Catégorie"}
+                    {local.category || t("mobile.publish.categoryFallback")}
                   </Text>
                 </View>
                 <View style={styles.chip}>
@@ -881,7 +941,7 @@ export function PublishGenericStepScreen({
                   />
                   <Text style={styles.chipText}>
                     {local.location ||
-                      `${local.city || "Ville"}${local.postalCode ? ` (${local.postalCode})` : ""}`}
+                      `${local.city || t("mobile.publish.cityFallback")}${local.postalCode ? ` (${local.postalCode})` : ""}`}
                   </Text>
                 </View>
               </View>
@@ -890,35 +950,39 @@ export function PublishGenericStepScreen({
 
           <View style={styles.detailsCard}>
             <View style={styles.detailsHeader}>
-              <Text style={styles.detailsTitle}>Détails</Text>
+              <Text style={styles.detailsTitle}>{t("mobile.publish.detailsTitle")}</Text>
               <TouchableOpacity
-                onPress={() => showDevMessage("Modifier", "Édition des détails.")}
+                onPress={() => showDevMessage(t("mobile.common.edit"), t("mobile.publish.editDetails"))}
               >
-                <Text style={styles.modifyLink}>Modifier</Text>
+                <Text style={styles.modifyLink}>{t("mobile.common.edit")}</Text>
               </TouchableOpacity>
             </View>
-            <PreviewDetailRow label="Type" value={typeBien} />
-            {marque ? <PreviewDetailRow label="Marque" value={marque} /> : null}
-            {modele ? <PreviewDetailRow label="Modèle" value={String(modele)} /> : null}
+            <PreviewDetailRow label={t("mobile.publish.labelType")} value={typeBien} />
+            {marque ? <PreviewDetailRow label={t("mobile.publish.labelBrand")} value={marque} /> : null}
+            {modele ? <PreviewDetailRow label={t("mobile.publish.labelModel")} value={String(modele)} /> : null}
             <PreviewDetailRow
-              label="Surface"
-              value={surface ? `${surface} m²` : null}
+              label={t("mobile.publish.labelSurface")}
+              value={
+                surface
+                  ? t("mobile.publish.surfaceSqm", { value: surface })
+                  : null
+              }
             />
             {attrs.nombre_pieces ? (
               <PreviewDetailRow
-                label="Pièces"
+                label={t("mobile.publish.labelRooms")}
                 value={String(attrs.nombre_pieces)}
               />
             ) : null}
             {attrs.meuble ? (
-              <PreviewDetailRow label="Meublé" value={attrs.meuble} />
+              <PreviewDetailRow label={t("mobile.publish.labelFurnished")} value={attrs.meuble} />
             ) : null}
             <PreviewDetailRow
-              label="État"
+              label={t("mobile.publish.labelCondition")}
               value={attrs.etat_du_bien || attrs.etat || local.condition}
             />
             <PreviewDetailRow
-              label="Kilométrage"
+              label={t("mobile.publish.labelMileage")}
               value={attrs.kilometrage || local.mileage}
             />
           </View>
@@ -937,11 +1001,11 @@ export function PublishGenericStepScreen({
             <Image source={{ uri: imageUri }} style={styles.successImage} />
             <View style={styles.successBody}>
               <Text style={styles.successTitle}>
-                {local.title || "Votre annonce"}
+                {local.title || t("mobile.publish.yourListing")}
               </Text>
               <Text style={styles.successPrice}>
                 {local.isDonation
-                  ? "Don"
+                  ? t("mobile.publish.donationShort")
                   : getDisplayedPriceLabel(
                       local.price,
                       local.priceUnit,
@@ -951,7 +1015,7 @@ export function PublishGenericStepScreen({
               <View style={styles.badgeRow}>
                 <View style={styles.chip}>
                   <Text style={styles.chipText}>
-                    {local.category || "Catégorie"}
+                    {local.category || t("mobile.publish.categoryFallback")}
                   </Text>
                 </View>
                 <View style={styles.chip}>
@@ -961,7 +1025,7 @@ export function PublishGenericStepScreen({
                     color={colors.navy}
                   />
                   <Text style={styles.chipText}>
-                    {local.location || local.city || "Localisation"}
+                    {local.location || local.city || t("createAdWizard.preview.locationFallback")}
                   </Text>
                 </View>
               </View>
@@ -973,7 +1037,7 @@ export function PublishGenericStepScreen({
             onPress={onViewListing}
           >
             <Ionicons name="eye-outline" size={18} color={colors.navy} />
-            <Text style={styles.viewListingText}>Voir mon annonce</Text>
+            <Text style={styles.viewListingText}>{t("mobile.publish.viewMyListing")}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -981,21 +1045,21 @@ export function PublishGenericStepScreen({
             onPress={onPublishAnother}
           >
             <Text style={styles.publishAnotherText}>
-              Publier une autre annonce
+              {t("mobile.publish.publishAnother")}
             </Text>
           </TouchableOpacity>
 
-          <Text style={styles.shareLabel}>Partager votre annonce</Text>
+          <Text style={styles.shareLabel}>{t("mobile.publish.shareYourListing")}</Text>
           <View style={styles.shareRow}>
             {[
               { icon: "logo-whatsapp", label: "WhatsApp" },
               { icon: "logo-facebook", label: "Facebook" },
-              { icon: "share-social-outline", label: "Partager" },
+              { icon: "share-social-outline", label: t("mobile.publish.share") },
             ].map((item) => (
               <TouchableOpacity
                 key={item.icon}
                 style={styles.shareBtn}
-                onPress={() => showDevMessage(item.label, "Partage simulé.")}
+                onPress={() => showDevMessage(item.label, t("mobile.publish.shareSimulated"))}
               >
                 <Ionicons name={item.icon} size={22} color={colors.navy} />
               </TouchableOpacity>
@@ -1066,15 +1130,15 @@ export function PublishGenericStepScreen({
       );
       if (!hasPrimary && !photosOptional) {
         showDevMessage(
-          "Photo requise",
-          "Ajoutez au moins une photo principale."
+          t("mobile.publish.photoRequiredTitle"),
+          t("mobile.publish.photoRequiredBody")
         );
         return;
       }
     }
     if (config.type === "immobilierFields") {
       if (!immobilierConfig) {
-        showDevMessage("Erreur", "Configuration immobilier manquante.");
+        showDevMessage(t("mobile.common.error"), t("mobile.publish.configMissing", { domain: t("mobile.publish.domainImmobilier") }));
         return;
       }
       const { ok, missing } = validateImmobilierAttributs(
@@ -1084,10 +1148,12 @@ export function PublishGenericStepScreen({
       );
       if (!ok) {
         showDevMessage(
-          "Champs requis",
-          `Complétez : ${missing.slice(0, 4).join(", ")}${
-            missing.length > 4 ? "…" : ""
-          }`
+          t("mobile.publish.fieldsRequired"),
+          t("mobile.publish.completeFields", {
+            fields: `${missing.slice(0, 4).join(", ")}${
+              missing.length > 4 ? "…" : ""
+            }`,
+          })
         );
         return;
       }
@@ -1095,17 +1161,17 @@ export function PublishGenericStepScreen({
         immobilierConfig.id === 44 ? "type_transaction" : "type_bien";
       if (!String(local.attributs?.[pilotKey] || "").trim()) {
         showDevMessage(
-          "Champ requis",
+          t("mobile.publish.fieldRequired"),
           immobilierConfig.id === 44
-            ? "Sélectionnez un type de transaction."
-            : "Sélectionnez un type de bien."
+            ? t("mobile.publish.selectTransactionType")
+            : t("mobile.publish.selectPropertyType")
         );
         return;
       }
     }
     if (config.type === "vehicleFields") {
       if (!vehicleConfig) {
-        showDevMessage("Erreur", "Configuration véhicule manquante.");
+        showDevMessage(t("mobile.common.error"), t("mobile.publish.configMissing", { domain: t("mobile.publish.domainVehicle") }));
         return;
       }
       const { ok, missing } = validateVehicleAttributs(
@@ -1115,10 +1181,12 @@ export function PublishGenericStepScreen({
       );
       if (!ok) {
         showDevMessage(
-          "Champs requis",
-          `Complétez : ${missing.slice(0, 4).join(", ")}${
-            missing.length > 4 ? "…" : ""
-          }`
+          t("mobile.publish.fieldsRequired"),
+          t("mobile.publish.completeFields", {
+            fields: `${missing.slice(0, 4).join(", ")}${
+              missing.length > 4 ? "…" : ""
+            }`,
+          })
         );
         return;
       }
@@ -1126,7 +1194,7 @@ export function PublishGenericStepScreen({
 
     if (config.type === "electroniqueFields") {
       if (!electroniqueConfig) {
-        showDevMessage("Erreur", "Configuration électronique manquante.");
+        showDevMessage(t("mobile.common.error"), t("mobile.publish.configMissing", { domain: t("mobile.publish.domainElectronique") }));
         return;
       }
       const { ok, missing } = validateVehicleAttributs(
@@ -1136,10 +1204,12 @@ export function PublishGenericStepScreen({
       );
       if (!ok) {
         showDevMessage(
-          "Champs requis",
-          `Complétez : ${missing.slice(0, 4).join(", ")}${
-            missing.length > 4 ? "…" : ""
-          }`
+          t("mobile.publish.fieldsRequired"),
+          t("mobile.publish.completeFields", {
+            fields: `${missing.slice(0, 4).join(", ")}${
+              missing.length > 4 ? "…" : ""
+            }`,
+          })
         );
         return;
       }
@@ -1147,7 +1217,7 @@ export function PublishGenericStepScreen({
 
     if (config.type === "animauxFields") {
       if (!animauxConfig) {
-        showDevMessage("Erreur", "Configuration animaux manquante.");
+        showDevMessage(t("mobile.common.error"), t("mobile.publish.configMissing", { domain: t("mobile.publish.domainAnimaux") }));
         return;
       }
       const { ok, missing } = validateVehicleAttributs(
@@ -1157,10 +1227,12 @@ export function PublishGenericStepScreen({
       );
       if (!ok) {
         showDevMessage(
-          "Champs requis",
-          `Complétez : ${missing.slice(0, 4).join(", ")}${
-            missing.length > 4 ? "…" : ""
-          }`
+          t("mobile.publish.fieldsRequired"),
+          t("mobile.publish.completeFields", {
+            fields: `${missing.slice(0, 4).join(", ")}${
+              missing.length > 4 ? "…" : ""
+            }`,
+          })
         );
         return;
       }
@@ -1168,7 +1240,7 @@ export function PublishGenericStepScreen({
 
     if (config.type === "maisonJardinFields") {
       if (!maisonJardinConfig) {
-        showDevMessage("Erreur", "Configuration maison et jardin manquante.");
+        showDevMessage(t("mobile.common.error"), t("mobile.publish.configMissing", { domain: t("mobile.publish.domainMaisonJardin") }));
         return;
       }
       const missing = validateMaisonJardinAttributs(
@@ -1176,14 +1248,17 @@ export function PublishGenericStepScreen({
         local.taxonomyValidationFields || []
       );
       if (missing) {
-        showDevMessage("Champs requis", `Complétez : ${missing}`);
+        showDevMessage(
+          t("mobile.publish.fieldsRequired"),
+          t("mobile.publish.completeFields", { fields: missing })
+        );
         return;
       }
     }
 
     if (config.type === "loisirsFields") {
       if (!loisirsConfig) {
-        showDevMessage("Erreur", "Configuration loisirs manquante.");
+        showDevMessage(t("mobile.common.error"), t("mobile.publish.configMissing", { domain: t("mobile.publish.domainLoisirs") }));
         return;
       }
       const { ok, missing } = validateVehicleAttributs(
@@ -1193,10 +1268,12 @@ export function PublishGenericStepScreen({
       );
       if (!ok) {
         showDevMessage(
-          "Champs requis",
-          `Complétez : ${missing.slice(0, 4).join(", ")}${
-            missing.length > 4 ? "…" : ""
-          }`
+          t("mobile.publish.fieldsRequired"),
+          t("mobile.publish.completeFields", {
+            fields: `${missing.slice(0, 4).join(", ")}${
+              missing.length > 4 ? "…" : ""
+            }`,
+          })
         );
         return;
       }
@@ -1205,8 +1282,8 @@ export function PublishGenericStepScreen({
     if (config.type === "locationsVacancesFields") {
       if (!locationsVacancesConfig) {
         showDevMessage(
-          "Erreur",
-          "Configuration locations de vacances manquante."
+          t("mobile.common.error"),
+          t("mobile.publish.configMissing", { domain: t("mobile.publish.domainVacances") })
         );
         return;
       }
@@ -1217,10 +1294,12 @@ export function PublishGenericStepScreen({
       );
       if (!ok) {
         showDevMessage(
-          "Champs requis",
-          `Complétez : ${missing.slice(0, 4).join(", ")}${
-            missing.length > 4 ? "…" : ""
-          }`
+          t("mobile.publish.fieldsRequired"),
+          t("mobile.publish.completeFields", {
+            fields: `${missing.slice(0, 4).join(", ")}${
+              missing.length > 4 ? "…" : ""
+            }`,
+          })
         );
         return;
       }
@@ -1229,8 +1308,8 @@ export function PublishGenericStepScreen({
     if (config.type === "materielProfessionnelFields") {
       if (!materielProfessionnelConfig) {
         showDevMessage(
-          "Erreur",
-          "Configuration matériel professionnel manquante."
+          t("mobile.common.error"),
+          t("mobile.publish.configMissing", { domain: t("mobile.publish.domainMateriel") })
         );
         return;
       }
@@ -1241,10 +1320,12 @@ export function PublishGenericStepScreen({
       );
       if (!ok) {
         showDevMessage(
-          "Champs requis",
-          `Complétez : ${missing.slice(0, 4).join(", ")}${
-            missing.length > 4 ? "…" : ""
-          }`
+          t("mobile.publish.fieldsRequired"),
+          t("mobile.publish.completeFields", {
+            fields: `${missing.slice(0, 4).join(", ")}${
+              missing.length > 4 ? "…" : ""
+            }`,
+          })
         );
         return;
       }
@@ -1252,7 +1333,7 @@ export function PublishGenericStepScreen({
 
     if (config.type === "modeFields") {
       if (!modeConfig) {
-        showDevMessage("Erreur", "Configuration mode manquante.");
+        showDevMessage(t("mobile.common.error"), t("mobile.publish.configMissing", { domain: t("mobile.publish.domainMode") }));
         return;
       }
       const { ok, missing } = validateVehicleAttributs(
@@ -1262,10 +1343,12 @@ export function PublishGenericStepScreen({
       );
       if (!ok) {
         showDevMessage(
-          "Champs requis",
-          `Complétez : ${missing.slice(0, 4).join(", ")}${
-            missing.length > 4 ? "…" : ""
-          }`
+          t("mobile.publish.fieldsRequired"),
+          t("mobile.publish.completeFields", {
+            fields: `${missing.slice(0, 4).join(", ")}${
+              missing.length > 4 ? "…" : ""
+            }`,
+          })
         );
         return;
       }
@@ -1273,7 +1356,7 @@ export function PublishGenericStepScreen({
 
     if (config.type === "serviceFields") {
       if (!serviceConfig) {
-        showDevMessage("Erreur", "Configuration service manquante.");
+        showDevMessage(t("mobile.common.error"), t("mobile.publish.configMissing", { domain: t("mobile.publish.domainService") }));
         return;
       }
       const { ok, missing } = validateVehicleAttributs(
@@ -1283,10 +1366,12 @@ export function PublishGenericStepScreen({
       );
       if (!ok) {
         showDevMessage(
-          "Champs requis",
-          `Complétez : ${missing.slice(0, 4).join(", ")}${
-            missing.length > 4 ? "…" : ""
-          }`
+          t("mobile.publish.fieldsRequired"),
+          t("mobile.publish.completeFields", {
+            fields: `${missing.slice(0, 4).join(", ")}${
+              missing.length > 4 ? "…" : ""
+            }`,
+          })
         );
         return;
       }
@@ -1294,7 +1379,7 @@ export function PublishGenericStepScreen({
 
     if (config.type === "emploiFields") {
       if (!emploiConfig) {
-        showDevMessage("Erreur", "Configuration emploi manquante.");
+        showDevMessage(t("mobile.common.error"), t("mobile.publish.configMissing", { domain: t("mobile.publish.domainEmploi") }));
         return;
       }
       const { ok, missing } = validateVehicleAttributs(
@@ -1304,17 +1389,19 @@ export function PublishGenericStepScreen({
       );
       if (!ok) {
         showDevMessage(
-          "Champs requis",
-          `Complétez : ${missing.slice(0, 4).join(", ")}${
-            missing.length > 4 ? "…" : ""
-          }`
+          t("mobile.publish.fieldsRequired"),
+          t("mobile.publish.completeFields", {
+            fields: `${missing.slice(0, 4).join(", ")}${
+              missing.length > 4 ? "…" : ""
+            }`,
+          })
         );
         return;
       }
     }
     if (config.type === "familleFields") {
       if (!familleConfig) {
-        showDevMessage("Erreur", "Configuration famille manquante.");
+        showDevMessage(t("mobile.common.error"), t("mobile.publish.configMissing", { domain: t("mobile.publish.domainFamille") }));
         return;
       }
       const { ok, missing } = validateVehicleAttributs(
@@ -1324,10 +1411,12 @@ export function PublishGenericStepScreen({
       );
       if (!ok) {
         showDevMessage(
-          "Champs requis",
-          `Complétez : ${missing.slice(0, 4).join(", ")}${
-            missing.length > 4 ? "…" : ""
-          }`
+          t("mobile.publish.fieldsRequired"),
+          t("mobile.publish.completeFields", {
+            fields: `${missing.slice(0, 4).join(", ")}${
+              missing.length > 4 ? "…" : ""
+            }`,
+          })
         );
         return;
       }
@@ -1338,8 +1427,8 @@ export function PublishGenericStepScreen({
         !String(local.postalCode ?? "").trim()
       ) {
         showDevMessage(
-          "Localisation requise",
-          "Sélectionnez une commune ou un code postal depuis la liste."
+          t("mobile.publish.locationRequiredTitle"),
+          t("mobile.publish.locationRequiredBody")
         );
         return;
       }
@@ -1352,8 +1441,8 @@ export function PublishGenericStepScreen({
         const finalDa = getFinalPriceDa(local.price, priceUnit, false);
         if (!Number.isFinite(finalDa) || finalDa < 1) {
           showDevMessage(
-            "Prix requis",
-            "Indiquez un prix d'au moins 1 DA (selon l'unité choisie)."
+            t("mobile.publish.priceRequiredTitle"),
+            t("mobile.publish.priceRequiredBody")
           );
           return;
         }
@@ -1363,8 +1452,8 @@ export function PublishGenericStepScreen({
       }
       if (!String(local.description ?? "").trim()) {
         showDevMessage(
-          "Description requise",
-          "Rédigez une description ou générez-en une automatiquement."
+          t("mobile.publish.descriptionRequiredTitle"),
+          t("mobile.publish.descriptionRequiredBody")
         );
         return;
       }
@@ -1376,21 +1465,26 @@ export function PublishGenericStepScreen({
     <PublishStepLayout
       step={stepNumber ?? config.id}
       totalSteps={totalSteps}
-      stepLabel={config.stepLabel}
-      title={config.title}
-      subtitle={config.subtitle}
+      stepLabel={localizedStep.stepLabel || config.stepLabel}
+      title={localizedStep.title || config.title}
+      subtitle={localizedStep.subtitle || config.subtitle}
       onBack={onBack}
       onClose={onClose}
       onContinue={handleContinue}
       continueLabel={
         config.type === "preview"
-          ? "Publier l'annonce"
+          ? t("createAdWizard.publishAd")
           : config.type === "success"
-            ? "Terminer"
-            : "Continuer"
+            ? t("mobile.publish.finish")
+            : t("createAdWizard.continue")
       }
       showDraft={config.type !== "success" && config.type !== "preview"}
-      onDraft={() => showDevMessage("Brouillon", "Annonce enregistrée.")}
+      onDraft={() =>
+        showDevMessage(
+          t("mobile.publish.draftSavedTitle"),
+          t("mobile.publish.draftSavedBody")
+        )
+      }
     >
       {renderFields()}
     </PublishStepLayout>
@@ -1398,6 +1492,7 @@ export function PublishGenericStepScreen({
 }
 
 export function PublishBoostScreen({ draft, onBack, onClose, onFinish }) {
+  const { t } = useAppLanguage();
   const [selected, setSelected] = useState("performance");
   const [skipBoost, setSkipBoost] = useState(false);
 
@@ -1412,38 +1507,38 @@ export function PublishBoostScreen({ draft, onBack, onClose, onFinish }) {
     <PublishStepLayout
       step={PUBLISH_TOTAL_STEPS}
       totalSteps={PUBLISH_TOTAL_STEPS}
-      stepLabel="Boost"
-      title="Booster mon annonce"
-      subtitle="Choisissez une option pour augmenter la visibilité."
+      stepLabel={t("mobile.publish.boostStepLabel")}
+      title={t("mobile.publish.boostTitle")}
+      subtitle={t("mobile.publish.boostSubtitle")}
       onBack={onBack}
       onClose={onClose}
       onContinue={() => onFinish({ boost: skipBoost ? "none" : selected })}
-      continueLabel={skipBoost ? "Publier sans boost" : "Activer le boost"}
+      continueLabel={skipBoost ? t("mobile.publish.publishWithoutBoost") : t("mobile.publish.activateBoost")}
       showDraft={false}
     >
-      <Text style={styles.previewSectionLabel}>APERÇU DE VOTRE ANNONCE</Text>
+      <Text style={styles.previewSectionLabel}>{t("mobile.publish.previewSection")}</Text>
       <View style={styles.boostPreviewCard}>
         <Image source={{ uri: imageUri }} style={styles.boostThumb} />
         <View style={styles.boostPreviewBody}>
           <Text style={styles.boostPreviewTitle} numberOfLines={2}>
-            {draft?.title || "Votre annonce"}
+            {draft?.title || t("mobile.publish.yourListing")}
           </Text>
           <Text style={styles.boostPreviewMeta}>
             {draft?.isDonation
-              ? "Don"
+              ? t("mobile.publish.donationShort")
               : getDisplayedPriceLabel(draft?.price, draft?.priceUnit, false) ||
                 "—"}{" "}
-            · {draft?.city || "Lyon"}
+            · {draft?.city || t("mobile.publish.cityFallback")}
             {draft?.postalCode ? ` (${draft.postalCode})` : ""}
           </Text>
           <View style={styles.boostStatusRow}>
             <Ionicons name="checkmark-circle" size={14} color="#16A34A" />
-            <Text style={styles.boostStatus}>En ligne</Text>
+            <Text style={styles.boostStatus}>{t("mobile.publish.onlineStatus")}</Text>
           </View>
         </View>
       </View>
 
-      <Text style={styles.previewSectionLabel}>CHOISISSEZ VOTRE OPTION</Text>
+      <Text style={styles.previewSectionLabel}>{t("mobile.publish.chooseBoostOption")}</Text>
 
       {BOOST_OPTIONS.map((opt) => (
         <TouchableOpacity
@@ -1459,7 +1554,7 @@ export function PublishBoostScreen({ draft, onBack, onClose, onFinish }) {
         >
           {opt.popular ? (
             <View style={styles.popularBadge}>
-              <Text style={styles.popularText}>Populaire</Text>
+              <Text style={styles.popularText}>{t("mobile.publish.popular")}</Text>
             </View>
           ) : null}
           <View style={styles.boostRow}>
@@ -1467,8 +1562,16 @@ export function PublishBoostScreen({ draft, onBack, onClose, onFinish }) {
               <Ionicons name={opt.icon} size={20} color={colors.navy} />
             </View>
             <View style={styles.boostBody}>
-              <Text style={styles.boostTitle}>{opt.title}</Text>
-              <Text style={styles.boostDesc}>{opt.description}</Text>
+              <Text style={styles.boostTitle}>
+                {t(`mobile.publish.boost${opt.id.charAt(0).toUpperCase()}${opt.id.slice(1)}Title`, {
+                  defaultValue: opt.title,
+                })}
+              </Text>
+              <Text style={styles.boostDesc}>
+                {t(`mobile.publish.boost${opt.id.charAt(0).toUpperCase()}${opt.id.slice(1)}Desc`, {
+                  defaultValue: opt.description,
+                })}
+              </Text>
             </View>
             <Text style={styles.boostPrice}>{opt.price}</Text>
           </View>
@@ -1485,14 +1588,14 @@ export function PublishBoostScreen({ draft, onBack, onClose, onFinish }) {
         onPress={() => setSkipBoost(true)}
       >
         <Text style={[styles.skipBoostText, skipBoost && styles.skipBoostActive]}>
-          Continuer sans boost
+          {t("mobile.publish.continueWithoutBoost")}
         </Text>
       </TouchableOpacity>
 
       <View style={styles.infoBanner}>
         <Ionicons name="information-circle-outline" size={20} color="#F3F0EF" />
         <Text style={styles.infoText}>
-          Le boost sera activé immédiatement après validation du paiement.
+          {t("mobile.publish.boostAfterPayment")}
         </Text>
       </View>
     </PublishStepLayout>
@@ -1676,6 +1779,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "500",
     color: colors.textMuted,
+  },
+  eurConversionHint: {
+    fontSize: 11,
+    color: colors.textMuted,
+    fontStyle: "italic",
+    marginTop: 2,
   },
   priceHint: {
     fontSize: 12,

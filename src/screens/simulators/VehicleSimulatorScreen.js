@@ -3,8 +3,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import VehicleFinancingSimulator from "../../features/vehicules/components/VehicleFinancingSimulator";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function VehicleSimulatorScreen({ navigation, route }) {
+  const { t } = useAppLanguage();
   const initialPrix = Number(route?.params?.prix) || 0;
 
   return (
@@ -17,7 +19,7 @@ export default function VehicleSimulatorScreen({ navigation, route }) {
         >
           <Ionicons name="arrow-back" size={22} color={colors.textDark} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Simulateur véhicule</Text>
+        <Text style={styles.headerTitle}>{t("vehiculesUi.simulatorTitle")}</Text>
         <View style={styles.back} />
       </View>
       <ScrollView

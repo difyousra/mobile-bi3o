@@ -37,6 +37,11 @@ export function findWilayaById(id) {
   return WILAYAS.find((w) => String(w?.id) === String(id)) ?? null;
 }
 
+/** Liste des wilayas (ordre fichier JSON). */
+export function getAllWilayas() {
+  return WILAYAS.slice();
+}
+
 export function findWilayaByVille(ville) {
   if (!ville) return null;
   const n = normalizeName(ville);

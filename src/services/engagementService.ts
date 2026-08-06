@@ -237,7 +237,23 @@ export async function fetchFollowedSellers(params?: {
   const { data } = await apiClient.get<unknown>("/users/me/following", {
     params: { page: params?.page ?? 0, size: params?.size ?? 50 },
   });
-  return asPage<FollowedSellerDto>(data) as FollowedSellersPage;
+  const page = asPage<FollowedSellerDto>(data);
+  // Normalise les ids (Long Jackson parfois string).
+  return {
+    ...page,
+    content: page.content
+      .map((row) => {
+        if (!row || typeof row !== "object") return null;
+        const id = Number(
+          (row as FollowedSellerDto).id ??
+            (row as { userId?: number }).userId ??
+            (row as { sellerId?: number }).sellerId
+        );
+        if (!Number.isFinite(id) || id <= 0) return null;
+        return { ...(row as FollowedSellerDto), id };
+      })
+      .filter((s): s is FollowedSellerDto => s != null),
+  };
 }
 
 /** DELETE /me/recherches/{id} */

@@ -2,6 +2,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
 import BrandLogo from "../common/BrandLogo";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function ChatHeader({
   variant = "seller",
@@ -12,12 +13,16 @@ export default function ChatHeader({
   onSellerPress,
   onMenuPress,
 }) {
+  const { t } = useAppLanguage();
+
   return (
     <View style={styles.container}>
       <TouchableOpacity
         style={styles.backButton}
         activeOpacity={0.8}
         onPress={onBackPress}
+        accessibilityRole="button"
+        accessibilityLabel={t("common.back")}
       >
         <Ionicons name="arrow-back" size={22} color={colors.white} />
       </TouchableOpacity>
@@ -43,6 +48,8 @@ export default function ChatHeader({
         style={styles.menuButton}
         activeOpacity={0.7}
         onPress={onMenuPress}
+        accessibilityRole="button"
+        accessibilityLabel={t("mobile.messages.optionsTitle")}
       >
         <Ionicons name="ellipsis-vertical" size={20} color={colors.textDark} />
       </TouchableOpacity>

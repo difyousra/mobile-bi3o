@@ -9,39 +9,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
 import SettingsScreenHeader from "../../components/settings/SettingsScreenHeader";
-
-const SETTINGS_ITEMS = [
-  {
-    id: "security",
-    label: "Connexion et sécurité",
-    route: "SecuritySettings",
-  },
-  {
-    id: "privacy",
-    label: "Confidentialité",
-    route: "PrivacySettings",
-  },
-  {
-    id: "notifications",
-    label: "Notifications",
-    route: "NotificationSettings",
-  },
-  {
-    id: "lotDiscounts",
-    label: "Réductions sur les lots",
-    route: "LotDiscountsSettings",
-  },
-  {
-    id: "display",
-    label: "Affichage",
-    route: "DisplaySettings",
-  },
-  {
-    id: "legal",
-    label: "Information légales",
-    route: "LegalHub",
-  },
-];
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 function SettingsRow({ label, onPress, isLast }) {
   return (
@@ -59,10 +27,45 @@ function SettingsRow({ label, onPress, isLast }) {
 }
 
 export default function AccountSettingsScreen({ navigation }) {
+  const { t } = useAppLanguage();
+
+  const settingsItems = [
+    {
+      id: "security",
+      label: t("mobile.accountSettings.security"),
+      route: "SecuritySettings",
+    },
+    {
+      id: "privacy",
+      label: t("mobile.accountSettings.privacy"),
+      route: "PrivacySettings",
+    },
+    {
+      id: "notifications",
+      label: t("mobile.accountSettings.notifications"),
+      route: "NotificationSettings",
+    },
+    {
+      id: "lotDiscounts",
+      label: t("mobile.accountSettings.lotDiscounts"),
+      route: "LotDiscountsSettings",
+    },
+    {
+      id: "display",
+      label: t("mobile.accountSettings.display"),
+      route: "DisplaySettings",
+    },
+    {
+      id: "legal",
+      label: t("mobile.accountSettings.legal"),
+      route: "LegalHub",
+    },
+  ];
+
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <SettingsScreenHeader
-        title="Mes paramètres"
+        title={t("mobile.accountSettings.title")}
         onBack={() => navigation.goBack()}
       />
 
@@ -72,11 +75,11 @@ export default function AccountSettingsScreen({ navigation }) {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.list}>
-          {SETTINGS_ITEMS.map((item, index) => (
+          {settingsItems.map((item, index) => (
             <SettingsRow
               key={item.id}
               label={item.label}
-              isLast={index === SETTINGS_ITEMS.length - 1}
+              isLast={index === settingsItems.length - 1}
               onPress={() => navigation.navigate(item.route)}
             />
           ))}

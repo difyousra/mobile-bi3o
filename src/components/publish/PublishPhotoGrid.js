@@ -12,6 +12,7 @@ import * as ImagePicker from "expo-image-picker";
 import { colors } from "../../theme/colors";
 import { PHOTO_SLOTS } from "../../data/publishSteps";
 import { showDevMessage } from "../../utils/devFeedback";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 function photoUri(value) {
   if (!value) return null;
@@ -20,6 +21,7 @@ function photoUri(value) {
 }
 
 export default function PublishPhotoGrid({ value = {}, onChange }) {
+  const { t } = useAppLanguage();
   const [photos, setPhotos] = useState(value);
 
   const update = (id, file) => {
@@ -32,8 +34,8 @@ export default function PublishPhotoGrid({ value = {}, onChange }) {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       Alert.alert(
-        "Permission",
-        "Autorisez l'accès à la galerie pour ajouter des photos."
+        t("mobile.account.galleryPermissionTitle"),
+        t("mobile.account.galleryPermission")
       );
       return;
     }
@@ -66,6 +68,9 @@ export default function PublishPhotoGrid({ value = {}, onChange }) {
       {PHOTO_SLOTS.map((slot) => {
         const uri = photoUri(photos[slot.id]);
         const isPrimary = slot.id === "primary";
+        const slotLabel = t(`mobile.publish.photoSlot${slot.id.charAt(0).toUpperCase()}${slot.id.slice(1)}`, {
+          defaultValue: slot.label,
+        });
 
         if (uri) {
           return (
@@ -81,7 +86,7 @@ export default function PublishPhotoGrid({ value = {}, onChange }) {
                 <Ionicons name="close" size={14} color={colors.white} />
               </TouchableOpacity>
               {!isPrimary ? (
-                <Text style={styles.slotLabel}>{slot.label}</Text>
+                <Text style={styles.slotLabel}>{slotLabel}</Text>
               ) : null}
             </View>
           );
@@ -99,11 +104,11 @@ export default function PublishPhotoGrid({ value = {}, onChange }) {
               color={isPrimary ? colors.navy : colors.iconMuted}
             />
             <Text style={isPrimary ? styles.primaryText : styles.slotText}>
-              {slot.label}
+              {slotLabel}
             </Text>
             {slot.required ? (
               <View style={styles.badge}>
-                <Text style={styles.badgeText}>Obligatoire</Text>
+                <Text style={styles.badgeText}>{t("mobile.publish.required")}</Text>
               </View>
             ) : null}
           </TouchableOpacity>
@@ -114,8 +119,8 @@ export default function PublishPhotoGrid({ value = {}, onChange }) {
         style={styles.upsellCard}
         onPress={() =>
           showDevMessage(
-            "Photos pro",
-            "Service de shooting professionnel — bientôt disponible."
+            t("mobile.publish.photoProTitle"),
+            t("mobile.publish.photoProBody")
           )
         }
       >
@@ -123,10 +128,8 @@ export default function PublishPhotoGrid({ value = {}, onChange }) {
           <Ionicons name="sparkles" size={20} color={colors.navy} />
         </View>
         <View style={styles.upsellBody}>
-          <Text style={styles.upsellTitle}>Photos professionnelles</Text>
-          <Text style={styles.upsellSub}>
-            Augmentez vos chances de vente avec des photos de qualité studio.
-          </Text>
+          <Text style={styles.upsellTitle}>{t("mobile.publish.photosProTitle")}</Text>
+          <Text style={styles.upsellSub}>{t("mobile.publish.photosProSub")}</Text>
         </View>
         <Ionicons name="chevron-forward" size={18} color={colors.iconMuted} />
       </TouchableOpacity>

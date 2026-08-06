@@ -7,11 +7,13 @@ import {
 } from "../../features/annonces/utils/livraisonFinalizer";
 import { LivraisonPartnersGrid } from "../product/AdDetailLivraisonCard";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function LivraisonFinalizerCard({
   attributs = {},
   onAttributChange,
 }) {
+  const { t } = useAppLanguage();
   const selected = normalizeLivraisonPartners(attributs.partenaires_de_livraison);
 
   const togglePartner = (label) => {
@@ -30,14 +32,12 @@ export default function LivraisonFinalizerCard({
             <Ionicons name="car-outline" size={16} color="#475569" />
           </View>
           <View style={styles.headerText}>
-            <Text style={styles.title}>En livraison</Text>
-            <Text style={styles.subtitle}>
-              Les frais de livraison sont à la charge de l'acheteur
-            </Text>
+            <Text style={styles.title}>{t("forms.deposit.livraison.title")}</Text>
+            <Text style={styles.subtitle}>{t("forms.deposit.livraison.subtitle")}</Text>
           </View>
         </View>
         <View style={styles.activeBadge}>
-          <Text style={styles.activeBadgeText}>Activé</Text>
+          <Text style={styles.activeBadgeText}>{t("forms.deposit.livraison.active")}</Text>
         </View>
       </View>
 
@@ -49,14 +49,12 @@ export default function LivraisonFinalizerCard({
 
       <View style={styles.fields}>
         <PublishFormField
-          label="Bureau ou point relais"
+          label={t("forms.deposit.livraison.bureauLabel")}
           value={attributs.bureau_ou_point_relais ?? ""}
           onChangeText={(next) => onAttributChange?.("bureau_ou_point_relais", next)}
-          placeholder="Ex. : bureau de poste, relais Yalidine, adresse du point de retrait…"
+          placeholder={t("forms.deposit.livraison.bureauPlaceholder")}
         />
-        <Text style={styles.hint}>
-          Indiquez où le colis peut être déposé ou récupéré selon le partenaire choisi.
-        </Text>
+        <Text style={styles.hint}>{t("forms.deposit.livraison.bureauHint")}</Text>
       </View>
     </View>
   );

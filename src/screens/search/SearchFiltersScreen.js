@@ -35,16 +35,19 @@ import {
 } from "../../features/filters/immobilierFilterAttributes";
 import { isFilterFieldVisible } from "../../features/filters/filterSchemaRuntime";
 import { buildSchemaSearchPayload, countActiveSchemaFilters } from "../../features/filters/buildSchemaSearchPayload";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
+import { subcategoryNodeLabel } from "../../i18n/taxonomyLabels";
 
 /* ─── Composants de rendu de champ ─────────────────────────────────────────── */
 
 function RangeField({ field, filters, onChange }) {
+  const { t } = useAppLanguage();
   const minKey = field.minParam || 'min';
   const maxKey = field.maxParam || 'max';
   return (
     <View style={fStyles.rangeRow}>
       <View style={fStyles.rangeField}>
-        <Text style={fStyles.rangeLabel}>Min {field.currency ? `(${field.currency})` : ''}</Text>
+        <Text style={fStyles.rangeLabel}>{t("categoryUi.filterMin")} {field.currency ? `(${field.currency})` : ''}</Text>
         <TextInput
           style={fStyles.rangeInput}
           value={String(filters[minKey] || '')}
@@ -55,7 +58,7 @@ function RangeField({ field, filters, onChange }) {
         />
       </View>
       <View style={fStyles.rangeField}>
-        <Text style={fStyles.rangeLabel}>Max {field.currency ? `(${field.currency})` : ''}</Text>
+        <Text style={fStyles.rangeLabel}>{t("categoryUi.filterMax")} {field.currency ? `(${field.currency})` : ''}</Text>
         <TextInput
           style={fStyles.rangeInput}
           value={String(filters[maxKey] || '')}
@@ -71,19 +74,20 @@ function RangeField({ field, filters, onChange }) {
 
 /** Plage de dates ISO (AAAA-MM-JJ) — aligné new front FilterDateRangeField. */
 function DateRangeField({ field, filters, onChange }) {
+  const { t } = useAppLanguage();
   const minKey = field.minParam || 'min';
   const maxKey = field.maxParam || 'max';
   const webDateProps =
     Platform.OS === 'web'
       ? { type: 'date' }
-      : { placeholder: 'AAAA-MM-JJ', placeholderTextColor: colors.placeholder };
+      : { placeholder: t("mobile.filters.datePlaceholder"), placeholderTextColor: colors.placeholder };
 
   return (
     <View>
       {field.hint ? <Text style={fStyles.hint}>{field.hint}</Text> : null}
       <View style={fStyles.rangeRow}>
         <View style={fStyles.rangeField}>
-          <Text style={fStyles.rangeLabel}>Arrivée</Text>
+          <Text style={fStyles.rangeLabel}>{t("mobile.filters.arrival")}</Text>
           <TextInput
             style={fStyles.rangeInput}
             value={String(filters[minKey] || '')}
@@ -92,7 +96,7 @@ function DateRangeField({ field, filters, onChange }) {
           />
         </View>
         <View style={fStyles.rangeField}>
-          <Text style={fStyles.rangeLabel}>Départ</Text>
+          <Text style={fStyles.rangeLabel}>{t("mobile.filters.departure")}</Text>
           <TextInput
             style={fStyles.rangeInput}
             value={String(filters[maxKey] || '')}
@@ -228,6 +232,7 @@ function TagsField({ field, filters, onChange }) {
 }
 
 function SelectField({ field, filters, onChange }) {
+  const { t } = useAppLanguage();
   const paramKey = field.param || field.id;
   const current = filters[paramKey];
   const [open, setOpen] = useState(false);
@@ -239,7 +244,7 @@ function SelectField({ field, filters, onChange }) {
         onPress={() => setOpen((v) => !v)}
       >
         <Text style={current ? fStyles.selectValue : fStyles.selectPlaceholder}>
-          {current || field.placeholder || 'Sélectionner'}
+          {current || field.placeholder || t("createAdWizard.selectOption")}
         </Text>
         <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textMuted} />
       </TouchableOpacity>
@@ -250,7 +255,7 @@ function SelectField({ field, filters, onChange }) {
             onPress={() => { onChange({ [paramKey]: '' }); setOpen(false); }}
           >
             <Text style={[fStyles.selectOptText, !current && fStyles.selectOptTextActive]}>
-              {field.placeholder || 'Toutes'}
+              {field.placeholder || t("mobile.filters.allOption")}
             </Text>
           </TouchableOpacity>
           {field.options.map((opt) => {
@@ -278,6 +283,7 @@ function SelectField({ field, filters, onChange }) {
 /* ─── Champs spéciaux véhicule ──────────────────────────────────────────────── */
 
 function VehicleBrandField({ field, filters, onChange }) {
+  const { t } = useAppLanguage();
   const { data: referentiel, isLoading } = useReferentielMarquesModeles(true);
   const paramKey = field.param || field.id;
 
@@ -287,7 +293,7 @@ function VehicleBrandField({ field, filters, onChange }) {
     return field.options || [];
   }, [referentiel, field.options]);
 
-  const syntheticField = { ...field, type: 'select', options, placeholder: isLoading && !options.length ? 'Chargement…' : (field.placeholder || 'Toutes les marques') };
+  const syntheticField = { ...field, type: 'select', options, placeholder: isLoading && !options.length ? t("mobile.filters.loadingBrands") : (field.placeholder || t("mobile.filters.allBrands")) };
   return <SelectField field={syntheticField} filters={filters} onChange={(patch) => {
     // Effacer le modèle si la marque change
     onChange({ ...patch, model: '' });
@@ -295,6 +301,7 @@ function VehicleBrandField({ field, filters, onChange }) {
 }
 
 function VehicleModelField({ field, filters, onChange }) {
+  const { t } = useAppLanguage();
   const brand = filters[field.dependsOn || 'brand'] || '';
   const { data: taxoAttributs = [], isLoading: taxoLoading } = useSubcategoryAttributs(
     brand ? field.sousCategorieId : null
@@ -315,10 +322,10 @@ function VehicleModelField({ field, filters, onChange }) {
 
   const isLoading = taxoLoading || refLoading;
   const placeholder = !brand
-    ? 'Sélectionnez d\'abord une marque'
-    : isLoading ? 'Chargement des modèles…'
-    : options.length ? 'Tous les modèles'
-    : 'Aucun modèle disponible';
+    ? t("mobile.filters.selectBrandFirst")
+    : isLoading ? t("mobile.filters.loadingModels")
+    : options.length ? t("mobile.filters.allModels")
+    : t("mobile.filters.noModels");
 
   const syntheticField = { ...field, type: 'select', options, placeholder };
   return <SelectField field={syntheticField} filters={filters} onChange={onChange} />;
@@ -350,6 +357,7 @@ function FilterSection({ field, filters, onChange }) {
 /* ─── Picker catégorie 2 étapes (modal) ─────────────────────────────────────── */
 
 function CategoryPicker({ visible, onClose, onSelect, categories, sousCategories, currentCategorieId, currentSousCategorieId }) {
+  const { t } = useAppLanguage();
   const [step, setStep] = useState(1); // 1 = choix catégorie, 2 = choix sous-catégorie
   const [selectedCat, setSelectedCat] = useState(null);
 
@@ -363,8 +371,10 @@ function CategoryPicker({ visible, onClose, onSelect, categories, sousCategories
 
   const sousForCat = useMemo(() => {
     if (!selectedCat) return [];
-    return sousCategories.filter((s) => Number(s.categorieId) === Number(selectedCat.rawId));
-  }, [selectedCat, sousCategories]);
+    return sousCategories
+      .filter((s) => Number(s.categorieId) === Number(selectedCat.rawId))
+      .map((s) => ({ ...s, nom: subcategoryNodeLabel(s, t) }));
+  }, [selectedCat, sousCategories, t]);
 
   const handleSelectCat = (cat) => {
     setSelectedCat(cat);
@@ -402,10 +412,10 @@ function CategoryPicker({ visible, onClose, onSelect, categories, sousCategories
             </TouchableOpacity>
           )}
           <Text style={picker.title}>
-            {step === 1 ? 'Choisir une catégorie' : selectedCat?.label ?? 'Sous-catégorie'}
+            {step === 1 ? t("mobile.filters.chooseCategory") : selectedCat?.label ?? t("mobile.filters.subcategory")}
           </Text>
           <TouchableOpacity onPress={handleReset}>
-            <Text style={picker.reset}>Effacer</Text>
+            <Text style={picker.reset}>{t("filters.clear")}</Text>
           </TouchableOpacity>
         </View>
 
@@ -439,7 +449,9 @@ function CategoryPicker({ visible, onClose, onSelect, categories, sousCategories
                 style={[picker.row, !currentSousCategorieId && Number(currentCategorieId) === Number(selectedCat?.rawId) && picker.rowActive]}
                 onPress={() => { onSelect({ categorieId: selectedCat.rawId, sousCategorieId: null }); onClose(); }}
               >
-                <Text style={picker.rowText}>Toutes les {selectedCat?.label}</Text>
+                <Text style={picker.rowText}>
+                  {t("mobile.filters.allInCategory", { category: selectedCat?.label ?? "" })}
+                </Text>
               </TouchableOpacity>
             }
             renderItem={({ item }) => {
@@ -484,6 +496,7 @@ const picker = StyleSheet.create({
 /* ─── Écran principal ───────────────────────────────────────────────────────── */
 
 export default function SearchFiltersScreen({ navigation, route }) {
+  const { t } = useAppLanguage();
   const initial = route.params?.filters ?? DEFAULT_SEARCH_FILTERS;
   const [location, setLocation] = useState(initial.location ?? "Toute l'Algérie");
   const [categorieId, setCategorieId] = useState(initial.categorieId ?? null);
@@ -554,13 +567,16 @@ export default function SearchFiltersScreen({ navigation, route }) {
     if (sousCategorieId) {
       const sc = sousCategories.find((s) => Number(s.id) === Number(sousCategorieId));
       const cat = categories.find((c) => Number(c.rawId) === Number(categorieId));
-      if (sc) return `${cat?.label ?? ''} › ${sc.nom}`.trim().replace(/^› /, '');
+      if (sc) {
+        const sousLabel = subcategoryNodeLabel(sc, t);
+        return `${cat?.label ?? ""} › ${sousLabel}`.trim().replace(/^› /, "");
+      }
     }
     if (categorieId) {
-      return categories.find((c) => Number(c.rawId) === Number(categorieId))?.label ?? 'Catégorie';
+      return categories.find((c) => Number(c.rawId) === Number(categorieId))?.label ?? t("categoryUi.categoryLabel");
     }
     return null;
-  }, [categorieId, sousCategorieId, categories, sousCategories]);
+  }, [categorieId, sousCategorieId, categories, sousCategories, t]);
 
   const handleReset = () => {
     setLocation("Toute l'Algérie");
@@ -610,9 +626,12 @@ export default function SearchFiltersScreen({ navigation, route }) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={22} color={colors.textHeading} />
         </TouchableOpacity>
-        <Text style={styles.title}>Filtres{dynFilterCount > 0 ? ` (${dynFilterCount})` : ''}</Text>
+        <Text style={styles.title}>
+          {t("mobile.filters.title")}
+          {dynFilterCount > 0 ? ` (${dynFilterCount})` : ''}
+        </Text>
         <TouchableOpacity onPress={handleReset}>
-          <Text style={styles.resetText}>Réinitialiser</Text>
+          <Text style={styles.resetText}>{t("mobile.filters.reset")}</Text>
         </TouchableOpacity>
       </View>
 
@@ -633,7 +652,7 @@ export default function SearchFiltersScreen({ navigation, route }) {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
         {/* Catégorie — bouton picker 2 étapes */}
-        <Text style={styles.sectionTitle}>Catégorie</Text>
+        <Text style={styles.sectionTitle}>{t("categoryUi.categoryLabel")}</Text>
         {taxoLoading || sousLoading ? (
           <ActivityIndicator color={colors.primary} style={{ marginBottom: 12 }} />
         ) : (
@@ -645,7 +664,7 @@ export default function SearchFiltersScreen({ navigation, route }) {
               {catLabel ? (
                 <Text style={styles.pickerBtnValue}>{catLabel}</Text>
               ) : (
-                <Text style={styles.pickerBtnPlaceholder}>Toutes les catégories</Text>
+                <Text style={styles.pickerBtnPlaceholder}>{t("mobile.filters.allCategories")}</Text>
               )}
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
@@ -657,14 +676,18 @@ export default function SearchFiltersScreen({ navigation, route }) {
             onPress={() => { setCategorieId(null); setSousCategorieId(null); setDynFilters({}); }}
           >
             <Ionicons name="close-circle" size={16} color={colors.textMuted} />
-            <Text style={styles.clearCatText}>Effacer la catégorie</Text>
+            <Text style={styles.clearCatText}>{t("mobile.filters.clearCategory")}</Text>
           </TouchableOpacity>
         ) : null}
 
         {/* Type d'annonce */}
-        <Text style={styles.sectionTitle}>Type d'annonce</Text>
+        <Text style={styles.sectionTitle}>{t("mobile.filters.adTypeSection")}</Text>
         <View style={fStyles.btnRow}>
-          {[{ value: '', label: 'Toutes' }, { value: 'OFFRE', label: 'Offre' }, { value: 'DEMANDE', label: 'Demande' }].map(({ value, label }) => (
+          {[
+            { value: '', label: t("mobile.filters.allTypes") },
+            { value: 'OFFRE', label: t("forms.deposit.annonceTypeOffreTitle") },
+            { value: 'DEMANDE', label: t("forms.deposit.annonceTypeDemandeTitle") },
+          ].map(({ value, label }) => (
             <TouchableOpacity
               key={value}
               style={[fStyles.btn, annonceType === value && fStyles.btnActive]}
@@ -678,10 +701,10 @@ export default function SearchFiltersScreen({ navigation, route }) {
         {/* Prix — masqué pour Emploi (remplacé par Salaire dans les critères) */}
         {!hasSalaryField ? (
           <>
-            <Text style={styles.sectionTitle}>Prix</Text>
+            <Text style={styles.sectionTitle}>{t("common.price")}</Text>
             <View style={fStyles.rangeRow}>
               <View style={fStyles.rangeField}>
-                <Text style={fStyles.rangeLabel}>Min (Da)</Text>
+                <Text style={fStyles.rangeLabel}>{t("mobile.filters.minDa")}</Text>
                 <TextInput
                   style={fStyles.rangeInput}
                   value={priceMin}
@@ -692,7 +715,7 @@ export default function SearchFiltersScreen({ navigation, route }) {
                 />
               </View>
               <View style={fStyles.rangeField}>
-                <Text style={fStyles.rangeLabel}>Max (Da)</Text>
+                <Text style={fStyles.rangeLabel}>{t("mobile.filters.maxDa")}</Text>
                 <TextInput
                   style={fStyles.rangeInput}
                   value={priceMax}
@@ -726,7 +749,7 @@ export default function SearchFiltersScreen({ navigation, route }) {
       </ScrollView>
 
       <TouchableOpacity style={styles.applyBtn} onPress={handleApply}>
-        <Text style={styles.applyText}>Afficher les résultats</Text>
+        <Text style={styles.applyText}>{t("mobile.filters.applyResults")}</Text>
       </TouchableOpacity>
     </SafeAreaView>
   );

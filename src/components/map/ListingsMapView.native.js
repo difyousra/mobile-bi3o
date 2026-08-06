@@ -3,10 +3,26 @@
  * Pins aux locations des annonces / communes.
  */
 import { useEffect, useRef } from "react";
-import { View, Text, StyleSheet, Platform } from "react-native";
-import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import { View, Text, StyleSheet, Platform, Linking } from "react-native";
 import { colors } from "../../theme/colors";
 import { ALGIERS_REGION } from "../../utils/algeriaLocation";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
+
+let MapView = null;
+let Marker = null;
+let PROVIDER_GOOGLE = null;
+let mapsAvailable = false;
+
+try {
+  // eslint-disable-next-line global-require
+  const maps = require("react-native-maps");
+  MapView = maps.default;
+  Marker = maps.Marker;
+  PROVIDER_GOOGLE = maps.PROVIDER_GOOGLE;
+  mapsAvailable = Boolean(MapView);
+} catch {
+  mapsAvailable = false;
+}
 
 function regionFromMarkers(markers) {
   if (!markers?.length) return ALGIERS_REGION;
@@ -36,6 +52,31 @@ function regionFromMarkers(markers) {
   };
 }
 
+function MapsUnavailableFallback({ markers = [] }) {
+  const { t } = useAppLanguage();
+  const first = markers[0];
+  const openExternal = () => {
+    if (!first) return;
+    const url =
+      Platform.OS === "ios"
+        ? `http://maps.apple.com/?ll=${first.lat},${first.lng}`
+        : `https://www.google.com/maps/search/?api=1&query=${first.lat},${first.lng}`;
+    Linking.openURL(url).catch(() => {});
+  };
+
+  return (
+    <View style={[styles.root, styles.fallback]}>
+      <Text style={styles.fallbackTitle}>{t("mobile.map.unavailableTitle")}</Text>
+      <Text style={styles.fallbackText}>{t("mobile.map.expoGoHint")}</Text>
+      {first ? (
+        <Text style={styles.fallbackLink} onPress={openExternal}>
+          {t("mobile.product.openInMaps")}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
 export default function ListingsMapView({
   markers = [],
   selectedMarkerId = null,
@@ -46,7 +87,7 @@ export default function ListingsMapView({
   const initialRegion = regionFromMarkers(markers);
 
   useEffect(() => {
-    if (!mapRef.current || !markers.length) return;
+    if (!mapsAvailable || !mapRef.current || !markers.length) return;
     const coords = markers.map((m) => ({
       latitude: m.lat,
       longitude: m.lng,
@@ -62,7 +103,7 @@ export default function ListingsMapView({
   }, [markers]);
 
   useEffect(() => {
-    if (!mapRef.current || !selectedMarkerId) return;
+    if (!mapsAvailable || !mapRef.current || !selectedMarkerId) return;
     const marker = markers.find((m) => String(m.id) === String(selectedMarkerId));
     if (!marker) return;
     mapRef.current.animateToRegion(
@@ -75,6 +116,10 @@ export default function ListingsMapView({
       280
     );
   }, [selectedMarkerId, markers]);
+
+  if (!mapsAvailable) {
+    return <MapsUnavailableFallback markers={markers} />;
+  }
 
   return (
     <View style={[styles.root, style]}>
@@ -112,6 +157,29 @@ export default function ListingsMapView({
 const styles = StyleSheet.create({
   root: { flex: 1 },
   map: { ...StyleSheet.absoluteFillObject },
+  fallback: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+    backgroundColor: colors.background,
+  },
+  fallbackTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.textHeading,
+    marginBottom: 8,
+  },
+  fallbackText: {
+    fontSize: 13,
+    color: colors.textMuted,
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  fallbackLink: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.primary,
+  },
   pin: {
     minWidth: 32,
     height: 32,

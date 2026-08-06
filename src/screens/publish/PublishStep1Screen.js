@@ -17,6 +17,7 @@ import AdTypeSelector from "../../components/publish/AdTypeSelector";
 import { colors } from "../../theme/colors";
 import { resolvePublishTotalSteps } from "../../data/publishSteps";
 import { showDevMessage } from "../../utils/devFeedback";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 const CAR_IMAGE =
   "https://www.figma.com/api/mcp/asset/af51f4b0-37c0-4e0c-980e-4549d59dcf9b";
@@ -28,6 +29,7 @@ export default function PublishStep1Screen({
   onBack,
   onClose,
 }) {
+  const { t } = useAppLanguage();
   const [title, setTitle] = useState(draft?.title ?? "");
   const [category, setCategory] = useState(draft?.category ?? "");
   const [sousCategorieId, setSousCategorieId] = useState(
@@ -40,13 +42,16 @@ export default function PublishStep1Screen({
     totalStepsProp ?? resolvePublishTotalSteps(sousCategorieId);
   const handleContinue = () => {
     if (!title.trim()) {
-      showDevMessage("Titre requis", "Ajoutez un titre pour votre annonce.");
+      showDevMessage(
+        t("mobile.publish.titleRequiredTitle"),
+        t("mobile.publish.titleRequiredBody")
+      );
       return;
     }
     if (!sousCategorieId) {
       showDevMessage(
-        "Catégorie requise",
-        "Sélectionnez une sous-catégorie (API taxonomie)."
+        t("mobile.publish.categoryRequiredTitle"),
+        t("mobile.publish.categoryRequiredBody")
       );
       return;
     }
@@ -67,7 +72,7 @@ export default function PublishStep1Screen({
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <PublishTopBar
-        title="Déposer une annonce"
+        title={t("forms.deposit.pageTitle")}
         onBack={onBack ?? onClose}
         onClose={onClose}
       />
@@ -78,24 +83,22 @@ export default function PublishStep1Screen({
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.subtitle}>Poser une annonce</Text>
+        <Text style={styles.subtitle}>{t("mobile.publish.subtitle")}</Text>
 
         <PublishStepIndicator
           currentStep={1}
           totalSteps={totalSteps}
-          stepLabel="L'essentiel"
+          stepLabel={t("createAdWizard.steps.general")}
         />
 
-        <Text style={styles.heading}>
-          Commençons par{"\n"}l&apos;essentiel !
-        </Text>
+        <Text style={styles.heading}>{t("forms.deposit.step1Title")}</Text>
 
         <PublishFormField
-          label="Quel est le titre de l'annonce ?"
+          label={t("forms.deposit.labelAdTitle")}
           value={title}
           onChangeText={setTitle}
-          placeholder="Ex. Canapé scandinave velours vert"
-          hint="Un bon titre attire plus d'acheteurs. Évitez les majuscules inutiles."
+          placeholder={t("forms.deposit.titlePlaceholder")}
+          hint={t("forms.deposit.requiredFieldsHint")}
         />
 
         <CategoryPicker
@@ -122,8 +125,7 @@ export default function PublishStep1Screen({
         >
           <View style={styles.tipOverlay}>
             <Text style={styles.tipText}>
-              &quot;Vendez plus vite en ajoutant une catégorie précise comme
-              &apos;Voitures&apos;.&quot;
+              &quot;{t("mobile.publish.step1TipQuote")}&quot;
             </Text>
           </View>
         </ImageBackground>
@@ -131,21 +133,25 @@ export default function PublishStep1Screen({
         <View style={styles.infoBanner}>
           <Ionicons name="information-circle-outline" size={20} color="#F3F0EF" />
           <Text style={styles.infoText}>
-            N&apos;oubliez pas d&apos;indiquer l&apos;état du véhicule à
-            l&apos;étape suivante.
+            {t("mobile.publish.step1TipBanner")}
           </Text>
         </View>
 
         <TouchableOpacity style={styles.primaryBtn} onPress={handleContinue}>
-          <Text style={styles.primaryBtnText}>Continuer</Text>
+          <Text style={styles.primaryBtnText}>{t("createAdWizard.continue")}</Text>
           <Ionicons name="chevron-forward" size={18} color={colors.white} />
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.secondaryBtn}
-          onPress={() => showDevMessage("Brouillon", "Annonce enregistrée en brouillon.")}
+          onPress={() =>
+            showDevMessage(
+              t("mobile.publish.draftSavedTitle"),
+              t("mobile.publish.draftSavedBody")
+            )
+          }
         >
-          <Text style={styles.secondaryBtnText}>Enregistrer le brouillon</Text>
+          <Text style={styles.secondaryBtnText}>{t("mobile.publish.saveDraft")}</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

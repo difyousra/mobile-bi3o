@@ -1,26 +1,29 @@
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 const OPTIONS = [
   {
     id: "offer",
-    label: "Offre",
+    labelKey: "forms.deposit.annonceTypeOffreTitle",
     icon: "pricetag-outline",
     recommended: true,
   },
   {
     id: "request",
-    label: "Demande",
+    labelKey: "forms.deposit.annonceTypeDemandeTitle",
     icon: "search-outline",
     recommended: false,
   },
 ];
 
 export default function AdTypeSelector({ value, onChange }) {
+  const { t } = useAppLanguage();
+
   return (
     <View style={styles.wrap}>
-      <Text style={styles.label}>Type d&apos;annonce</Text>
+      <Text style={styles.label}>{t("forms.deposit.labelAnnonceType")}</Text>
       <View style={styles.list}>
         {OPTIONS.map((option) => {
           const selected = value === option.id;
@@ -33,7 +36,9 @@ export default function AdTypeSelector({ value, onChange }) {
             >
               {option.recommended && selected ? (
                 <View style={styles.badge}>
-                  <Text style={styles.badgeText}>RECOMMANDÉ</Text>
+                  <Text style={styles.badgeText}>
+                    {t("mobile.publish.adTypeRecommended")}
+                  </Text>
                 </View>
               ) : null}
               <Ionicons
@@ -42,7 +47,7 @@ export default function AdTypeSelector({ value, onChange }) {
                 color={colors.textHeading}
                 style={styles.optionIcon}
               />
-              <Text style={styles.optionLabel}>{option.label}</Text>
+              <Text style={styles.optionLabel}>{t(option.labelKey)}</Text>
             </TouchableOpacity>
           );
         })}

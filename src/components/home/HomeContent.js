@@ -6,13 +6,13 @@ import {
   Text,
   ActivityIndicator,
   RefreshControl,
-  TouchableOpacity,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import HomeHeader from "./HomeHeader";
 import HomeSearchBar from "./HomeSearchBar";
 import CategoryChips from "./CategoryChips";
+import CategorySubSheet from "./CategorySubSheet";
 import PromoBanner from "./PromoBanner";
 import SectionHeader from "./SectionHeader";
 import MarketplaceProductCard from "./MarketplaceProductCard";
@@ -21,23 +21,36 @@ import {
   useCategoryChips,
   usePublicAds,
   useSousCategories,
+  useExchangeRate,
 } from "../../hooks/useCatalog";
 import { useFavorites } from "../../context/FavoritesContext";
 import { normalizeProduct } from "../../utils/productMapper";
+import { resolveExchangeRates } from "../../services/exchangeService";
 import { colors } from "../../theme/colors";
 import { useTabBarInset } from "../../hooks/useTabBarInset";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
+import { subcategoryNodeLabel } from "../../i18n/taxonomyLabels";
 
 function ProductGrid({ children }) {
   return <View style={styles.grid}>{children}</View>;
 }
 
 export default function HomeContent() {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const tabBarInset = useTabBarInset();
   const { isFavorite, toggleFavorite } = useFavorites();
   const [activeCategory, setActiveCategory] = useState("all");
   const [activeSousCategorie, setActiveSousCategorie] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [subSheetVisible, setSubSheetVisible] = useState(false);
+  const [sheetCategory, setSheetCategory] = useState(null);
+
+  const { data: exchange } = useExchangeRate();
+  const priceRates = useMemo(
+    () => resolveExchangeRates(exchange),
+    [exchange]
+  );
 
   const {
     chips,
@@ -52,22 +65,30 @@ export default function HomeContent() {
   const categorieId =
     activeCategory === "all" ? "all" : Number(activeCategory);
 
-  const sousForCategory = useMemo(() => {
-    if (activeCategory === "all" || Number.isNaN(Number(activeCategory))) {
-      return [];
+  const resolveSousForCategory = (catId) => {
+    if (catId == null || Number.isNaN(Number(catId))) return [];
+    const id = Number(catId);
+    const fromFlat = allSous.filter((s) => Number(s.categorieId) === id);
+    if (fromFlat.length > 0) {
+      return fromFlat.map((s) => ({
+        ...s,
+        nom: subcategoryNodeLabel(s, t),
+      }));
     }
-    const catId = Number(activeCategory);
-    const fromFlat = allSous.filter((s) => Number(s.categorieId) === catId);
-    if (fromFlat.length > 0) return fromFlat;
 
-    const node = (tree ?? []).find((n) => Number(n.id) === catId);
+    const node = (tree ?? []).find((n) => Number(n.id) === id);
     const nested = node?.sousCategories ?? node?.children ?? [];
     return nested.map((s) => ({
       id: s.id,
-      nom: s.nom ?? s.name ?? `Sous ${s.id}`,
-      categorieId: catId,
+      nom: subcategoryNodeLabel(s, t),
+      categorieId: id,
     }));
-  }, [activeCategory, allSous, tree]);
+  };
+
+  const sheetSousCategories = useMemo(() => {
+    const catId = sheetCategory?.rawId ?? sheetCategory?.id;
+    return resolveSousForCategory(catId);
+  }, [sheetCategory, allSous, tree, t]);
 
   const {
     products,
@@ -100,13 +121,63 @@ export default function HomeContent() {
     });
   };
 
+  const goToCategoryResults = (categorieId, sousCategorieId, categoryLabel) => {
+    navigation.navigate("Search", {
+      initialQuery: searchQuery,
+      filters: {
+        location: t("categoryUi.allAlgeria"),
+        categorieId: Number(categorieId),
+        sousCategorieId: sousCategorieId != null ? Number(sousCategorieId) : null,
+        priceMin: "",
+        priceMax: "",
+      },
+      categoryLabel: categoryLabel ?? t("mobile.home.listingsSection"),
+    });
+  };
+
   const handleCategorySelect = (id) => {
     setActiveCategory(id);
     setActiveSousCategorie(null);
+
+    if (id === "all") return;
+
+    const chip = chips.find((c) => String(c.id) === String(id));
+    const category = chip ?? { id, rawId: Number(id), label: t("mobile.home.defaultCategory") };
+    const sous = resolveSousForCategory(id);
+
+    // Pas de sous-catégorie → résultats catégorie directement
+    if (sous.length === 0) {
+      goToCategoryResults(id, null, category.label);
+      return;
+    }
+
+    setSheetCategory(category);
+    setSubSheetVisible(true);
+  };
+
+  const closeSubSheet = () => {
+    setSubSheetVisible(false);
+    setSheetCategory(null);
+  };
+
+  const handleSheetParentSelect = (category) => {
+    const catId = category?.rawId ?? category?.id;
+    closeSubSheet();
+    setActiveCategory(String(catId));
+    setActiveSousCategorie(null);
+    goToCategoryResults(catId, null, category?.label);
+  };
+
+  const handleSheetSousSelect = (sous) => {
+    const catId = sheetCategory?.rawId ?? sheetCategory?.id;
+    closeSubSheet();
+    setActiveCategory(String(catId));
+    setActiveSousCategorie(sous.id);
+    goToCategoryResults(catId, sous.id, sheetCategory?.label);
   };
 
   const buildSearchFilters = () => ({
-    location: "Toute l'Algérie",
+    location: t("categoryUi.allAlgeria"),
     categorieId: activeCategory === "all" ? null : Number(activeCategory),
     sousCategorieId: activeSousCategorie,
     priceMin: "",
@@ -174,51 +245,10 @@ export default function HomeContent() {
           onSelect={handleCategorySelect}
         />
 
-        {sousForCategory.length > 0 ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.sousRow}
-          >
-            <TouchableOpacity
-              style={[
-                styles.sousChip,
-                activeSousCategorie == null && styles.sousChipActive,
-              ]}
-              onPress={() => setActiveSousCategorie(null)}
-            >
-              <Text
-                style={[
-                  styles.sousText,
-                  activeSousCategorie == null && styles.sousTextActive,
-                ]}
-              >
-                Toutes
-              </Text>
-            </TouchableOpacity>
-            {sousForCategory.map((sc) => {
-              const active = Number(activeSousCategorie) === Number(sc.id);
-              return (
-                <TouchableOpacity
-                  key={sc.id}
-                  style={[styles.sousChip, active && styles.sousChipActive]}
-                  onPress={() => setActiveSousCategorie(sc.id)}
-                >
-                  <Text
-                    style={[styles.sousText, active && styles.sousTextActive]}
-                  >
-                    {sc.nom}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        ) : null}
-
         <PromoBanner banners={PROMO_BANNERS} onCtaPress={handleBannerCta} />
 
         <SectionHeader
-          title="Annonces"
+          title={t("mobile.home.listingsSection")}
           icon="pricetag"
           iconColor={colors.primary}
         />
@@ -232,13 +262,11 @@ export default function HomeContent() {
         ) : null}
 
         {(taxoError || adsError) && !loading ? (
-          <Text style={styles.error}>
-            Impossible de charger le catalogue. Tirez pour réessayer.
-          </Text>
+          <Text style={styles.error}>{t("mobile.home.loadCatalogError")}</Text>
         ) : null}
 
         {!loading && filteredProducts.length === 0 ? (
-          <Text style={styles.empty}>Aucune annonce pour le moment.</Text>
+          <Text style={styles.empty}>{t("mobile.home.emptyListings")}</Text>
         ) : null}
 
         <ProductGrid>
@@ -249,17 +277,38 @@ export default function HomeContent() {
               isFavorite={isFavorite(product.id)}
               onPress={handleProductPress}
               onToggleFavorite={toggleFavorite}
+              rates={priceRates}
             />
           ))}
         </ProductGrid>
 
         {pageData && !pageData.last ? (
           <Text style={styles.hint}>
-            {pageData.totalElements} annonces — page {pageData.number + 1}/
-            {pageData.totalPages}
+            {t("mobile.home.pagination", {
+              total: pageData.totalElements,
+              page: pageData.number + 1,
+              pages: pageData.totalPages,
+            })}
           </Text>
         ) : null}
       </ScrollView>
+
+      <CategorySubSheet
+        visible={subSheetVisible}
+        category={sheetCategory}
+        sousCategories={sheetSousCategories}
+        onClose={closeSubSheet}
+        onSelectParent={handleSheetParentSelect}
+        onSelectSous={handleSheetSousSelect}
+        onMortgagePress={() => {
+          closeSubSheet();
+          navigation.navigate("MortgageSimulator", {});
+        }}
+        onVehicleSimPress={() => {
+          closeSubSheet();
+          navigation.navigate("VehicleSimulator", {});
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -276,30 +325,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-  },
-  sousRow: {
-    gap: 8,
-    paddingBottom: 14,
-  },
-  sousChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-  },
-  sousChipActive: {
-    borderColor: colors.primary,
-    backgroundColor: "rgba(201, 0, 23, 0.08)",
-  },
-  sousText: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  sousTextActive: {
-    color: colors.primary,
-    fontWeight: "600",
   },
   loader: {
     marginVertical: 24,

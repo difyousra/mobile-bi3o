@@ -10,20 +10,23 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
 import { TOP_UP_PRESETS } from "../../data/mockProfile";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function TopUpModal({ visible, amount, onChangeAmount, onClose, onConfirm }) {
+  const { t } = useAppLanguage();
+
   return (
     <Modal visible={visible} transparent animationType="slide">
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
           <View style={styles.header}>
-            <Text style={styles.title}>Top Up</Text>
+            <Text style={styles.title}>{t("wallet.topUp")}</Text>
             <TouchableOpacity onPress={onClose}>
               <Ionicons name="close" size={24} color={colors.textHeading} />
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.fieldLabel}>Top Up Amount</Text>
+          <Text style={styles.fieldLabel}>{t("mobile.wallet.topUpAmount")}</Text>
           <TextInput
             style={styles.amountInput}
             value={String(amount)}
@@ -56,7 +59,7 @@ export default function TopUpModal({ visible, amount, onChangeAmount, onClose, o
           </View>
 
           <TouchableOpacity style={styles.confirmBtn} onPress={onConfirm}>
-            <Text style={styles.confirmText}>Confirm Top Up</Text>
+            <Text style={styles.confirmText}>{t("mobile.wallet.confirmTopUp")}</Text>
           </TouchableOpacity>
         </Pressable>
       </Pressable>

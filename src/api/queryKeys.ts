@@ -11,6 +11,7 @@ export const queryKeys = {
   searchAds: (
     titre: string,
     page: number,
+    size: number,
     categorieId?: number | null,
     sousCategorieId?: number | null,
     attributs?: object[],
@@ -25,6 +26,7 @@ export const queryKeys = {
       "search",
       titre,
       page,
+      size,
       categorieId ?? "all",
       sousCategorieId ?? "all",
       JSON.stringify(attributs ?? []),

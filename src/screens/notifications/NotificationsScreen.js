@@ -17,9 +17,10 @@ import {
 } from "../../hooks/useEngagement";
 import { colors } from "../../theme/colors";
 import { useTabBarInset } from "../../hooks/useTabBarInset";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
-function notificationTitle(item) {
-  return item.titre ?? item.title ?? item.type ?? "Notification";
+function notificationTitle(item, t) {
+  return item.titre ?? item.title ?? item.type ?? t("mobile.notifications.fallbackTitle");
 }
 
 function notificationBody(item) {
@@ -31,6 +32,7 @@ function isRead(item) {
 }
 
 export default function NotificationsScreen({ navigation }) {
+  const { t } = useAppLanguage();
   const tabBarInset = useTabBarInset();
   const { data, isLoading, isError, refetch, isRefetching } =
     useNotifications(0, 20);
@@ -46,19 +48,21 @@ export default function NotificationsScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={22} color={colors.textHeading} />
         </TouchableOpacity>
-        <Text style={styles.title}>Notifications</Text>
+        <Text style={styles.title}>{t("notifications.title")}</Text>
         <TouchableOpacity
           onPress={() => markAll.mutate()}
           disabled={markAll.isPending || unread === 0}
         >
           <Text style={[styles.markAll, unread === 0 && styles.disabled]}>
-            Tout lire
+            {t("mobile.notifications.markAllShort")}
           </Text>
         </TouchableOpacity>
       </View>
 
       {unread > 0 ? (
-        <Text style={styles.unread}>{unread} non lue(s)</Text>
+        <Text style={styles.unread}>
+          {t("mobile.notifications.unread", { count: unread })}
+        </Text>
       ) : null}
 
       {isLoading && items.length === 0 ? (
@@ -66,7 +70,7 @@ export default function NotificationsScreen({ navigation }) {
       ) : null}
 
       {isError ? (
-        <Text style={styles.error}>Impossible de charger les notifications.</Text>
+        <Text style={styles.error}>{t("notifications.loadError")}</Text>
       ) : null}
 
       <FlatList
@@ -78,7 +82,7 @@ export default function NotificationsScreen({ navigation }) {
         }
         ListEmptyComponent={
           !isLoading ? (
-            <Text style={styles.empty}>Aucune notification.</Text>
+            <Text style={styles.empty}>{t("notifications.empty")}</Text>
           ) : null
         }
         renderItem={({ item }) => {
@@ -91,7 +95,7 @@ export default function NotificationsScreen({ navigation }) {
               }}
             >
               <View style={styles.rowBody}>
-                <Text style={styles.rowTitle}>{notificationTitle(item)}</Text>
+                <Text style={styles.rowTitle}>{notificationTitle(item, t)}</Text>
                 {notificationBody(item) ? (
                   <Text style={styles.rowMessage} numberOfLines={3}>
                     {notificationBody(item)}

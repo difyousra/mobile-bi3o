@@ -2,28 +2,30 @@ import { ScrollView, Text, StyleSheet, Linking, TouchableOpacity } from "react-n
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors } from "../../theme/colors";
 import SettingsScreenHeader from "../../components/settings/SettingsScreenHeader";
-import { LEGAL_COPY_FR } from "../../data/legal/legalCopy.fr";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
+
+const CONTACT_EMAIL = "contact@bi3oo.com";
 
 export default function LegalContactScreen({ navigation }) {
-  const contact = LEGAL_COPY_FR.contact;
+  const { t } = useAppLanguage();
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <SettingsScreenHeader
-        title="Contactez-nous"
+        title={t("mobile.legal.contact")}
         onBack={() => navigation.goBack()}
       />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.h1}>{contact.h1}</Text>
-        <Text style={styles.paragraph}>{contact.intro}</Text>
-        <Text style={styles.label}>{contact.emailLabel}</Text>
+        <Text style={styles.h1}>{t("legal.contact.h1")}</Text>
+        <Text style={styles.paragraph}>{t("legal.contact.intro")}</Text>
+        <Text style={styles.label}>{t("legal.contact.email")}</Text>
         <TouchableOpacity
-          onPress={() => Linking.openURL(`mailto:${contact.email}`)}
+          onPress={() => Linking.openURL(`mailto:${CONTACT_EMAIL}`)}
         >
-          <Text style={styles.email}>{contact.email}</Text>
+          <Text style={styles.email}>{CONTACT_EMAIL}</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

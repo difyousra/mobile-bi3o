@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../theme/colors";
+import { useAppLanguage } from "../../../i18n/LanguageProvider";
 import {
   computeMortgageSimulation,
   DEFAULT_FRAIS_DOSSIER_PCT,
@@ -26,6 +27,7 @@ export default function MortgageLoanSimulator({
   showFullPageLink = false,
   onOpenFull,
 }) {
+  const { t } = useAppLanguage();
   const [prix, setPrix] = useState(() => {
     const n = Number(initialPrix) || 0;
     return n > 0 ? String(n) : "";
@@ -62,25 +64,30 @@ export default function MortgageLoanSimulator({
   };
 
   const apportHint = simulation.apportExceedsPrice
-    ? "L'apport dépasse le prix du bien."
+    ? t("immobilierUi.downPaymentTooHigh")
     : simulation.apportPct > 0
-      ? `Apport actuel : ${simulation.apportPct}% (recommandé ${RECOMMENDED_APPORT_PCT}%)`
-      : `Apport recommandé : ${RECOMMENDED_APPORT_PCT}%`;
+      ? t("immobilierUi.downPaymentCurrentPct", {
+          pct: simulation.apportPct,
+          recommended: RECOMMENDED_APPORT_PCT,
+        })
+      : t("immobilierUi.downPaymentHint", { pct: RECOMMENDED_APPORT_PCT });
 
   return (
     <View style={[styles.card, compact && styles.cardCompact]}>
       <View style={styles.heading}>
         <Ionicons name="calculator-outline" size={20} color={colors.primary} />
-        <Text style={styles.title}>Simuler un prêt immobilier</Text>
+        <Text style={styles.title}>{t("immobilierUi.simulateLoanTitle")}</Text>
         {!compact ? (
           <View style={styles.rateBadge}>
-            <Text style={styles.rateBadgeText}>{DEFAULT_MORTGAGE_RATE}% / an</Text>
+            <Text style={styles.rateBadgeText}>
+              {t("immobilierUi.rateBadge", { rate: DEFAULT_MORTGAGE_RATE })}
+            </Text>
           </View>
         ) : null}
       </View>
 
       <View style={styles.field}>
-        <Text style={styles.label}>Prix du bien</Text>
+        <Text style={styles.label}>{t("immobilierUi.propertyPrice")}</Text>
         <View style={styles.inputWrap}>
           <TextInput
             style={styles.input}
@@ -95,7 +102,7 @@ export default function MortgageLoanSimulator({
       </View>
 
       <View style={styles.field}>
-        <Text style={styles.label}>Apport</Text>
+        <Text style={styles.label}>{t("immobilierUi.downPayment")}</Text>
         <View
           style={[
             styles.inputWrap,
@@ -124,8 +131,10 @@ export default function MortgageLoanSimulator({
 
       <View style={styles.field}>
         <View style={styles.durationHead}>
-          <Text style={styles.label}>Durée du prêt</Text>
-          <Text style={styles.durationValue}>{duree} ans</Text>
+          <Text style={styles.label}>{t("immobilierUi.loanDuration")}</Text>
+          <Text style={styles.durationValue}>
+            {t("immobilierUi.loanDurationValue", { years: duree })}
+          </Text>
         </View>
         <View style={styles.stepper}>
           <TouchableOpacity
@@ -134,7 +143,9 @@ export default function MortgageLoanSimulator({
           >
             <Ionicons name="remove" size={18} color={colors.textDark} />
           </TouchableOpacity>
-          <Text style={styles.stepValue}>{duree} ans</Text>
+          <Text style={styles.stepValue}>
+            {t("immobilierUi.loanDurationValue", { years: duree })}
+          </Text>
           <TouchableOpacity
             style={styles.stepBtn}
             onPress={() => setDuree((d) => Math.min(MAX_LOAN_DURATION, d + 1))}
@@ -143,41 +154,46 @@ export default function MortgageLoanSimulator({
           </TouchableOpacity>
         </View>
         <View style={styles.bounds}>
-          <Text style={styles.boundText}>{MIN_LOAN_DURATION} ans</Text>
-          <Text style={styles.boundText}>{MAX_LOAN_DURATION} ans</Text>
+          <Text style={styles.boundText}>
+            {t("immobilierUi.loanDurationMin", { years: MIN_LOAN_DURATION })}
+          </Text>
+          <Text style={styles.boundText}>
+            {t("immobilierUi.loanDurationMax", { years: MAX_LOAN_DURATION })}
+          </Text>
         </View>
       </View>
 
       <View style={styles.results}>
         <View style={styles.resultMain}>
-          <Text style={styles.resultLabel}>Mensualités</Text>
+          <Text style={styles.resultLabel}>{t("immobilierUi.monthlyPayments")}</Text>
           <Text style={styles.resultMainValue}>
             {fmtMortgageDA(simulation.mensualite)}
-            <Text style={styles.perMonth}> / mois</Text>
+            <Text style={styles.perMonth}> {t("immobilierUi.perMonth")}</Text>
           </Text>
         </View>
-        <ResultRow label="Montant emprunté" value={fmtMortgageDA(simulation.montantEmprunte)} />
         <ResultRow
-          label="Coût des intérêts"
-          hint={`Taux indicatif ${DEFAULT_MORTGAGE_RATE}% / an`}
+          label={t("immobilierUi.loanAmount")}
+          value={fmtMortgageDA(simulation.montantEmprunte)}
+        />
+        <ResultRow
+          label={t("immobilierUi.interestCost")}
+          hint={t("immobilierUi.interestRateNote", { rate: DEFAULT_MORTGAGE_RATE })}
           value={fmtMortgageDA(simulation.coutInterets)}
         />
         <ResultRow
-          label="Frais de dossier"
-          hint={`${DEFAULT_FRAIS_DOSSIER_PCT}% du montant emprunté`}
+          label={t("immobilierUi.fileFee")}
+          hint={t("immobilierUi.fileFeeNote", { pct: DEFAULT_FRAIS_DOSSIER_PCT })}
           value={fmtMortgageDA(simulation.fraisDossier)}
         />
         <ResultRow
-          label="Coût total du crédit"
+          label={t("immobilierUi.totalCreditCost")}
           value={fmtMortgageDA(simulation.coutGlobal)}
           strong
         />
-        <Text style={styles.disclaimer}>
-          Simulation indicative, non contractuelle. Les conditions réelles dépendent de votre banque.
-        </Text>
+        <Text style={styles.disclaimer}>{t("immobilierUi.disclaimer")}</Text>
         {(showFullPageLink || compact) && onOpenFull ? (
           <TouchableOpacity onPress={onOpenFull} activeOpacity={0.8}>
-            <Text style={styles.fullLink}>Ouvrir le simulateur complet</Text>
+            <Text style={styles.fullLink}>{t("immobilierUi.openFullSimulator")}</Text>
           </TouchableOpacity>
         ) : null}
       </View>

@@ -1,15 +1,26 @@
 import { View, Text, StyleSheet } from "react-native";
 import { colors } from "../../theme/colors";
 import { formatPrice } from "../../utils/productMapper";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
+
+const TX_TYPE_KEYS = {
+  Rewards: "mobile.wallet.txTypeRewards",
+  Purchase: "mobile.wallet.txTypePurchase",
+  Refunds: "mobile.wallet.txTypeRefunds",
+  "Top Up": "mobile.wallet.txTypeTopUp",
+};
 
 export default function TransactionRow({ transaction }) {
+  const { t } = useAppLanguage();
   const isCredit = transaction.amount > 0;
   const amountText = `${isCredit ? "+" : ""}${formatPrice(Math.abs(transaction.amount))}`;
+  const typeKey = TX_TYPE_KEYS[transaction.type];
+  const typeLabel = typeKey ? t(typeKey) : transaction.type;
 
   return (
     <View style={styles.row}>
       <View style={styles.left}>
-        <Text style={styles.type}>{transaction.type}</Text>
+        <Text style={styles.type}>{typeLabel}</Text>
         <Text style={styles.label} numberOfLines={1}>
           {transaction.label}
         </Text>

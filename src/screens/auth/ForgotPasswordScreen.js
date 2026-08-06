@@ -15,16 +15,18 @@ import AuthHeader from "../../components/auth/AuthHeader";
 import AuthInput from "../../components/auth/AuthInput";
 import { useAuth } from "../../context/AuthContext";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function ForgotPasswordScreen({ onBackPress, onSuccess }) {
   const { forgotPassword, isSubmitting } = useAuth();
+  const { t } = useAppLanguage();
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
 
   const handleSubmit = async () => {
     setError("");
     if (!email.trim()) {
-      setError("Saisissez votre adresse e-mail.");
+      setError(t("mobile.auth.emailRequired"));
       return;
     }
 
@@ -34,8 +36,8 @@ export default function ForgotPasswordScreen({ onBackPress, onSuccess }) {
       return;
     }
 
-    Alert.alert("E-mail envoyé", result.message, [
-      { text: "OK", onPress: onSuccess },
+    Alert.alert(t("mobile.auth.emailSentTitle"), result.message, [
+      { text: t("mobile.common.ok"), onPress: onSuccess },
     ]);
   };
 
@@ -43,9 +45,9 @@ export default function ForgotPasswordScreen({ onBackPress, onSuccess }) {
     <View style={styles.container}>
       <StatusBar style="light" />
       <AuthHeader
-        title="Mot de passe oublié"
-        promptText="Retour à "
-        linkText="Connexion"
+        title={t("auth.forgotPassword.title")}
+        promptText={t("mobile.auth.backToPrefix")}
+        linkText={t("mobile.auth.signInTitle")}
         onLinkPress={onBackPress}
         onBackPress={onBackPress}
       />
@@ -59,13 +61,10 @@ export default function ForgotPasswordScreen({ onBackPress, onSuccess }) {
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.scrollContent}
           >
-            <Text style={styles.hint}>
-              Saisissez l&apos;e-mail de votre compte. Si un compte existe, vous
-              recevrez un lien de réinitialisation (valide 30 minutes).
-            </Text>
+            <Text style={styles.hint}>{t("auth.forgotPassword.subtitle")}</Text>
 
             <AuthInput
-              placeholder="jean@example.com"
+              placeholder={t("auth.forgotPassword.emailPlaceholder")}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -83,7 +82,9 @@ export default function ForgotPasswordScreen({ onBackPress, onSuccess }) {
               {isSubmitting ? (
                 <ActivityIndicator color={colors.white} />
               ) : (
-                <Text style={styles.primaryButtonText}>Envoyer le lien</Text>
+                <Text style={styles.primaryButtonText}>
+                  {t("auth.forgotPassword.submit")}
+                </Text>
               )}
             </TouchableOpacity>
           </ScrollView>

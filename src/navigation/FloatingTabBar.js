@@ -8,6 +8,15 @@ import { TAB_ICONS, TAB_ROUTES } from "./tabConfig";
 import { useAuth } from "../context/AuthContext";
 import { isProtectedTab, returnToTab } from "./authRoutes";
 import { HIDE_FLOATING_TAB_BAR_SCREENS } from "../hooks/useTabBarInset";
+import { useAppLanguage } from "../i18n/LanguageProvider";
+
+const TAB_LABEL_KEYS = {
+  Home: "mobile.tabs.home",
+  Favorites: "mobile.tabs.favorites",
+  Publish: "mobile.tabs.publish",
+  Messages: "mobile.tabs.messages",
+  Account: "mobile.tabs.account",
+};
 
 function getFocusedRouteName(state) {
   if (!state) return null;
@@ -73,7 +82,11 @@ function getActiveTab(rootState) {
 export default function FloatingTabBar({ navigationRef, navState }) {
   const insets = useSafeAreaInsets();
   const { isAuthenticated, requireAuth } = useAuth();
-  const rootState = navState ?? navigationRef?.getRootState?.() ?? null;
+  const { t } = useAppLanguage();
+  const rootState =
+    navState ??
+    (navigationRef?.isReady?.() ? navigationRef.getRootState?.() : null) ??
+    null;
   const focusedLeaf = getFocusedRouteName(rootState);
   const activeTab = getActiveTab(rootState);
 
@@ -115,7 +128,7 @@ export default function FloatingTabBar({ navigationRef, navState }) {
                 key={name}
                 accessibilityRole="button"
                 accessibilityState={isFocused ? { selected: true } : {}}
-                accessibilityLabel="Publier"
+                accessibilityLabel={t(TAB_LABEL_KEYS.Publish)}
                 onPress={() => goTab(name)}
                 style={styles.publishWrap}
                 activeOpacity={0.9}
@@ -134,7 +147,7 @@ export default function FloatingTabBar({ navigationRef, navState }) {
               key={name}
               accessibilityRole="button"
               accessibilityState={isFocused ? { selected: true } : {}}
-              accessibilityLabel={name}
+              accessibilityLabel={t(TAB_LABEL_KEYS[name] || name)}
               onPress={() => goTab(name)}
               style={styles.tab}
               activeOpacity={0.7}

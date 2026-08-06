@@ -89,7 +89,10 @@ export function usePublishAnnonce() {
       }
 
       if (!created?.id) {
-        throw new Error("Création réussie mais id manquant dans la réponse.");
+        throw Object.assign(
+          new Error("Création réussie mais id manquant dans la réponse."),
+          { code: "MISSING_CREATED_ID" }
+        );
       }
 
       return { id: created.id, moderationScore: moderation.score };

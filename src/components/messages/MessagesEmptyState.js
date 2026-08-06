@@ -1,18 +1,18 @@
 import { View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function MessagesEmptyState() {
+  const { t } = useAppLanguage();
+
   return (
     <View style={styles.container}>
       <View style={styles.iconWrap}>
         <Ionicons name="chatbubble-ellipses" size={40} color={colors.primary} />
       </View>
-      <Text style={styles.title}>Let&apos;s Talk With Us Now</Text>
-      <Text style={styles.subtitle}>
-        Need help with an order or product? Start a conversation with our support
-        team here.
-      </Text>
+      <Text style={styles.title}>{t("mobile.messages.emptyTitle")}</Text>
+      <Text style={styles.subtitle}>{t("mobile.messages.emptySubtitle")}</Text>
     </View>
   );
 }

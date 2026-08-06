@@ -61,13 +61,13 @@ export async function fetchPublicAd(
   return data;
 }
 
-/** GET /annonces/by-categorie/{id} */
+/** GET /annonces/by-categorie/pub/{id} — AdCard léger avec coverUrl (rapide). */
 export async function fetchAdsByCategorie(
   categorieId: number,
   params?: { page?: number; size?: number }
 ): Promise<PublicAdsPage> {
   const { data } = await apiClient.get<unknown>(
-    `/annonces/by-categorie/${categorieId}`,
+    `/annonces/by-categorie/pub/${categorieId}`,
     {
       params: {
         page: params?.page ?? 0,

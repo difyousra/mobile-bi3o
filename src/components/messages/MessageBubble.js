@@ -10,8 +10,10 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { Audio } from "expo-av";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 function AudioBubble({ uri, isMe }) {
+  const { t } = useAppLanguage();
   const soundRef = useRef(null);
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -79,14 +81,14 @@ function AudioBubble({ uri, isMe }) {
   const label =
     durationMs > 0
       ? formatMs(playing || positionMs > 0 ? positionMs : durationMs)
-      : "Vocal";
+      : t("mobile.messages.voiceTitle");
 
   return (
     <TouchableOpacity
       style={styles.audioRow}
       onPress={togglePlay}
       activeOpacity={0.8}
-      accessibilityLabel={playing ? "Pause" : "Lecture"}
+      accessibilityLabel={playing ? t("mobile.messages.pauseA11y") : t("mobile.messages.playA11y")}
     >
       {loading ? (
         <ActivityIndicator
@@ -165,10 +167,13 @@ export default function MessageBubble({ message }) {
   );
 }
 
-export function DateSeparator({ label = "Aujourd'hui" }) {
+export function DateSeparator({ label }) {
+  const { t } = useAppLanguage();
+  const displayLabel = label ?? t("mobile.messages.today");
+
   return (
     <View style={styles.dateWrap}>
-      <Text style={styles.dateText}>{label}</Text>
+      <Text style={styles.dateText}>{displayLabel}</Text>
     </View>
   );
 }

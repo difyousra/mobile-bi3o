@@ -33,6 +33,15 @@ import {
 } from "../immobilier/ImmobilierFieldControls";
 import PublishFormField from "../PublishFormField";
 import { colors } from "../../../theme/colors";
+import { useAppLanguage } from "../../../i18n/LanguageProvider";
+import {
+  localizeOptionList,
+  translateSubformFieldLabel,
+} from "../../../i18n/subformFieldLabels";
+import {
+  resolveSubformTips,
+  resolveSubformTipsTitle,
+} from "../../../i18n/subformTips";
 
 export default function VehicleSubcategoryForm({
   config,
@@ -42,6 +51,7 @@ export default function VehicleSubcategoryForm({
   onAttributsChange,
   onMetaChange,
 }) {
+  const { t } = useAppLanguage();
   const { data: taxoAttributs = [], isLoading: taxoLoading } =
     useSubcategoryAttributs(config?.id);
   const { data: referentiel } = useReferentielMarquesModeles(
@@ -259,18 +269,34 @@ export default function VehicleSubcategoryForm({
 
   if (!config || config.noDetails) return null;
 
+  const tips = resolveSubformTips(t, config.tipsI18nKey);
+  const tipsTitle = resolveSubformTipsTitle(t, config.tipsI18nKey);
+
   return (
     <View style={styles.wrap}>
+      {tips.length ? (
+        <View style={styles.tipsBanner}>
+          {tipsTitle ? <Text style={styles.tipsTitle}>{tipsTitle}</Text> : null}
+          {tips.map((tip) => (
+            <Text key={tip} style={styles.tipLine}>
+              • {tip}
+            </Text>
+          ))}
+        </View>
+      ) : null}
+
       {taxoLoading ? (
         <View style={styles.loadingRow}>
           <ActivityIndicator color={colors.primary} />
-          <Text style={styles.loadingText}>Chargement des attributs…</Text>
+          <Text style={styles.loadingText}>
+            {t("createAdWizard.details.loadingAttributes")}
+          </Text>
         </View>
       ) : null}
 
       {!taxoLoading && hasRequiredFields ? (
         <Text style={styles.requiredHint}>
-          Les champs marqués * sont obligatoires.
+          {t("createAdWizard.details.requiredFieldsHint")}
         </Text>
       ) : null}
 
@@ -305,7 +331,12 @@ export default function VehicleSubcategoryForm({
           control === "radio" ||
           isMultiDropdown ||
           isMultiSelect
-            ? resolveOptions(field)
+            ? localizeOptionList(
+                t,
+                config.tipsI18nKey,
+                field.name,
+                resolveOptions(field)
+              )
             : [];
         const disabled =
           (isDependentModel && !selectedBrand) ||
@@ -318,6 +349,20 @@ export default function VehicleSubcategoryForm({
           attributs,
           taxoAttributs
         );
+        const fieldLabel = translateSubformFieldLabel(
+          t,
+          config.tipsI18nKey,
+          field.name,
+          activeField.label
+        );
+        const radioLabel = activeField.radioPrompt
+          ? translateSubformFieldLabel(
+              t,
+              config.tipsI18nKey,
+              `${field.name}_prompt`,
+              activeField.radioPrompt
+            )
+          : fieldLabel;
 
         if (control === "hidden") return null;
 
@@ -325,7 +370,7 @@ export default function VehicleSubcategoryForm({
           return (
             <TypeCardsField
               key={field.name}
-              label={activeField.label}
+              label={fieldLabel}
               required={required}
               options={options}
               value={currentValue}
@@ -338,7 +383,7 @@ export default function VehicleSubcategoryForm({
           return (
             <ChoiceChipsField
               key={field.name}
-              label={activeField.label}
+              label={fieldLabel}
               required={required}
               options={options}
               value={currentValue}
@@ -352,9 +397,18 @@ export default function VehicleSubcategoryForm({
           return (
             <RadioField
               key={field.name}
-              label={activeField.radioPrompt || activeField.label}
+              label={radioLabel}
               required={required}
-              options={options.length ? options : activeField.staticOptions || []}
+              options={
+                options.length
+                  ? options
+                  : localizeOptionList(
+                      t,
+                      config.tipsI18nKey,
+                      field.name,
+                      activeField.staticOptions || []
+                    )
+              }
               value={currentValue}
               onChange={(next) => setAttrValue(resolvedFieldName, next)}
             />
@@ -365,13 +419,15 @@ export default function VehicleSubcategoryForm({
           return (
             <MultiDropdownField
               key={field.name}
-              label={activeField.label}
+              label={fieldLabel}
               required={required}
               options={options}
               value={currentValue}
               disabled={disabled}
               placeholder={
-                disabled ? "Sélectionnez d'abord la marque" : "Sélectionner"
+                disabled
+                  ? t("createAdWizard.details.chooseBrandFirst")
+                  : t("createAdWizard.selectOption")
               }
               onChange={(next) => setAttrValue(resolvedFieldName, next)}
             />
@@ -391,7 +447,7 @@ export default function VehicleSubcategoryForm({
           return (
             <SwitchAttrField
               key={field.name}
-              label={activeField.label}
+              label={fieldLabel}
               required={required}
               value={currentValue}
               checkedValue={checkedValue}
@@ -405,12 +461,14 @@ export default function VehicleSubcategoryForm({
           return (
             <ComboboxField
               key={`${field.name}-${resolvedFieldName}`}
-              label={activeField.label}
+              label={fieldLabel}
               required={required}
               value={currentValue || ""}
               disabled={disabled}
               placeholder={
-                disabled ? "Sélectionnez d'abord la marque" : "Sélectionner"
+                disabled
+                  ? t("createAdWizard.details.chooseBrandFirst")
+                  : t("createAdWizard.selectOption")
               }
               options={options}
               onChange={(next) => {
@@ -435,7 +493,7 @@ export default function VehicleSubcategoryForm({
           return (
             <DateMonthField
               key={field.name}
-              label={activeField.label}
+              label={fieldLabel}
               required={required}
               value={currentValue || ""}
               onChange={(next) => setAttrValue(resolvedFieldName, next)}
@@ -447,7 +505,7 @@ export default function VehicleSubcategoryForm({
           return (
             <ClearableNumberField
               key={field.name}
-              label={activeField.label}
+              label={fieldLabel}
               required={required}
               value={currentValue ?? ""}
               unit={activeField.unit}
@@ -460,23 +518,23 @@ export default function VehicleSubcategoryForm({
           return (
             <MultiDropdownField
               key={field.name}
-              label={activeField.label}
+              label={fieldLabel}
               required={required}
               options={options}
               value={currentValue}
               disabled={disabled}
-              placeholder="Sélectionner"
+              placeholder={t("createAdWizard.selectOption")}
               onChange={(next) => setAttrValue(resolvedFieldName, next)}
             />
           );
         }
 
-        const placeholder = activeField.placeholder || activeField.label;
+        const placeholder = activeField.placeholder || fieldLabel;
         const multiline = control === "textarea";
         return (
           <PublishFormField
             key={field.name}
-            label={activeField.label}
+            label={fieldLabel}
             value={currentValue ?? ""}
             onChangeText={(next) => setAttrValue(resolvedFieldName, next)}
             placeholder={placeholder}
@@ -520,5 +578,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     color: colors.textMuted,
+  },
+  tipsBanner: {
+    gap: 4,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: "rgba(201, 0, 23, 0.06)",
+  },
+  tipsTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.textHeading,
+  },
+  tipLine: {
+    fontSize: 13,
+    color: colors.textMuted,
+    lineHeight: 18,
   },
 });

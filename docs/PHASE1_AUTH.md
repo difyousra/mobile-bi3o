@@ -26,14 +26,14 @@
 - [ ] Logout (révoque access + refresh)  
 - [ ] Inscription + (hors Postman) verify-email / resend-otp  
 - [ ] Demande reset mot de passe  
-- [ ] OAuth exchange — API prête ; deep link `?code=` à finaliser  
+- [x] OAuth exchange — `expo-web-browser` + scheme `bi3oo://oauth` + `exchangeOAuthCode`  
 - [ ] Sans JWT → 401 JSON (`GET /me/favoris`)
 
 ## Non fait (hors Phase 1)
 
-- Deep link OAuth → `exchangeOAuthCode(code)` (méthode exposée, linking à câbler)
 - Écran reset password deep link
 - STOMP / catalogue / favoris
+- Sign in with Apple (requis si Google reste pour iOS store)
 
 ## Tests manuels app
 

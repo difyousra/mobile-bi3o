@@ -10,6 +10,7 @@ import { Ionicons } from "@expo/vector-icons";
 import PublishTopBar from "./PublishTopBar";
 import PublishStepIndicator from "./PublishStepIndicator";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export function PublishPrimaryButton({ label, onPress, disabled }) {
   return (
@@ -46,10 +47,12 @@ export default function PublishStepLayout({
   showDraft = true,
   onDraft,
 }) {
+  const { t } = useAppLanguage();
+
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <PublishTopBar
-        title="Déposer une annonce"
+        title={t("forms.deposit.pageTitle")}
         onBack={onBack}
         onClose={onClose}
       />
@@ -58,7 +61,7 @@ export default function PublishStepLayout({
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.subtitle}>Poser une annonce</Text>
+        <Text style={styles.subtitle}>{t("mobile.publish.subtitle")}</Text>
         <PublishStepIndicator
           currentStep={step}
           totalSteps={totalSteps}
@@ -69,10 +72,13 @@ export default function PublishStepLayout({
         {children}
         {onContinue ? (
           <>
-            <PublishPrimaryButton label={continueLabel} onPress={onContinue} />
+            <PublishPrimaryButton
+              label={continueLabel ?? t("createAdWizard.continue")}
+              onPress={onContinue}
+            />
             {showDraft && onDraft ? (
               <PublishSecondaryButton
-                label="Enregistrer le brouillon"
+                label={t("mobile.publish.saveDraft")}
                 onPress={onDraft}
               />
             ) : null}

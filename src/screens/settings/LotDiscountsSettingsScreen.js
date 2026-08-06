@@ -8,14 +8,16 @@ import {
   SettingsSwitchRow,
 } from "../../components/settings/SettingsListRows";
 import { useUserPreferences } from "../../hooks/useUserPreferences";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function LotDiscountsSettingsScreen({ navigation }) {
   const { prefs, ready, setPreference } = useUserPreferences();
+  const { t } = useAppLanguage();
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <SettingsScreenHeader
-        title="Réductions sur les lots"
+        title={t("mobile.accountSettings.lotDiscounts")}
         onBack={() => navigation.goBack()}
       />
       {!ready ? (
@@ -27,16 +29,12 @@ export default function LotDiscountsSettingsScreen({ navigation }) {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          <SettingsIntro>
-            Lorsque vous achetez plusieurs articles chez un même vendeur, Bi3oo
-            peut proposer une réduction sur le lot. Activez ou désactivez ces
-            suggestions selon vos préférences.
-          </SettingsIntro>
+          <SettingsIntro>{t("mobile.settings.lotDiscounts.intro")}</SettingsIntro>
 
           <SettingsSectionCard>
             <SettingsSwitchRow
-              label="Proposer des réductions sur les lots"
-              subtitle="Afficher les offres de remise quand plusieurs articles sont concernés."
+              label={t("mobile.settings.lotDiscounts.enableLabel")}
+              subtitle={t("mobile.settings.lotDiscounts.enableHint")}
               value={prefs.lotDiscountsEnabled}
               onValueChange={(v) => setPreference("lotDiscountsEnabled", v)}
               isLast

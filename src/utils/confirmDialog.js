@@ -1,4 +1,5 @@
 import { Alert, Platform } from "react-native";
+import i18n from "../i18n";
 
 /**
  * Dialogue de confirmation compatible web + natif.
@@ -29,5 +30,5 @@ export function alertDialog(title, message, buttons) {
     okBtn?.onPress?.();
     return;
   }
-  Alert.alert(title, message, buttons ?? [{ text: "OK" }]);
+  Alert.alert(title, message, buttons ?? [{ text: i18n.t("mobile.common.ok") }]);
 }

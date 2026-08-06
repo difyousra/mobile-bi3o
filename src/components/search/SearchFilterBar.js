@@ -1,6 +1,7 @@
 import { ScrollView, TouchableOpacity, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function SearchFilterBar({
   activeFilters,
@@ -9,6 +10,8 @@ export default function SearchFilterBar({
   onFiltersPress,
   onLocationPress,
 }) {
+  const { t } = useAppLanguage();
+
   return (
     <ScrollView
       horizontal
@@ -17,7 +20,7 @@ export default function SearchFilterBar({
     >
       <TouchableOpacity style={styles.chip} activeOpacity={0.8} onPress={onMapPress}>
         <Ionicons name="map-outline" size={16} color={colors.textDark} />
-        <Text style={styles.chipText}>Carte</Text>
+        <Text style={styles.chipText}>{t("categoryUi.mapView")}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -26,7 +29,8 @@ export default function SearchFilterBar({
         onPress={onFiltersPress}
       >
         <Text style={styles.chipTextActive}>
-          Filtres{activeFilters > 0 ? ` (${activeFilters})` : ""}
+          {t("categoryUi.filters")}
+          {activeFilters > 0 ? ` (${activeFilters})` : ""}
         </Text>
       </TouchableOpacity>
 

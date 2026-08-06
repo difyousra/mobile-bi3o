@@ -5,6 +5,7 @@ export default function SearchScreen({ route }) {
     <SearchContent
       initialQuery={route.params?.initialQuery ?? ""}
       initialFilters={route.params?.filters}
+      categoryLabel={route.params?.categoryLabel}
     />
   );
 }

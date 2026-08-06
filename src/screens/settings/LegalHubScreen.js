@@ -7,22 +7,22 @@ import {
   SettingsSectionCard,
   SettingsListRow,
 } from "../../components/settings/SettingsListRows";
-import { LEGAL_COPY_FR } from "../../data/legal/legalCopy.fr";
-
-const hub = LEGAL_COPY_FR.infoHub;
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function LegalHubScreen({ navigation }) {
+  const { t } = useAppLanguage();
+
   const links = [
-    { label: hub.about, route: "AboutBi3oo" },
-    { label: hub.privacy, route: "PrivacyPolicy" },
-    { label: hub.terms, route: "TermsOfUse" },
+    { label: t("legal.infoHub.about"), route: "AboutBi3oo" },
+    { label: t("legal.infoHub.privacy"), route: "PrivacyPolicy" },
+    { label: t("legal.infoHub.terms"), route: "TermsOfUse" },
     {
-      label: hub.bans,
+      label: t("legal.infoHub.bans"),
       route: "TermsOfUse",
       params: { sectionId: "interdictions" },
     },
     {
-      label: hub.contact,
+      label: t("legal.infoHub.contact"),
       route: "LegalContact",
     },
   ];
@@ -30,20 +30,20 @@ export default function LegalHubScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <SettingsScreenHeader
-        title="Information légales"
+        title={t("mobile.legal.hubTitle")}
         onBack={() => navigation.goBack()}
       />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.h1}>{hub.h1}</Text>
-        <SettingsIntro>{hub.intro}</SettingsIntro>
+        <Text style={styles.h1}>{t("legal.infoHub.h1")}</Text>
+        <SettingsIntro>{t("legal.infoHub.intro")}</SettingsIntro>
 
         <SettingsSectionCard>
           {links.map((item, index) => (
             <SettingsListRow
-              key={item.label}
+              key={item.route + item.label}
               label={item.label}
               onPress={() => navigation.navigate(item.route, item.params)}
               isLast={index === links.length - 1}
@@ -52,20 +52,30 @@ export default function LegalHubScreen({ navigation }) {
         </SettingsSectionCard>
 
         <View style={styles.teaserCard}>
-          <Text style={styles.teaserTitle}>{hub.cguSectionTitle}</Text>
-          <Text style={styles.teaserMeta}>{hub.cguUpdated}</Text>
-          <Text style={styles.teaserBody}>{hub.cguTeaser}</Text>
+          <Text style={styles.teaserTitle}>
+            {t("legal.infoHub.cguSectionTitle")}
+          </Text>
+          <Text style={styles.teaserMeta}>
+            {t("legal.infoHub.cguUpdated", {
+              date: t("mobile.legal.cguUpdatedDate"),
+            })}
+          </Text>
+          <Text style={styles.teaserBody}>{t("legal.infoHub.cguTeaser")}</Text>
           <Text
             style={styles.link}
             onPress={() => navigation.navigate("TermsOfUse")}
           >
-            {hub.cguReadFull}
+            {t("legal.infoHub.cguReadFull")}
           </Text>
         </View>
 
         <View style={styles.teaserCard}>
-          <Text style={styles.teaserTitle}>{hub.interdictionsTitle}</Text>
-          <Text style={styles.teaserBody}>{hub.interdictionsTeaser}</Text>
+          <Text style={styles.teaserTitle}>
+            {t("legal.infoHub.interdictionsTitle")}
+          </Text>
+          <Text style={styles.teaserBody}>
+            {t("legal.infoHub.interdictionsTeaser")}
+          </Text>
           <Text
             style={styles.link}
             onPress={() =>
@@ -74,7 +84,7 @@ export default function LegalHubScreen({ navigation }) {
               })
             }
           >
-            {hub.interdictionsReadFull}
+            {t("legal.infoHub.interdictionsReadFull")}
           </Text>
         </View>
       </ScrollView>

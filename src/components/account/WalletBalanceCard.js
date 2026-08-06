@@ -2,6 +2,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
 import { formatPrice } from "../../utils/productMapper";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function WalletBalanceCard({
   balance,
@@ -12,13 +13,15 @@ export default function WalletBalanceCard({
   onTopUp,
   onPressCard,
 }) {
+  const { t } = useAppLanguage();
+
   return (
     <TouchableOpacity
       activeOpacity={onPressCard ? 0.9 : 1}
       onPress={onPressCard}
       style={styles.card}
     >
-      <Text style={styles.label}>My Balance</Text>
+      <Text style={styles.label}>{t("wallet.yourBalance")}</Text>
       <View style={styles.amountRow}>
         <Text style={styles.amount}>
           {balanceVisible ? formatPrice(balance) : "••••••"}
@@ -31,14 +34,16 @@ export default function WalletBalanceCard({
           />
         </TouchableOpacity>
       </View>
-      <Text style={styles.updated}>Updated : {updatedAt}</Text>
+      <Text style={styles.updated}>
+        {t("mobile.wallet.updatedAt", { date: updatedAt })}
+      </Text>
       <View style={styles.actions}>
         <TouchableOpacity style={styles.transferBtn} onPress={onTransfer}>
-          <Text style={styles.transferText}>Transfer</Text>
+          <Text style={styles.transferText}>{t("wallet.transfer")}</Text>
           <Ionicons name="send" size={18} color={colors.white} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.topUpBtn} onPress={onTopUp}>
-          <Text style={styles.topUpText}>Top Up</Text>
+          <Text style={styles.topUpText}>{t("wallet.topUp")}</Text>
           <Ionicons name="add" size={20} color={colors.textHeading} />
         </TouchableOpacity>
       </View>

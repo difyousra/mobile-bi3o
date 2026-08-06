@@ -14,12 +14,18 @@ import { colors } from "../../theme/colors";
 import { useMyReservations } from "../../hooks/useMessaging";
 import * as reservationService from "../../services/reservationService";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
-function statusLabel(item) {
-  return String(item.status ?? item.statut ?? "PENDING").toUpperCase();
+function statusLabel(item, t) {
+  const raw = String(item.status ?? item.statut ?? "PENDING").toUpperCase();
+  if (raw === "CONFIRMED") return t("mobile.reservations.statusConfirmed");
+  if (raw === "CANCELLED") return t("mobile.reservations.statusCancelled");
+  if (raw === "REJECTED") return t("mobile.reservations.statusRejected");
+  return raw;
 }
 
 export default function MyReservationsScreen({ navigation, route }) {
+  const { t } = useAppLanguage();
   const { data, isLoading, isError, refetch, isRefetching } = useMyReservations(0);
   const qc = useQueryClient();
 
@@ -39,7 +45,7 @@ export default function MyReservationsScreen({ navigation, route }) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={22} color={colors.textHeading} />
         </TouchableOpacity>
-        <Text style={styles.title}>Mes réservations</Text>
+        <Text style={styles.title}>{t("mobile.account.reservations")}</Text>
         <View style={{ width: 22 }} />
       </View>
 
@@ -53,17 +59,22 @@ export default function MyReservationsScreen({ navigation, route }) {
           <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} />
         ) : null}
         {isError ? (
-          <Text style={styles.error}>Chargement impossible (JWT requis).</Text>
+          <Text style={styles.error}>{t("mobile.reservations.loadError")}</Text>
         ) : null}
 
         {!isLoading && items.length === 0 ? (
-          <Text style={styles.empty}>Aucune réservation.</Text>
+          <Text style={styles.empty}>{t("mobile.reservations.empty")}</Text>
         ) : (
           items.map((item) => (
             <View key={String(item.id)} style={styles.card}>
-              <Text style={styles.cardTitle}>Réservation #{item.id}</Text>
+              <Text style={styles.cardTitle}>
+                {t("mobile.reservations.cardTitle", { id: item.id })}
+              </Text>
               <Text style={styles.cardMeta}>
-                Annonce {item.annonceId ?? "—"} · {statusLabel(item)}
+                {t("mobile.reservations.listingLine", {
+                  id: item.annonceId ?? "—",
+                  status: statusLabel(item, t),
+                })}
               </Text>
               <Text style={styles.cardMeta}>
                 {item.dateDebut ?? item.startDate ?? "?"} →{" "}
@@ -78,7 +89,13 @@ export default function MyReservationsScreen({ navigation, route }) {
                       statusMutation.mutate({ id: item.id, status: st })
                     }
                   >
-                    <Text style={styles.chipText}>{st}</Text>
+                    <Text style={styles.chipText}>
+                      {st === "CONFIRMED"
+                        ? t("mobile.reservations.statusConfirmed")
+                        : st === "CANCELLED"
+                          ? t("mobile.reservations.statusCancelled")
+                          : t("mobile.reservations.statusRejected")}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </View>

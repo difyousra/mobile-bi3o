@@ -1,3 +1,6 @@
+import i18n from '../../../i18n/index';
+import { resolveIntlLocale } from '../../../i18n/localeHelpers';
+
 /** Unités de saisie prix — aligné new front (priceUnit.js). */
 export const PRICE_UNITS = ['millions', 'centimes', 'da'];
 
@@ -33,38 +36,67 @@ export function normalizePriceUnit(unit) {
   return PRICE_UNITS.includes(unit) ? unit : 'da';
 }
 
-export function formatPriceDa(value, locale = 'fr-DZ') {
+export function formatPriceDa(value, localeOrLanguage) {
   if (!Number.isFinite(value)) return '';
+  const locale = resolveIntlLocale(localeOrLanguage ?? i18n.language);
   return new Intl.NumberFormat(locale).format(value);
 }
 
 /** Libellé d’unité affiché à droite du champ saisie. */
-export function getPriceUnitSuffix(unit) {
+export function getPriceUnitSuffix(unit, localeOrLanguage) {
+  const lng = localeOrLanguage ?? i18n.language;
   const normalized = normalizePriceUnit(unit);
-  if (normalized === 'millions') return 'Millions';
-  if (normalized === 'centimes') return 'Centimes';
-  return 'DA';
+  if (normalized === 'millions') {
+    return i18n.t('forms.deposit.unitMillions', { lng });
+  }
+  if (normalized === 'centimes') {
+    return i18n.t('forms.deposit.unitCentimes', { lng });
+  }
+  return i18n.t('forms.deposit.unitDa', { lng });
 }
 
 /** Aperçu du prix affiché (toujours en DA), ou null si invalide. */
-export function getDisplayedPriceLabel(rawStr, unit = 'da', isDonation = false) {
-  if (isDonation) return 'Annonce en don';
+export function getDisplayedPriceLabel(
+  rawStr,
+  unit = 'da',
+  isDonation = false,
+  localeOrLanguage
+) {
+  const lng = localeOrLanguage ?? i18n.language;
+  if (isDonation) {
+    return i18n.t('forms.deposit.priceDonation', { lng });
+  }
   const finalDa = getFinalPriceDa(rawStr, unit, false);
   if (!Number.isFinite(finalDa) || finalDa < 1) return null;
-  return `${formatPriceDa(Math.round(finalDa))} DA`;
+  return i18n.t('forms.deposit.displayPriceDa', {
+    n: formatPriceDa(Math.round(finalDa), lng),
+    lng,
+  });
 }
 
 /** Indice de conversion selon l’unité choisie. */
-export function getPriceUnitHint(rawStr, unit = 'da', isDonation = false) {
+export function getPriceUnitHint(
+  rawStr,
+  unit = 'da',
+  isDonation = false,
+  localeOrLanguage
+) {
   if (isDonation) return null;
+  const lng = localeOrLanguage ?? i18n.language;
   const n = parsePositivePriceInput(rawStr);
   if (n === null) return null;
   const normalized = normalizePriceUnit(unit);
   if (normalized === 'millions') {
-    return `${formatPriceDa(n)} millions DA`;
+    return i18n.t('forms.deposit.displayPriceMillions', {
+      n: formatPriceDa(n, lng),
+      lng,
+    });
   }
   if (normalized === 'centimes') {
-    return `${formatPriceDa(n)} centimes`;
+    return i18n.t('forms.deposit.displayPriceCentimes', {
+      n: formatPriceDa(n, lng),
+      lng,
+    });
   }
   return null;
 }

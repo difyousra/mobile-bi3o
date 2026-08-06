@@ -1,7 +1,9 @@
 import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function ProductContextBar({ product, onViewPress }) {
+  const { t } = useAppLanguage();
   return (
     <View style={styles.container}>
       <Image source={{ uri: product.image }} style={styles.thumbnail} />
@@ -15,7 +17,7 @@ export default function ProductContextBar({ product, onViewPress }) {
         </Text>
       </View>
       <TouchableOpacity activeOpacity={0.7} onPress={onViewPress}>
-        <Text style={styles.viewLink}>Voir</Text>
+        <Text style={styles.viewLink}>{t("mobile.messages.viewListing")}</Text>
       </TouchableOpacity>
     </View>
   );

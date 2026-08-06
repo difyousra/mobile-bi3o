@@ -5,8 +5,10 @@
 import { View, StyleSheet, TouchableOpacity, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function EmbeddedMap({ lat, lng, label, onOpenMap }) {
+  const { t } = useAppLanguage();
   const src = `https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.05}%2C${lat - 0.05}%2C${lng + 0.05}%2C${lat + 0.05}&layer=mapnik&marker=${lat}%2C${lng}`;
 
   return (
@@ -15,7 +17,7 @@ export default function EmbeddedMap({ lat, lng, label, onOpenMap }) {
       <iframe
         src={src}
         style={{ width: "100%", height: "100%", border: "none" }}
-        title="Localisation"
+        title={t("mobile.map.locationTitle")}
         loading="lazy"
       />
       <TouchableOpacity style={styles.overlay} onPress={onOpenMap} activeOpacity={0.9}>

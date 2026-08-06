@@ -1,4 +1,5 @@
 import type { ApiError } from "../types/auth";
+import i18n from "../i18n";
 
 export class AppApiError extends Error {
   readonly status: number;
@@ -7,7 +8,7 @@ export class AppApiError extends Error {
   readonly raw?: unknown;
 
   constructor(error: ApiError, raw?: unknown) {
-    super(error.message || "Une erreur est survenue.");
+    super(error.message || i18n.t("mobile.errors.generic"));
     this.name = "AppApiError";
     this.status = error.status;
     this.code = error.error;
@@ -57,26 +58,26 @@ export function userFacingMessage(error: AppApiError | ApiError): string {
 
   switch (status) {
     case 400:
-      return message || "Requête invalide.";
+      return message || i18n.t("mobile.errors.badRequest");
     case 401:
-      return message || "Authentification requise.";
+      return message || i18n.t("mobile.errors.unauthorized");
     case 403:
-      return message || "Accès refusé.";
+      return message || i18n.t("mobile.errors.forbidden");
     case 404:
-      return message || "Ressource introuvable.";
+      return message || i18n.t("mobile.errors.notFound");
     case 409:
-      return message || "Conflit.";
+      return message || i18n.t("mobile.errors.conflict");
     case 413:
-      return message || "Fichier trop volumineux.";
+      return message || i18n.t("mobile.errors.payloadTooLarge");
     case 422:
-      return message || "Contenu refusé par la modération.";
+      return message || i18n.t("mobile.errors.moderationRejected");
     case 429:
-      return "Trop de requêtes. Réessayez plus tard.";
+      return i18n.t("mobile.errors.tooManyRequests");
     case 500:
     case 502:
     case 503:
-      return "Serveur indisponible. Réessayez plus tard.";
+      return i18n.t("mobile.errors.serverUnavailable");
     default:
-      return message || "Une erreur est survenue.";
+      return message || i18n.t("mobile.errors.generic");
   }
 }

@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useRef } from "react";
 import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { useSubcategoryAttributs } from "../../../hooks/useSubcategoryAttributs";
+import { useAppLanguage } from "../../../i18n/LanguageProvider";
+import {
+  localizeOptionList,
+  translateSubformFieldLabel,
+} from "../../../i18n/subformFieldLabels";
 import {
   getValeursForField,
   resolveFieldAttrId,
@@ -38,6 +43,7 @@ export default function ImmobilierSubcategoryForm({
   onAttributsChange,
   onMetaChange,
 }) {
+  const { t } = useAppLanguage();
   const {
     data: taxoAttributs = [],
     isLoading: taxoLoading,
@@ -155,13 +161,13 @@ export default function ImmobilierSubcategoryForm({
       {taxoLoading ? (
         <View style={styles.loadingRow}>
           <ActivityIndicator color={colors.primary} />
-          <Text style={styles.loadingText}>Chargement des attributs…</Text>
+          <Text style={styles.loadingText}>{t("mobile.publish.loadingAttributes")}</Text>
         </View>
       ) : null}
 
       {!taxoLoading && hasRequiredFields ? (
         <Text style={styles.requiredHint}>
-          Les champs marqués * sont obligatoires.
+          {t("mobile.publish.requiredFieldsMarked")}
         </Text>
       ) : null}
 
@@ -182,13 +188,24 @@ export default function ImmobilierSubcategoryForm({
         const isCombobox =
           control === "combobox" || control === "select" || forceComboboxFromTaxo;
         const isMultiDropdown = control === "multi-dropdown";
+        const tipsKey =
+          config.tipsI18nKey ||
+          (config.slug === "vente-immobiliere"
+            ? "forms.deposit.subforms.venteImmobiliere"
+            : config.slug === "locations"
+              ? "forms.deposit.subforms.locationsImmobilier"
+              : config.slug === "colocations"
+                ? "forms.deposit.subforms.colocations"
+                : config.slug === "bureau-commercial"
+                  ? "forms.deposit.subforms.bureauCommercial"
+                  : null);
         const options =
           isCombobox ||
           control === "type-cards" ||
           control === "choice-chips" ||
           control === "radio" ||
           isMultiDropdown
-            ? resolveOptions(field)
+            ? localizeOptionList(t, tipsKey, field.name, resolveOptions(field))
             : [];
 
         const isDependentField = Boolean(activeField.dependsOnField);
@@ -203,12 +220,26 @@ export default function ImmobilierSubcategoryForm({
           attributs,
           taxoAttributs
         );
+        const fieldLabel = translateSubformFieldLabel(
+          t,
+          tipsKey,
+          field.name,
+          activeField.label
+        );
+        const radioLabel = activeField.radioPrompt
+          ? translateSubformFieldLabel(
+              t,
+              tipsKey,
+              `${field.name}_prompt`,
+              activeField.radioPrompt
+            )
+          : fieldLabel;
 
         if (control === "type-cards") {
           return (
             <TypeCardsField
               key={field.name}
-              label={activeField.label}
+              label={fieldLabel}
               required={required}
               options={options}
               value={currentValue}
@@ -224,7 +255,7 @@ export default function ImmobilierSubcategoryForm({
           return (
             <ChoiceChipsField
               key={field.name}
-              label={activeField.label}
+              label={fieldLabel}
               required={required}
               options={options}
               value={currentValue}
@@ -240,9 +271,13 @@ export default function ImmobilierSubcategoryForm({
           return (
             <RadioField
               key={field.name}
-              label={activeField.radioPrompt || activeField.label}
+              label={radioLabel}
               required={required}
-              options={options.length ? options : activeField.staticOptions || []}
+              options={
+                options.length
+                  ? options
+                  : localizeOptionList(t, tipsKey, field.name, activeField.staticOptions || [])
+              }
               value={currentValue}
               onChange={(next) => setAttrValue(field.name, next)}
             />
@@ -253,13 +288,15 @@ export default function ImmobilierSubcategoryForm({
           return (
             <MultiDropdownField
               key={field.name}
-              label={activeField.label}
+              label={fieldLabel}
               required={required}
               options={options}
               value={currentValue}
               disabled={disabled}
               placeholder={
-                disabled ? "Sélectionnez d'abord le champ parent" : "Sélectionner"
+                disabled
+                  ? t("mobile.publish.selectParentField")
+                  : t("createAdWizard.selectOption")
               }
               onChange={(next) => setAttrValue(field.name, next)}
             />
@@ -271,15 +308,15 @@ export default function ImmobilierSubcategoryForm({
           const checkedValue =
             boolOptions.find((option) => isTruthyLike(option)) ||
             activeField.checkedValue ||
-            "Oui";
+            t("createAdWizard.yes");
           const uncheckedValue =
             boolOptions.find((option) => option !== checkedValue) ||
             activeField.uncheckedValue ||
-            "Non";
+            t("createAdWizard.no");
           return (
             <SwitchAttrField
               key={field.name}
-              label={activeField.label}
+              label={fieldLabel}
               required={required}
               value={currentValue}
               checkedValue={checkedValue}
@@ -293,12 +330,14 @@ export default function ImmobilierSubcategoryForm({
           return (
             <ComboboxField
               key={field.name}
-              label={activeField.label}
+              label={fieldLabel}
               required={required}
               value={currentValue || ""}
               disabled={disabled}
               placeholder={
-                disabled ? "Sélectionnez d'abord le champ parent" : "Sélectionner"
+                disabled
+                  ? t("mobile.publish.selectParentField")
+                  : t("createAdWizard.selectOption")
               }
               options={options}
               onChange={(next) => setAttrValue(field.name, next)}
@@ -310,7 +349,7 @@ export default function ImmobilierSubcategoryForm({
           return (
             <DateMonthField
               key={field.name}
-              label={activeField.label}
+              label={fieldLabel}
               required={required}
               value={currentValue || ""}
               onChange={(next) => setAttrValue(field.name, next)}
@@ -322,7 +361,7 @@ export default function ImmobilierSubcategoryForm({
           return (
             <ClearableNumberField
               key={field.name}
-              label={activeField.label}
+              label={fieldLabel}
               required={required}
               value={currentValue ?? ""}
               unit={activeField.unit}
@@ -335,7 +374,7 @@ export default function ImmobilierSubcategoryForm({
         return (
           <ClearableNumberField
             key={field.name}
-            label={activeField.label}
+            label={fieldLabel}
             required={required}
             value={currentValue ?? ""}
             unit={activeField.unit}

@@ -23,13 +23,14 @@ import {
   useToggleFollow,
 } from "../../hooks/useEngagement";
 import { useAuth } from "../../context/AuthContext";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 const CARD_GAP = 12;
 const H_PAD = 16;
 const CARD_W = (SCREEN_W - H_PAD * 2 - CARD_GAP) / 2;
 
-function SellerAdCard({ item, onPress }) {
+function SellerAdCard({ item, onPress, priceOnRequestLabel }) {
   return (
     <TouchableOpacity style={styles.adCard} onPress={onPress} activeOpacity={0.85}>
       <Image source={{ uri: item.image }} style={styles.adImage} />
@@ -37,7 +38,7 @@ function SellerAdCard({ item, onPress }) {
         {item.title}
       </Text>
       <Text style={styles.adPrice}>
-        {item.priceDa > 0 ? formatPrice(item.priceDa) : "Sur demande"}
+        {item.priceDa > 0 ? formatPrice(item.priceDa) : priceOnRequestLabel}
       </Text>
       <View style={styles.adMeta}>
         <Ionicons name="heart-outline" size={12} color={colors.textMuted} />
@@ -53,6 +54,7 @@ function SellerAdCard({ item, onPress }) {
 }
 
 export default function SellerProfileScreen({ route, navigation }) {
+  const { t } = useAppLanguage();
   const sellerId = route.params?.sellerId;
   const seedName = route.params?.sellerName;
   const { isAuthenticated, requireAuth } = useAuth();
@@ -67,9 +69,9 @@ export default function SellerProfileScreen({ route, navigation }) {
     () =>
       mapPublicSeller(data, Number(sellerId) || 0) ?? {
         id: Number(sellerId),
-        name: seedName || `Vendeur #${sellerId}`,
+        name: seedName || t("mobile.favorites.sellerFallback", { id: sellerId }),
       },
-    [data, sellerId, seedName]
+    [data, sellerId, seedName, t]
   );
 
   const {
@@ -115,7 +117,7 @@ export default function SellerProfileScreen({ route, navigation }) {
           <Ionicons name="chevron-back" size={26} color={colors.textHeading} />
         </TouchableOpacity>
         <Text style={styles.title} numberOfLines={1}>
-          {seller.name || seedName || "Vendeur"}
+          {seller.name || seedName || t("mobile.profilePublicUi.sellerDefault")}
         </Text>
         <View style={{ width: 26 }} />
       </View>
@@ -129,9 +131,7 @@ export default function SellerProfileScreen({ route, navigation }) {
         ) : null}
 
         {isError ? (
-          <Text style={styles.error}>
-            Impossible de charger le profil public.
-          </Text>
+          <Text style={styles.error}>{t("mobile.profilePublicUi.loadError")}</Text>
         ) : null}
 
         <View style={styles.profileCard}>
@@ -163,8 +163,8 @@ export default function SellerProfileScreen({ route, navigation }) {
                 >
                   {seller.typeCompte === "PRO" ||
                   seller.typeCompte === "PROFESSIONNEL"
-                    ? "Pro"
-                    : "Particulier"}
+                    ? t("profileUi.accountTypePro")
+                    : t("profileUi.accountTypeParticulier")}
                 </Text>
               </View>
             </View>
@@ -176,7 +176,7 @@ export default function SellerProfileScreen({ route, navigation }) {
             </Text>
           ) : null}
           <Text style={styles.adsCount}>
-            {adsTotal} annonce{adsTotal !== 1 ? "s" : ""}
+            {t("profilePublicUi.adsOnline", { count: adsTotal })}
           </Text>
           {seller.bio ? <Text style={styles.bio}>{seller.bio}</Text> : null}
 
@@ -193,29 +193,30 @@ export default function SellerProfileScreen({ route, navigation }) {
             <Text
               style={[styles.followText, following && styles.followTextActive]}
             >
-              {following ? "Suivi" : "Suivre"}
+              {following ? t("profilePublicUi.following") : t("profilePublicUi.follow")}
             </Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.sectionTitle}>Annonces</Text>
+        <Text style={styles.sectionTitle}>{t("profilePublicUi.adsTab")}</Text>
 
         {adsLoading ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />
         ) : null}
 
         {adsError ? (
-          <Text style={styles.error}>Impossible de charger les annonces.</Text>
+          <Text style={styles.error}>{t("categoryUi.loadListingsError")}</Text>
         ) : null}
 
         {!adsLoading && products.length === 0 ? (
-          <Text style={styles.empty}>Aucune annonce publiée.</Text>
+          <Text style={styles.empty}>{t("mobile.profilePublicUi.emptyAds")}</Text>
         ) : (
           <View style={styles.grid}>
             {products.map((item) => (
               <SellerAdCard
                 key={String(item.id)}
                 item={item}
+                priceOnRequestLabel={t("adDetailV2.priceOnRequest")}
                 onPress={() =>
                   navigation.push("ProductDetail", {
                     annonceId: item.id,

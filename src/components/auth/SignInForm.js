@@ -16,6 +16,7 @@ import SocialButton from "./SocialButton";
 import { useAuth } from "../../context/AuthContext";
 import { getApiHostLabel } from "../../config/api";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -25,7 +26,7 @@ const DESIGN_HEIGHT = 812;
 const scaleX = SCREEN_WIDTH / DESIGN_WIDTH;
 const scaleY = SCREEN_HEIGHT / DESIGN_HEIGHT;
 
-function OrSeparator({ label = "Or login with" }) {
+function OrSeparator({ label }) {
   return (
     <View style={styles.orRow}>
       <View style={styles.orLine} />
@@ -39,8 +40,10 @@ export default function SignInForm({
   onSignUpPress,
   onGooglePress,
   onForgotPasswordPress,
+  googleLoading = false,
 }) {
   const { login, isSubmitting } = useAuth();
+  const { t } = useAppLanguage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -50,13 +53,15 @@ export default function SignInForm({
   const handleLogin = async () => {
     setError("");
     if (!email.trim() || !password) {
-      setError("E-mail et mot de passe requis.");
+      setError(
+        `${t("authLogin.email")} / ${t("authLogin.passwordRequired")}`
+      );
       return;
     }
 
     const result = await login(email, password);
     if (!result.ok) {
-      setError(result.message);
+      setError(result.message || t("authLogin.wrongCredentials"));
     }
   };
 
@@ -72,14 +77,16 @@ export default function SignInForm({
           contentContainerStyle={styles.scrollContent}
         >
           <SocialButton
-            label="Continue with Google"
+            label={`${t("authLogin.submit")} Google`}
             onPress={onGooglePress}
+            loading={googleLoading}
+            disabled={isSubmitting}
           />
 
-          <OrSeparator />
+          <OrSeparator label={t("mobile.auth.orLoginWith")} />
 
           <AuthInput
-            placeholder="jean@example.com"
+            placeholder={t("authLogin.emailPlaceholder")}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -87,7 +94,7 @@ export default function SignInForm({
           />
 
           <AuthInput
-            placeholder="Mot de passe"
+            placeholder={t("authLogin.passwordPlaceholder")}
             value={password}
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
@@ -95,6 +102,9 @@ export default function SignInForm({
               <TouchableOpacity
                 onPress={() => setShowPassword((prev) => !prev)}
                 activeOpacity={0.7}
+                accessibilityLabel={
+                  showPassword ? t("auth.hidePassword") : t("auth.showPassword")
+                }
               >
                 <Ionicons
                   name={showPassword ? "eye-outline" : "eye-off-outline"}
@@ -122,14 +132,16 @@ export default function SignInForm({
                 size={18 * scaleX}
                 color={rememberMe ? colors.primary : colors.iconMuted}
               />
-              <Text style={styles.rememberText}>Remember me</Text>
+              <Text style={styles.rememberText}>{t("authLogin.rememberMe")}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={onForgotPasswordPress}
             >
-              <Text style={styles.forgotText}>Forgot Password ?</Text>
+              <Text style={styles.forgotText}>
+                {t("authLogin.forgotPasswordLink")}
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -142,14 +154,14 @@ export default function SignInForm({
             {isSubmitting ? (
               <ActivityIndicator color={colors.white} />
             ) : (
-              <Text style={styles.primaryButtonText}>Log In</Text>
+              <Text style={styles.primaryButtonText}>{t("authLogin.submit")}</Text>
             )}
           </TouchableOpacity>
 
           <View style={styles.footerRow}>
-            <Text style={styles.footerText}>Don&apos;t have an account? </Text>
+            <Text style={styles.footerText}>{t("authLogin.noAccount")} </Text>
             <TouchableOpacity activeOpacity={0.7} onPress={onSignUpPress}>
-              <Text style={styles.footerLink}>Sign Up</Text>
+              <Text style={styles.footerLink}>{t("authLogin.signUp")}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>

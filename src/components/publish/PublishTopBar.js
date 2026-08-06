@@ -1,19 +1,34 @@
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function PublishTopBar({ title, onBack, onClose }) {
+  const { t } = useAppLanguage();
+
   return (
     <View style={styles.bar}>
       <View style={styles.left}>
-        <TouchableOpacity onPress={onBack} style={styles.iconBtn} hitSlop={8}>
+        <TouchableOpacity
+          onPress={onBack}
+          style={styles.iconBtn}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={t("common.back")}
+        >
           <Ionicons name="arrow-back" size={16} color={colors.textHeading} />
         </TouchableOpacity>
         <Text style={styles.title} numberOfLines={1}>
           {title}
         </Text>
       </View>
-      <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={8}>
+      <TouchableOpacity
+        onPress={onClose}
+        style={styles.closeBtn}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel={t("common.close")}
+      >
         <Ionicons name="close" size={14} color={colors.textHeading} />
       </TouchableOpacity>
     </View>

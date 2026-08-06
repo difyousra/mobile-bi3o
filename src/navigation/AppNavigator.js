@@ -6,7 +6,6 @@ import BottomTabNavigator from "./BottomTabNavigator";
 import MessagesNavigator from "./MessagesNavigator";
 import SearchScreen from "../screens/SearchScreen";
 import SearchFiltersScreen from "../screens/search/SearchFiltersScreen";
-import MapSearchScreen from "../screens/search/MapSearchScreen";
 import ProductDetailScreen from "../screens/product/ProductDetailScreen";
 import ProductReviewsScreen from "../screens/product/ProductReviewsScreen";
 import CheckoutScreen from "../screens/buy/CheckoutScreen";
@@ -40,6 +39,7 @@ import FloatingTabBar from "./FloatingTabBar";
 import CartScreen from "../screens/CartScreen";
 import { navigationRef } from "./navigationRef";
 import { withProtectedScreen } from "./ProtectedScreen";
+import { ENABLE_BUY_WALLET } from "../config/featureFlags";
 
 const Stack = createNativeStackNavigator();
 
@@ -82,7 +82,12 @@ export default function AppNavigator() {
           <Stack.Screen name="Messages" component={ProtectedMessages} />
           <Stack.Screen name="Search" component={SearchScreen} />
           <Stack.Screen name="SearchFilters" component={SearchFiltersScreen} />
-          <Stack.Screen name="MapSearch" component={MapSearchScreen} />
+          <Stack.Screen
+            name="MapSearch"
+            getComponent={() =>
+              require("../screens/search/MapSearchScreen").default
+            }
+          />
           <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
           <Stack.Screen
             name="MortgageSimulator"
@@ -100,15 +105,27 @@ export default function AppNavigator() {
             name="SellerProfile"
             component={SellerProfileScreen}
           />
-          <Stack.Screen name="Cart" component={CartScreen} />
-          <Stack.Screen name="Checkout" component={ProtectedCheckout} />
-          <Stack.Screen name="BuyAddress" component={ProtectedBuyAddress} />
-          <Stack.Screen
-            name="BuyAddAddress"
-            component={ProtectedBuyAddAddress}
-          />
-          <Stack.Screen name="BuyPayment" component={ProtectedBuyPayment} />
-          <Stack.Screen name="BuyFinish" component={ProtectedBuyFinish} />
+          {ENABLE_BUY_WALLET ? (
+            <Stack.Screen name="Cart" component={CartScreen} />
+          ) : null}
+          {ENABLE_BUY_WALLET ? (
+            <Stack.Screen name="Checkout" component={ProtectedCheckout} />
+          ) : null}
+          {ENABLE_BUY_WALLET ? (
+            <Stack.Screen name="BuyAddress" component={ProtectedBuyAddress} />
+          ) : null}
+          {ENABLE_BUY_WALLET ? (
+            <Stack.Screen
+              name="BuyAddAddress"
+              component={ProtectedBuyAddAddress}
+            />
+          ) : null}
+          {ENABLE_BUY_WALLET ? (
+            <Stack.Screen name="BuyPayment" component={ProtectedBuyPayment} />
+          ) : null}
+          {ENABLE_BUY_WALLET ? (
+            <Stack.Screen name="BuyFinish" component={ProtectedBuyFinish} />
+          ) : null}
           <Stack.Screen
             name="AccountSettings"
             component={ProtectedAccountSettings}
@@ -143,7 +160,9 @@ export default function AppNavigator() {
             name="ChangePassword"
             component={ProtectedChangePassword}
           />
-          <Stack.Screen name="MyWallet" component={ProtectedMyWallet} />
+          {ENABLE_BUY_WALLET ? (
+            <Stack.Screen name="MyWallet" component={ProtectedMyWallet} />
+          ) : null}
           <Stack.Screen name="MyListings" component={ProtectedMyListings} />
           <Stack.Screen
             name="MyReservations"

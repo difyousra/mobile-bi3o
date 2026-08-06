@@ -3,8 +3,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
 import BrandLogo from "../common/BrandLogo";
 import { useUnreadNotificationsCount } from "../../hooks/useEngagement";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function HomeHeader({ onNotificationPress, onLogoPress }) {
+  const { t } = useAppLanguage();
   const { data: unread = 0 } = useUnreadNotificationsCount();
 
   return (
@@ -16,6 +18,8 @@ export default function HomeHeader({ onNotificationPress, onLogoPress }) {
           style={styles.iconButton}
           activeOpacity={0.7}
           onPress={onNotificationPress}
+          accessibilityRole="button"
+          accessibilityLabel={t("mobile.homeUi.notificationsA11y")}
         >
           <Ionicons name="notifications-outline" size={20} color={colors.textDark} />
           {unread > 0 ? <View style={styles.badge} /> : null}

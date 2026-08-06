@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, View, StyleSheet, Linking } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -14,9 +14,15 @@ import { CheckoutProvider } from "./src/context/CheckoutContext";
 import { WalletProvider } from "./src/context/WalletContext";
 import { FavoritesProvider } from "./src/context/FavoritesContext";
 import { MessagesProvider } from "./src/context/MessagesContext";
-import { API_BASE_URL } from "./src/config/api";
+import {
+  extractOAuthCodeFromUrl,
+  isOAuthReturnUrl,
+  startGoogleOAuth,
+} from "./src/services/googleOAuth";
 import { showDevMessage } from "./src/utils/devFeedback";
 import { colors } from "./src/theme/colors";
+import { LanguageProvider } from "./src/i18n/LanguageProvider";
+import "./src/i18n";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,11 +33,6 @@ const queryClient = new QueryClient({
   },
 });
 
-/** Origine sans /api pour OAuth Spring (mobile_api.md §2). */
-function getApiOrigin() {
-  return API_BASE_URL.replace(/\/api\/?$/, "");
-}
-
 function AuthFlowOverlay() {
   const {
     authGate,
@@ -39,31 +40,92 @@ function AuthFlowOverlay() {
     pendingVerificationEmail,
     setPendingVerificationEmail,
     closeAuth,
+    exchangeOAuthCode,
+    isSubmitting,
   } = useAuth();
   const [verifyEmail, setVerifyEmail] = useState(null);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const oauthHandledRef = useRef(new Set());
 
   const goToSignIn = () => setAuthGate("signin");
   const goToSignUp = () => setAuthGate("signup");
   const goToForgotPassword = () => setAuthGate("forgot-password");
 
+  const completeOAuthWithCode = useCallback(
+    async (code, { silent } = {}) => {
+      if (!code) return { ok: false };
+      if (oauthHandledRef.current.has(code)) {
+        return { ok: true, duplicate: true };
+      }
+      oauthHandledRef.current.add(code);
+
+      setGoogleLoading(true);
+      try {
+        const result = await exchangeOAuthCode(code);
+        if (!result.ok) {
+          oauthHandledRef.current.delete(code);
+          if (!silent) {
+            showDevMessage(
+              "Google",
+              result.message ?? "Échec de la connexion Google."
+            );
+          }
+          return result;
+        }
+        return { ok: true };
+      } finally {
+        setGoogleLoading(false);
+      }
+    },
+    [exchangeOAuthCode]
+  );
+
+  const handleOAuthUrl = useCallback(
+    async (url) => {
+      if (!isOAuthReturnUrl(url)) return;
+      const code = extractOAuthCodeFromUrl(url);
+      if (!code) return;
+      await completeOAuthWithCode(code);
+    },
+    [completeOAuthWithCode]
+  );
+
+  useEffect(() => {
+    let sub;
+    (async () => {
+      try {
+        const initial = await Linking.getInitialURL();
+        if (initial) await handleOAuthUrl(initial);
+      } catch {
+        // ignore
+      }
+      sub = Linking.addEventListener("url", ({ url }) => {
+        handleOAuthUrl(url);
+      });
+    })();
+    return () => sub?.remove?.();
+  }, [handleOAuthUrl]);
+
   const handleGoogleAuth = async () => {
-    const url = `${getApiOrigin()}/oauth2/authorization/google`;
+    if (googleLoading || isSubmitting) return;
+    setGoogleLoading(true);
     try {
-      const supported = await Linking.canOpenURL(url);
-      if (!supported) {
-        showDevMessage(
-          "Google OAuth",
-          "Impossible d'ouvrir le navigateur. URL: " + url
-        );
+      const started = await startGoogleOAuth();
+      if (started.ok && started.code) {
+        await completeOAuthWithCode(started.code);
         return;
       }
-      await Linking.openURL(url);
+      if (started.cancelled) return;
+      if (started.pendingBrowser) {
+        showDevMessage("Google", started.message);
+        return;
+      }
       showDevMessage(
-        "Google OAuth",
-        "Après redirection, récupérez ?code= puis échangez via POST /auth/oauth/exchange (deep link à finaliser)."
+        "Google",
+        started.message ?? "Connexion Google impossible."
       );
-    } catch {
-      showDevMessage("Google OAuth", "Échec d'ouverture du navigateur système.");
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -100,6 +162,7 @@ function AuthFlowOverlay() {
         }}
         onGooglePress={handleGoogleAuth}
         onBackPress={goToSignIn}
+        googleLoading={googleLoading}
       />
     );
   } else {
@@ -109,11 +172,21 @@ function AuthFlowOverlay() {
         onGooglePress={handleGoogleAuth}
         onForgotPasswordPress={goToForgotPassword}
         onBackPress={closeAuth}
+        googleLoading={googleLoading}
       />
     );
   }
 
-  return <View style={styles.authOverlay}>{screen}</View>;
+  return (
+    <View style={styles.authOverlay}>
+      {screen}
+      {googleLoading ? (
+        <View style={styles.googleOverlay} pointerEvents="auto">
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : null}
+    </View>
+  );
 }
 
 function AppContent() {
@@ -127,6 +200,7 @@ function AppContent() {
     );
   }
 
+  // Providers Buy/Wallet restent montés (évite crash imports) mais UI/routes masqués via flag.
   return (
     <CartProvider>
       <CheckoutProvider>
@@ -148,11 +222,13 @@ function AppContent() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <AppContent />
-        </AuthProvider>
-      </QueryClientProvider>
+      <LanguageProvider>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <AppContent />
+          </AuthProvider>
+        </QueryClientProvider>
+      </LanguageProvider>
     </SafeAreaProvider>
   );
 }
@@ -172,5 +248,12 @@ const styles = StyleSheet.create({
     zIndex: 1000,
     elevation: 1000,
     backgroundColor: colors.background,
+  },
+  googleOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.55)",
+    zIndex: 2,
   },
 });

@@ -16,12 +16,17 @@
     "expo-av": "~16.0.8",
     "expo-constants": "~18.0.13",
     "expo-image-picker": "~17.0.11",
+    "expo-linking": "~8.0.12",
+    "expo-localization": "^57.0.1",
     "expo-secure-store": "~15.0.8",
     "expo-status-bar": "~3.0.8",
+    "expo-web-browser": "~15.0.11",
+    "i18next": "^26.3.6",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "react-i18next": "^17.0.11",
     "react-native": "0.81.4",
-    "react-native-maps": "^1.29.0",
+    "react-native-maps": "^1.20.1",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
     "react-native-svg": "15.12.1",
@@ -34,7 +39,8 @@
     "start": "expo start --port 8081",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "i18n:sync": "node scripts/sync-web-locales.mjs"
   },
   "private": true,
   "devDependencies": {

@@ -1,8 +1,11 @@
 import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function SavedSearchRow({ item, onPress, onRemove }) {
+  const { t } = useAppLanguage();
+
   return (
     <TouchableOpacity
       style={styles.row}
@@ -14,9 +17,15 @@ export default function SavedSearchRow({ item, onPress, onRemove }) {
       </View>
       <View style={styles.info}>
         <Text style={styles.query}>{item.query}</Text>
-        <Text style={styles.meta}>
-          {item.results} résultat{item.results > 1 ? "s" : ""} · {item.date}
-        </Text>
+        {item.results != null || item.date ? (
+          <Text style={styles.meta}>
+            {item.results != null
+              ? t("mobile.favorites.resultsCount", { count: item.results })
+              : null}
+            {item.results != null && item.date ? " · " : null}
+            {item.date || null}
+          </Text>
+        ) : null}
       </View>
       <TouchableOpacity
         activeOpacity={0.7}

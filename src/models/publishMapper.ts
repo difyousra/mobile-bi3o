@@ -59,8 +59,9 @@ function buildDescription(draft: PublishDraft): string {
 export function draftToCreateDto(draft: PublishDraft): CreateAnnonceDto {
   const sousCategorieId = Number(draft.sousCategorieId);
   if (!Number.isFinite(sousCategorieId) || sousCategorieId <= 0) {
-    throw new Error(
-      "Sous-catégorie requise (sousCategorieId). Sélectionnez une catégorie API."
+    throw Object.assign(
+      new Error("Sous-catégorie requise (sousCategorieId). Sélectionnez une catégorie API."),
+      { code: "SOUS_CATEGORIE_REQUIRED" }
     );
   }
 
@@ -73,10 +74,13 @@ export function draftToCreateDto(draft: PublishDraft): CreateAnnonceDto {
     ? 0
     : getFinalPriceDa(rawPrice, priceUnit, false);
   if (!isDonation && !priceOptional && (!Number.isFinite(prix) || prix < 1)) {
-    throw new Error("Prix invalide. Indiquez un prix d'au moins 1 Da, ou cochez « Je fais un don ».");
+    throw Object.assign(
+      new Error("Prix invalide. Indiquez un prix d'au moins 1 Da, ou cochez « Je fais un don »."),
+      { code: "INVALID_PRICE" }
+    );
   }
   if (!isDonation && priceOptional && rawPrice && (!Number.isFinite(prix) || prix < 0)) {
-    throw new Error("Prix invalide.");
+    throw Object.assign(new Error("Prix invalide."), { code: "INVALID_PRICE_SHORT" });
   }
 
   const type =

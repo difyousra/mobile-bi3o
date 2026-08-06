@@ -1,14 +1,16 @@
 import { View, Text, StyleSheet } from "react-native";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function PublishStepIndicator({ currentStep, totalSteps, stepLabel }) {
+  const { t } = useAppLanguage();
   const progress = currentStep / totalSteps;
 
   return (
     <View style={styles.wrap}>
       <View style={styles.labels}>
         <Text style={styles.stepText}>
-          ÉTAPE {currentStep} SUR {totalSteps}
+          {t("mobile.publish.stepProgress", { current: currentStep, total: totalSteps })}
         </Text>
         <Text style={styles.stepText}>{stepLabel}</Text>
       </View>

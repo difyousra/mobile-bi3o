@@ -13,6 +13,8 @@ import { useMemo, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../theme/colors";
 import { isTruthyLike } from "../../../features/annonces/utils/subcategoryFieldHelpers";
+import { useAppLanguage } from "../../../i18n/LanguageProvider";
+import { optionLabel, optionValue } from "../../../i18n/subformFieldLabels";
 
 function FieldLabel({ label, required, unit }) {
   return (
@@ -32,16 +34,17 @@ export function TypeCardsField({ label, required, options = [], value, onChange 
       <FieldLabel label={label} required={required} />
       <View style={styles.cardsRow}>
         {options.map((opt) => {
-          const active = String(value || "").toLowerCase() === String(opt).toLowerCase();
+          const val = optionValue(opt);
+          const active = String(value || "").toLowerCase() === val.toLowerCase();
           return (
             <TouchableOpacity
-              key={opt}
+              key={val}
               style={[styles.card, active && styles.cardActive]}
-              onPress={() => onChange?.(opt)}
+              onPress={() => onChange?.(val)}
               activeOpacity={0.85}
             >
               <Text style={[styles.cardText, active && styles.cardTextActive]}>
-                {opt}
+                {optionLabel(opt)}
               </Text>
             </TouchableOpacity>
           );
@@ -64,17 +67,18 @@ export function ChoiceChipsField({
       <FieldLabel label={label} required={required} />
       <View style={styles.chipsRow}>
         {options.map((opt) => {
-          const active = String(value || "") === String(opt);
+          const val = optionValue(opt);
+          const active = String(value || "") === val;
           const filled = variant === "filled";
           return (
             <TouchableOpacity
-              key={opt}
+              key={val}
               style={[
                 styles.chip,
                 filled && styles.chipFilled,
                 active && (filled ? styles.chipFilledActive : styles.chipActive),
               ]}
-              onPress={() => onChange?.(opt)}
+              onPress={() => onChange?.(val)}
             >
               <Text
                 style={[
@@ -82,7 +86,7 @@ export function ChoiceChipsField({
                   active && (filled ? styles.chipTextFilledActive : styles.chipTextActive),
                 ]}
               >
-                {opt}
+                {optionLabel(opt)}
               </Text>
             </TouchableOpacity>
           );
@@ -98,17 +102,18 @@ export function RadioField({ label, required, options = [], value, onChange }) {
       <FieldLabel label={label} required={required} />
       <View style={styles.radioCol}>
         {options.map((opt) => {
-          const active = String(value || "") === String(opt);
+          const val = optionValue(opt);
+          const active = String(value || "") === val;
           return (
             <TouchableOpacity
-              key={opt}
+              key={val}
               style={styles.radioRow}
-              onPress={() => onChange?.(opt)}
+              onPress={() => onChange?.(val)}
             >
               <View style={[styles.radioOuter, active && styles.radioOuterActive]}>
                 {active ? <View style={styles.radioInner} /> : null}
               </View>
-              <Text style={styles.radioLabel}>{opt}</Text>
+              <Text style={styles.radioLabel}>{optionLabel(opt)}</Text>
             </TouchableOpacity>
           );
         })}
@@ -121,11 +126,14 @@ export function SwitchAttrField({
   label,
   required,
   value,
-  checkedValue = "Oui",
-  uncheckedValue = "Non",
+  checkedValue,
+  uncheckedValue,
   onChange,
 }) {
-  const checked = isTruthyLike(value) || String(value) === String(checkedValue);
+  const { t } = useAppLanguage();
+  const resolvedChecked = checkedValue ?? t("createAdWizard.yes");
+  const resolvedUnchecked = uncheckedValue ?? t("createAdWizard.no");
+  const checked = isTruthyLike(value) || String(value) === String(resolvedChecked);
   return (
     <View style={styles.switchRow}>
       <Text style={styles.label}>
@@ -135,7 +143,7 @@ export function SwitchAttrField({
       <Switch
         value={checked}
         onValueChange={(next) =>
-          onChange?.(next ? checkedValue : uncheckedValue)
+          onChange?.(next ? resolvedChecked : resolvedUnchecked)
         }
         trackColor={{ true: colors.primary, false: colors.greyChip }}
       />
@@ -177,6 +185,7 @@ export function ClearableNumberField({
 }
 
 export function DateMonthField({ label, required, value, onChange }) {
+  const { t } = useAppLanguage();
   return (
     <View style={styles.wrap}>
       <FieldLabel label={label} required={required} />
@@ -184,12 +193,12 @@ export function DateMonthField({ label, required, value, onChange }) {
         style={styles.textInput}
         value={value != null ? String(value) : ""}
         onChangeText={onChange}
-        placeholder="AAAA-MM"
+        placeholder={t("mobile.publish.dateMonthPlaceholder")}
         placeholderTextColor={colors.placeholder}
         maxLength={7}
         keyboardType="numbers-and-punctuation"
       />
-      <Text style={styles.hint}>Format : AAAA-MM (ex. 2026-08)</Text>
+      <Text style={styles.hint}>{t("mobile.publish.dateMonthHint")}</Text>
     </View>
   );
 }
@@ -203,6 +212,7 @@ function OptionsModal({
   onClose,
   onSelect,
 }) {
+  const { t } = useAppLanguage();
   const selectedSet = useMemo(() => {
     if (multi) {
       const list = Array.isArray(selected)
@@ -228,15 +238,16 @@ function OptionsModal({
           </View>
           <ScrollView style={styles.modalList}>
             {options.length === 0 ? (
-              <Text style={styles.emptyOptions}>Aucune option disponible</Text>
+              <Text style={styles.emptyOptions}>{t("mobile.publish.noOptionsAvailable")}</Text>
             ) : (
               options.map((opt) => {
-                const active = selectedSet.has(String(opt));
+                const val = optionValue(opt);
+                const active = selectedSet.has(val);
                 return (
                   <TouchableOpacity
-                    key={opt}
+                    key={val}
                     style={[styles.optionRow, active && styles.optionRowActive]}
-                    onPress={() => onSelect?.(opt, active)}
+                    onPress={() => onSelect?.(val, active)}
                   >
                     <Text
                       style={[
@@ -244,7 +255,7 @@ function OptionsModal({
                         active && styles.optionTextActive,
                       ]}
                     >
-                      {opt}
+                      {optionLabel(opt)}
                     </Text>
                     {active ? (
                       <Ionicons
@@ -260,7 +271,7 @@ function OptionsModal({
           </ScrollView>
           {multi ? (
             <TouchableOpacity style={styles.modalDone} onPress={onClose}>
-              <Text style={styles.modalDoneText}>Valider</Text>
+              <Text style={styles.modalDoneText}>{t("mobile.publish.validate")}</Text>
             </TouchableOpacity>
           ) : null}
         </Pressable>
@@ -275,10 +286,17 @@ export function ComboboxField({
   value,
   options = [],
   onChange,
-  placeholder = "Sélectionner",
+  placeholder,
   disabled = false,
 }) {
+  const { t } = useAppLanguage();
+  const resolvedPlaceholder = placeholder ?? t("createAdWizard.selectOption");
   const [open, setOpen] = useState(false);
+  const displayValue = useMemo(() => {
+    if (!value) return "";
+    const match = options.find((opt) => optionValue(opt) === String(value));
+    return match ? optionLabel(match) : String(value);
+  }, [options, value]);
   return (
     <View style={styles.wrap}>
       <FieldLabel label={label} required={required} />
@@ -289,7 +307,7 @@ export function ComboboxField({
         disabled={disabled}
       >
         <Text style={[styles.dropdownValue, !value && styles.placeholder]}>
-          {value || placeholder}
+          {displayValue || resolvedPlaceholder}
         </Text>
         <Ionicons name="chevron-down" size={18} color={colors.iconMuted} />
       </TouchableOpacity>
@@ -315,9 +333,11 @@ export function MultiDropdownField({
   value,
   options = [],
   onChange,
-  placeholder = "Sélectionner",
+  placeholder,
   disabled = false,
 }) {
+  const { t } = useAppLanguage();
+  const resolvedPlaceholder = placeholder ?? t("createAdWizard.selectOption");
   const [open, setOpen] = useState(false);
   const selectedList = useMemo(() => {
     if (Array.isArray(value)) return value.map(String).filter(Boolean);
@@ -328,12 +348,20 @@ export function MultiDropdownField({
   }, [value]);
 
   const display =
-    selectedList.length > 0 ? selectedList.join(", ") : placeholder;
+    selectedList.length > 0
+      ? selectedList
+          .map((val) => {
+            const match = options.find((opt) => optionValue(opt) === val);
+            return match ? optionLabel(match) : val;
+          })
+          .join(", ")
+      : resolvedPlaceholder;
 
   const toggle = (opt, wasActive) => {
+    const val = String(opt);
     const next = wasActive
-      ? selectedList.filter((item) => item !== String(opt))
-      : [...selectedList, String(opt)];
+      ? selectedList.filter((item) => item !== val)
+      : [...selectedList, val];
     onChange?.(next.join(","));
   };
 

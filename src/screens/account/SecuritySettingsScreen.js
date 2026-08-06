@@ -6,12 +6,15 @@ import {
   SettingsSectionCard,
   SettingsListRow,
 } from "../../components/settings/SettingsListRows";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function SecuritySettingsScreen({ navigation }) {
+  const { t } = useAppLanguage();
+
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <SettingsScreenHeader
-        title="Connexion et sécurité"
+        title={t("mobile.accountSettings.security")}
         onBack={() => navigation.goBack()}
       />
 
@@ -22,8 +25,8 @@ export default function SecuritySettingsScreen({ navigation }) {
       >
         <SettingsSectionCard>
           <SettingsListRow
-            label="Changer le mot de passe"
-            subtitle="Mettez à jour le mot de passe de votre compte Bi3oo."
+            label={t("mobile.settings.security.changePassword")}
+            subtitle={t("mobile.settings.security.changePasswordHint")}
             onPress={() => navigation.navigate("ChangePassword")}
             isLast
           />

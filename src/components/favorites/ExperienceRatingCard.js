@@ -1,13 +1,13 @@
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function ExperienceRatingCard({ rating, onRate }) {
+  const { t } = useAppLanguage();
   return (
     <View style={styles.card}>
-      <Text style={styles.question}>
-        Comment noteriez-vous votre expérience sur Bi3oo ?
-      </Text>
+      <Text style={styles.question}>{t("mobile.favorites.experienceQuestion")}</Text>
       <View style={styles.stars}>
         {[1, 2, 3, 4, 5].map((star) => (
           <TouchableOpacity

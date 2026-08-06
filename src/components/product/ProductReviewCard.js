@@ -1,8 +1,11 @@
 import { View, Text, Image, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function ProductReviewCard({ review }) {
+  const { t } = useAppLanguage();
+
   return (
     <View style={styles.card}>
       <View style={styles.header}>
@@ -22,15 +25,15 @@ export default function ProductReviewCard({ review }) {
 
       <View style={styles.meta}>
         <Text style={styles.metaLine}>
-          <Text style={styles.metaLabel}>Variant : </Text>
+          <Text style={styles.metaLabel}>{t("mobile.product.variantLabel")} </Text>
           {review.variant}
         </Text>
         <Text style={styles.metaLine}>
-          <Text style={styles.metaLabel}>Storage : </Text>
+          <Text style={styles.metaLabel}>{t("mobile.product.storageLabel")} </Text>
           {review.storage}
         </Text>
         <Text style={styles.metaLine}>
-          <Text style={styles.metaLabel}>Color : </Text>
+          <Text style={styles.metaLabel}>{t("mobile.product.colorLabel")} </Text>
           {review.color}
         </Text>
       </View>

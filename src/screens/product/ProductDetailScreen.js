@@ -25,7 +25,9 @@ import {
   useSellerPublicAds,
   useSignalAnnonce,
   useSimilarAds,
+  useExchangeRate,
 } from "../../hooks/useCatalog";
+import { resolveExchangeRates } from "../../services/exchangeService";
 import { useFollowStatus, useToggleFollow } from "../../hooks/useEngagement";
 import { useStartConversation, useReservationCalendar } from "../../hooks/useMessaging";
 import { mapPublicSeller, extractCalendarBusyDates } from "../../utils/profileHelpers";
@@ -40,25 +42,43 @@ import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "../../api/queryKeys";
 import { resolveMediaUrl } from "../../utils/mediaUrl";
 import SellerTypeBadge from "../../components/common/SellerTypeBadge";
+import PriceConversionRow from "../../components/common/PriceConversionRow";
 import AdDetailLivraisonCard from "../../components/product/AdDetailLivraisonCard";
 import MortgageLoanSimulator from "../../features/immobilier/components/MortgageLoanSimulator";
 import VehicleFinancingSimulator from "../../features/vehicules/components/VehicleFinancingSimulator";
 import { isImmobilierAd } from "../../features/immobilier/utils/isImmobilierAd";
 import { isVehicleAd } from "../../features/vehicules/utils/isVehicleAd";
 import { confirmDialog, alertDialog } from "../../utils/confirmDialog";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
+import {
+  translateCategoryDisplayName,
+  translateSubcategoryDisplayName,
+} from "../../i18n/taxonomyLabels";
 
 /* ─── Helpers ──────────────────────────────────────────────────────────────── */
 
-function relativeDate(iso) {
+function relativeDate(iso, t, language) {
   if (!iso) return null;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return null;
   const diff = Math.floor((Date.now() - d.getTime()) / 1000);
-  if (diff < 60) return "à l'instant";
-  if (diff < 3600) return `il y a ${Math.floor(diff / 60)} min`;
-  if (diff < 86400) return `il y a ${Math.floor(diff / 3600)} h`;
-  if (diff < 2592000) return `il y a ${Math.floor(diff / 86400)} j`;
-  return d.toLocaleDateString("fr-DZ", { day: "numeric", month: "short", year: "numeric" });
+  if (diff < 60) return t("mobile.product.relativeJustNow");
+  if (diff < 3600) return t("mobile.product.relativeMinutes", { count: Math.floor(diff / 60) });
+  if (diff < 86400) return t("mobile.product.relativeHours", { count: Math.floor(diff / 3600) });
+  if (diff < 2592000) return t("mobile.product.relativeDays", { count: Math.floor(diff / 86400) });
+  const locale = language === "ar" ? "ar-DZ" : language === "en" ? "en-GB" : "fr-DZ";
+  return d.toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" });
+}
+
+function getReportReasons(t) {
+  return [
+    t("mobile.product.reportReasonFraud"),
+    t("mobile.product.reportReasonForbidden"),
+    t("mobile.product.reportReasonPrice"),
+    t("mobile.product.reportReasonPhotos"),
+    t("mobile.product.reportReasonDuplicate"),
+    t("mobile.product.reportReasonOther"),
+  ];
 }
 
 /* ─── Galerie photos ───────────────────────────────────────────────────────── */
@@ -128,11 +148,16 @@ const gStyles = StyleSheet.create({
 /* ─── Badge type ───────────────────────────────────────────────────────────── */
 
 function TypeBadge({ type }) {
+  const { t } = useAppLanguage();
   if (!type) return null;
   const isDemande = String(type).toUpperCase() === "DEMANDE";
   return (
     <View style={[bStyles.badge, isDemande ? bStyles.demande : bStyles.offre]}>
-      <Text style={bStyles.text}>{isDemande ? "Demande" : "Offre"}</Text>
+      <Text style={bStyles.text}>
+        {isDemande
+          ? t("forms.deposit.annonceTypeDemandeTitle")
+          : t("forms.deposit.annonceTypeOffreTitle")}
+      </Text>
     </View>
   );
 }
@@ -145,10 +170,11 @@ const bStyles = StyleSheet.create({
 /* ─── Attributs ────────────────────────────────────────────────────────────── */
 
 function AttributsSection({ attributs }) {
+  const { t } = useAppLanguage();
   if (!attributs?.length) return null;
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Caractéristiques</Text>
+      <Text style={styles.sectionTitle}>{t("adDetailV2.characteristics")}</Text>
       <View style={styles.attrGrid}>
         {attributs.map((a, i) => (
           <View key={a.id ?? i} style={styles.attrItem}>
@@ -164,10 +190,11 @@ function AttributsSection({ attributs }) {
 /* ─── Carte localisation embarquée (MapView) ───────────────────────────────── */
 
 function LocationMapCard({ codePostal, ville }) {
+  const { t } = useAppLanguage();
   const coords = useMemo(() => resolveLocationCoords(codePostal, ville), [codePostal, ville]);
   if (!coords) return null;
 
-  const label = coords.label ?? ville ?? "Localisation";
+  const label = coords.label ?? ville ?? t("mobile.product.locationFallback");
 
   const openMap = () => {
     const query = encodeURIComponent(label);
@@ -187,9 +214,9 @@ function LocationMapCard({ codePostal, ville }) {
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeaderRow}>
-        <Text style={styles.sectionTitle}>Localisation</Text>
+        <Text style={styles.sectionTitle}>{t("adDetailV2.locationTitle")}</Text>
         <TouchableOpacity onPress={openMap}>
-          <Text style={styles.seeAll}>Ouvrir dans Maps</Text>
+          <Text style={styles.seeAll}>{t("mobile.product.openInMaps")}</Text>
         </TouchableOpacity>
       </View>
       <EmbeddedMap
@@ -205,6 +232,7 @@ function LocationMapCard({ codePostal, ville }) {
 /* ─── Vendeur + WhatsApp ───────────────────────────────────────────────────── */
 
 function SellerSection({ annonceId, sellerId, sellerName, vendeurEstPro, navigation, onContact, isPending }) {
+  const { t } = useAppLanguage();
   const { isAuthenticated, requireAuth } = useAuth();
   const { data: followData = false, isLoading: followLoading } = useFollowStatus(sellerId);
   const toggleFollow = useToggleFollow();
@@ -217,7 +245,7 @@ function SellerSection({ annonceId, sellerId, sellerName, vendeurEstPro, navigat
   });
 
   const seller = pubRaw ? mapPublicSeller(pubRaw, Number(sellerId)) : null;
-  const displayName = seller?.name || sellerName || "Vendeur Bi3oo";
+  const displayName = seller?.name || sellerName || t("annonceDetail.memberBi3oo");
   const avatar = seller?.avatar;
   const isPro = vendeurEstPro || seller?.typeCompte === "PRO";
 
@@ -225,7 +253,9 @@ function SellerSection({ annonceId, sellerId, sellerName, vendeurEstPro, navigat
   const adsCount = sellerAds?.totalElements ?? sellerAds?.products?.length ?? 0;
 
   const phone = getSellerPhone(pubRaw);
-  const waUrl = phone ? whatsappUrl(phone, `Bonjour, je suis intéressé par votre annonce.`) : null;
+  const waUrl = phone
+    ? whatsappUrl(phone, t("mobile.product.whatsappInterest"))
+    : null;
 
   const handleWhatsApp = () => {
     if (!waUrl) return;
@@ -240,7 +270,7 @@ function SellerSection({ annonceId, sellerId, sellerName, vendeurEstPro, navigat
 
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Vendeur</Text>
+      <Text style={styles.sectionTitle}>{t("mobile.product.sellerSection")}</Text>
       <View style={styles.sellerCard}>
         <TouchableOpacity
           style={styles.sellerInfo}
@@ -265,7 +295,9 @@ function SellerSection({ annonceId, sellerId, sellerName, vendeurEstPro, navigat
             </View>
             {seller?.ville ? <Text style={styles.sellerMeta}>{seller.ville}</Text> : null}
             {adsCount > 0 ? (
-              <Text style={styles.sellerMeta}>{adsCount} annonce{adsCount > 1 ? "s" : ""}</Text>
+              <Text style={styles.sellerMeta}>
+                {t("mobile.product.adsCount", { count: adsCount })}
+              </Text>
             ) : null}
           </View>
         </TouchableOpacity>
@@ -285,7 +317,7 @@ function SellerSection({ annonceId, sellerId, sellerName, vendeurEstPro, navigat
               color={followData ? colors.white : colors.primary}
             />
             <Text style={[styles.followBtnText, followData && styles.followBtnTextActive]}>
-              {followData ? "Suivi" : "Suivre"}
+              {followData ? t("mobile.product.following") : t("annonceDetail.followSeller")}
             </Text>
           </TouchableOpacity>
         ) : null}
@@ -299,13 +331,15 @@ function SellerSection({ annonceId, sellerId, sellerName, vendeurEstPro, navigat
           disabled={isPending}
         >
           <Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.white} />
-          <Text style={styles.contactBtnText}>{isPending ? "…" : "Message"}</Text>
+          <Text style={styles.contactBtnText}>
+            {isPending ? "…" : t("annonceDetail.messageShort")}
+          </Text>
         </TouchableOpacity>
 
         {waUrl ? (
           <TouchableOpacity style={[styles.contactBtnWa]} onPress={handleWhatsApp}>
             <Ionicons name="logo-whatsapp" size={20} color={colors.white} />
-            <Text style={styles.contactBtnText}>WhatsApp</Text>
+            <Text style={styles.contactBtnText}>{t("annonceDetail.whatsappShort")}</Text>
           </TouchableOpacity>
         ) : null}
 
@@ -321,7 +355,8 @@ function SellerSection({ annonceId, sellerId, sellerName, vendeurEstPro, navigat
 
 /* ─── Annonces similaires ──────────────────────────────────────────────────── */
 
-function SimilarAds({ sousCategorieId, categorieId, excludeId, navigation }) {
+function SimilarAds({ sousCategorieId, categorieId, excludeId, navigation, rates }) {
+  const { t } = useAppLanguage();
   const { data, isLoading } = useSimilarAds({ sousCategorieId, categorieId, excludeId });
   const products = data?.products ?? [];
 
@@ -329,7 +364,7 @@ function SimilarAds({ sousCategorieId, categorieId, excludeId, navigation }) {
 
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Annonces similaires</Text>
+      <Text style={styles.sectionTitle}>{t("adDetailV2.similarTitle")}</Text>
       <FlatList
         horizontal
         data={products}
@@ -351,15 +386,30 @@ function SimilarAds({ sousCategorieId, categorieId, excludeId, navigation }) {
               style={simStyles.img}
               resizeMode="cover"
             />
-            <Text style={simStyles.title} numberOfLines={2}>{item.title}</Text>
-            <Text style={simStyles.price}>{item.priceDa > 0 ? formatPrice(item.priceDa) : "Sur demande"}</Text>
-            <View style={simStyles.metaRow}>
-              <Ionicons name="heart-outline" size={12} color={colors.textMuted} />
-              <Text style={simStyles.metaText}>
-                {Number(item.favorisCount ?? 0)}
-              </Text>
+            <View style={simStyles.body}>
+              <Text style={simStyles.title} numberOfLines={2}>{item.title}</Text>
+              {item.priceDa > 0 ? (
+                <PriceConversionRow
+                  listing={{
+                    priceDa: item.priceDa,
+                    prix: item.priceDa,
+                    categorieId: item.categorieId,
+                    sousCategorieId: item.sousCategorieId,
+                  }}
+                  rates={rates}
+                  size="sm"
+                />
+              ) : (
+                <Text style={simStyles.price}>{t("adDetailV2.priceOnRequest")}</Text>
+              )}
+              <View style={simStyles.metaRow}>
+                <Ionicons name="heart-outline" size={12} color={colors.textMuted} />
+                <Text style={simStyles.metaText}>
+                  {Number(item.favorisCount ?? 0)}
+                </Text>
+              </View>
+              <Text style={simStyles.loc} numberOfLines={1}>{item.location}</Text>
             </View>
-            <Text style={simStyles.loc} numberOfLines={1}>{item.location}</Text>
           </TouchableOpacity>
         )}
       />
@@ -374,36 +424,29 @@ const simStyles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border,
   },
   img: { width: "100%", height: 100 },
+  body: { padding: 8, gap: 4 },
   title: {
     fontSize: 12, fontWeight: "600", color: colors.textHeading,
-    marginHorizontal: 10, marginTop: 8, lineHeight: 16,
+    lineHeight: 16,
   },
-  price: { fontSize: 12, fontWeight: "700", color: colors.primary, marginHorizontal: 10, marginTop: 4 },
+  price: { fontSize: 12, fontWeight: "700", color: colors.primary },
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    marginHorizontal: 10,
-    marginTop: 4,
   },
   metaText: { fontSize: 11, color: colors.textMuted },
-  loc: { fontSize: 11, color: colors.textMuted, marginHorizontal: 10, marginBottom: 10 },
+  loc: { fontSize: 11, color: colors.textMuted },
 });
 
 /* ─── Modal signalement ────────────────────────────────────────────────────── */
 
-const REPORT_REASONS = [
-  "Annonce frauduleuse",
-  "Produit interdit",
-  "Prix incorrect ou trompeur",
-  "Photos non conformes",
-  "Doublon",
-  "Autre",
-];
 
 function ReportModal({ annonceId, visible, onClose }) {
+  const { t } = useAppLanguage();
   const signal = useSignalAnnonce();
   const [selected, setSelected] = useState(null);
+  const reasons = useMemo(() => getReportReasons(t), [t]);
 
   if (!visible) return null;
 
@@ -412,8 +455,14 @@ function ReportModal({ annonceId, visible, onClose }) {
     signal.mutate(
       { id: annonceId, reason: selected },
       {
-        onSuccess: () => { Alert.alert("Signalement envoyé", "Merci pour votre signalement."); onClose(); },
-        onError: () => Alert.alert("Erreur", "Impossible d'envoyer le signalement."),
+        onSuccess: () => {
+          Alert.alert(
+            t("mobile.product.reportSentTitle"),
+            t("mobile.product.reportSentBody")
+          );
+          onClose();
+        },
+        onError: () => Alert.alert(t("mobile.common.error"), t("mobile.product.reportError")),
       }
     );
   };
@@ -422,12 +471,12 @@ function ReportModal({ annonceId, visible, onClose }) {
     <View style={rStyles.overlay}>
       <View style={rStyles.sheet}>
         <View style={rStyles.header}>
-          <Text style={rStyles.title}>Signaler l'annonce</Text>
+          <Text style={rStyles.title}>{t("mobile.product.reportModalTitle")}</Text>
           <TouchableOpacity onPress={onClose}>
             <Ionicons name="close" size={22} color={colors.textHeading} />
           </TouchableOpacity>
         </View>
-        {REPORT_REASONS.map((r) => (
+        {reasons.map((r) => (
           <TouchableOpacity
             key={r}
             style={[rStyles.reason, selected === r && rStyles.reasonSelected]}
@@ -447,7 +496,7 @@ function ReportModal({ annonceId, visible, onClose }) {
           disabled={!selected || signal.isPending}
         >
           <Text style={rStyles.sendBtnText}>
-            {signal.isPending ? "Envoi…" : "Envoyer le signalement"}
+            {signal.isPending ? t("annonceDetail.sending") : t("mobile.product.sendReport")}
           </Text>
         </TouchableOpacity>
       </View>
@@ -483,6 +532,7 @@ const rStyles = StyleSheet.create({
 /* ─── Écran principal ──────────────────────────────────────────────────────── */
 
 export default function ProductDetailScreen({ route, navigation }) {
+  const { t, language } = useAppLanguage();
   const insets = useSafeAreaInsets();
   const annonceId = route.params?.annonceId ?? route.params?.product?.id;
   const fallbackRaw = route.params?.product;
@@ -490,6 +540,11 @@ export default function ProductDetailScreen({ route, navigation }) {
   const { product, isLoading, isError } = usePublicAd(annonceId);
   const { data: stats } = usePublicAdStats(annonceId);
   const displayProduct = product ?? fallbackRaw;
+  const { data: exchange } = useExchangeRate();
+  const priceRates = useMemo(
+    () => resolveExchangeRates(exchange),
+    [exchange]
+  );
 
   const { isFavorite, toggleFavorite } = useFavorites();
   const { isAuthenticated, requireAuth } = useAuth();
@@ -518,7 +573,7 @@ export default function ProductDetailScreen({ route, navigation }) {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={22} color={colors.textHeading} />
         </TouchableOpacity>
-        <Text style={styles.errorText}>Annonce introuvable</Text>
+        <Text style={styles.errorText}>{t("adDetailV2.notFound")}</Text>
       </SafeAreaView>
     );
   }
@@ -536,17 +591,17 @@ export default function ProductDetailScreen({ route, navigation }) {
     }
     const id = annonceId ?? p.id;
     if (!id) {
-      alertDialog("Erreur", "Identifiant d'annonce manquant.");
+      alertDialog(t("mobile.common.error"), t("mobile.product.missingListingId"));
       return;
     }
-    const defaultMsg = "Bonjour, votre annonce m'intéresse ! Est-elle toujours disponible ?";
+    const defaultMsg = t("mobile.product.contactDefaultMessage");
     confirmDialog(
-      "Contacter le vendeur",
-      `Envoyer : « ${defaultMsg} »`,
+      t("mobile.product.contactSellerTitle"),
+      t("mobile.product.contactSellerPreview", { message: defaultMsg }),
       [
-        { text: "Annuler", style: "cancel" },
+        { text: t("mobile.common.cancel"), style: "cancel" },
         {
-          text: "Envoyer",
+          text: t("annonceDetail.send"),
           onPress: async () => {
             try {
               const conv = await startConversation.mutateAsync({
@@ -567,9 +622,9 @@ export default function ProductDetailScreen({ route, navigation }) {
                   seedConversation: {
                     id: conversationId,
                     sellerId: p.sellerId,
-                    sellerName: p.seller || "Vendeur",
+                    sellerName: p.seller || t("annonceDetail.sellerFallback"),
                     sellerAvatar: null,
-                    lastSeen: "Messagerie Bi3oo",
+                    lastSeen: t("mobile.messages.messagingBrand"),
                     headerVariant: "seller",
                     product: {
                       id,
@@ -583,8 +638,8 @@ export default function ProductDetailScreen({ route, navigation }) {
               });
             } catch (err) {
               alertDialog(
-                "Messagerie",
-                err?.message ?? "Impossible de démarrer la conversation."
+                t("mobile.messages.title"),
+                err?.message ?? t("mobile.product.conversationError")
               );
             }
           },
@@ -648,12 +703,39 @@ export default function ProductDetailScreen({ route, navigation }) {
               </View>
               <Text style={styles.title} numberOfLines={3}>{p.title}</Text>
               <Text style={styles.category}>
-                {[p.categorieNom, p.sousCategorieNom].filter(Boolean).join(" › ") || p.subtitle}
+                {(() => {
+                  const cat = translateCategoryDisplayName(
+                    t,
+                    p.categorieId,
+                    p.categorieNom
+                  );
+                  const sous = translateSubcategoryDisplayName(
+                    t,
+                    p.sousCategorieId,
+                    p.sousCategorieNom
+                  );
+                  return [cat, sous].filter(Boolean).join(" › ") || p.subtitle;
+                })()}
               </Text>
             </View>
-            <Text style={styles.priceSide}>
-              {p.priceDa > 0 ? formatPrice(p.priceDa) : "Sur demande"}
-            </Text>
+            <View style={styles.priceSideWrap}>
+              {p.priceDa > 0 ? (
+                <PriceConversionRow
+                  listing={{
+                    priceDa: p.priceDa,
+                    prix: p.priceDa,
+                    categorieId: p.categorieId,
+                    sousCategorieId: p.sousCategorieId,
+                    categorieNom: p.categorieNom,
+                  }}
+                  rates={priceRates}
+                  size="lg"
+                  showBankLine
+                />
+              ) : (
+                <Text style={styles.priceSide}>{t("adDetailV2.priceOnRequest")}</Text>
+              )}
+            </View>
           </View>
 
           <View style={styles.metaRow}>
@@ -666,19 +748,19 @@ export default function ProductDetailScreen({ route, navigation }) {
             <View style={styles.metaItem}>
               <Ionicons name="heart-outline" size={13} color={colors.textMuted} />
               <Text style={styles.metaText}>
-                {favorisCount} favori{favorisCount !== 1 ? "s" : ""}
+                {t("mobile.product.favorites", { count: favorisCount })}
               </Text>
             </View>
             {views != null ? (
               <View style={styles.metaItem}>
                 <Ionicons name="eye-outline" size={13} color={colors.textMuted} />
-                <Text style={styles.metaText}>{views} vue{views !== 1 ? "s" : ""}</Text>
+                <Text style={styles.metaText}>{t("mobile.product.views", { count: views })}</Text>
               </View>
             ) : null}
-            {relativeDate(p.createdAt) ? (
+            {relativeDate(p.createdAt, t, language) ? (
               <View style={styles.metaItem}>
                 <Ionicons name="time-outline" size={13} color={colors.textMuted} />
-                <Text style={styles.metaText}>{relativeDate(p.createdAt)}</Text>
+                <Text style={styles.metaText}>{relativeDate(p.createdAt, t, language)}</Text>
               </View>
             ) : null}
           </View>
@@ -687,7 +769,10 @@ export default function ProductDetailScreen({ route, navigation }) {
         <View style={styles.expandedPanel}>
           {/* Onglets */}
           <View style={styles.tabRow}>
-            {[["description", "Description"], ["attrs", "Caractéristiques"]].map(([key, label]) => (
+            {[
+              ["description", t("adDetailV2.descriptionTitle")],
+              ["attrs", t("adDetailV2.characteristics")],
+            ].map(([key, label]) => (
               <TouchableOpacity
                 key={key}
                 style={[styles.tab, activeTab === key && styles.tabActive]}
@@ -702,7 +787,9 @@ export default function ProductDetailScreen({ route, navigation }) {
 
           {activeTab === "description" ? (
             <View style={styles.section}>
-              <Text style={styles.description}>{p.description || "Aucune description fournie."}</Text>
+              <Text style={styles.description}>
+                {p.description || t("mobile.product.noDescription")}
+              </Text>
             </View>
           ) : (
             <AttributsSection attributs={p.attributs} />
@@ -765,14 +852,16 @@ export default function ProductDetailScreen({ route, navigation }) {
           {busyDates.length > 0 && (
             <View style={styles.section}>
               <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionTitle}>Réservation</Text>
+                <Text style={styles.sectionTitle}>{t("mobile.product.reservation")}</Text>
                 <TouchableOpacity
                   onPress={() => navigation.navigate("MyReservations", { annonceId: annonceId ?? p.id })}
                 >
-                  <Text style={styles.seeAll}>Demander</Text>
+                  <Text style={styles.seeAll}>{t("mobile.product.requestReservation")}</Text>
                 </TouchableOpacity>
               </View>
-              <Text style={styles.description}>Dates occupées : {busyDates.join(", ")}</Text>
+              <Text style={styles.description}>
+                {t("mobile.product.busyDates", { dates: busyDates.join(", ") })}
+              </Text>
             </View>
           )}
 
@@ -782,6 +871,7 @@ export default function ProductDetailScreen({ route, navigation }) {
             categorieId={p.categorieId}
             excludeId={p.id}
             navigation={navigation}
+            rates={priceRates}
           />
         </View>
       </ScrollView>
@@ -829,7 +919,14 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: "700", color: colors.textHeading, lineHeight: 26 },
   category: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   priceSide: {
-    fontSize: 18, fontWeight: "700", color: colors.primary, flexShrink: 0, marginTop: 22,
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.primary,
+    textAlign: "right",
+  },
+  priceSideWrap: {
+    maxWidth: "48%",
+    alignItems: "flex-end",
   },
   proBadgeInline: {
     backgroundColor: "#FEF3C7", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2,

@@ -1,16 +1,17 @@
 import { View, Text, StyleSheet } from "react-native";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function SearchEmptyState() {
+  const { t } = useAppLanguage();
+
   return (
     <View style={styles.container}>
       <View style={styles.iconWrap}>
         <Text style={styles.exclamation}>!</Text>
       </View>
-      <Text style={styles.title}>Oops! We couldn&apos;t find anything.</Text>
-      <Text style={styles.subtitle}>
-        Looks like there are no products that match your search.
-      </Text>
+      <Text style={styles.title}>{t("mobile.search.emptyTitle")}</Text>
+      <Text style={styles.subtitle}>{t("mobile.search.emptySubtitle")}</Text>
     </View>
   );
 }

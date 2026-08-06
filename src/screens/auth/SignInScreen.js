@@ -3,20 +3,24 @@ import { StatusBar } from "expo-status-bar";
 import AuthHeader from "../../components/auth/AuthHeader";
 import SignInForm from "../../components/auth/SignInForm";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function SignInScreen({
   onSignUpPress,
   onGooglePress,
   onForgotPasswordPress,
   onBackPress,
+  googleLoading = false,
 }) {
+  const { t } = useAppLanguage();
+
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
       <AuthHeader
-        title="Sign In"
-        promptText="You don't have an account? "
-        linkText="Sign up"
+        title={t("mobile.auth.signInTitle")}
+        promptText={t("mobile.auth.signInPrompt")}
+        linkText={t("mobile.auth.signUpLink")}
         onLinkPress={onSignUpPress}
         onBackPress={onBackPress}
       />
@@ -24,6 +28,7 @@ export default function SignInScreen({
         onSignUpPress={onSignUpPress}
         onGooglePress={onGooglePress}
         onForgotPasswordPress={onForgotPasswordPress}
+        googleLoading={googleLoading}
       />
     </View>
   );

@@ -12,10 +12,13 @@ import { colors } from "../../theme/colors";
 import { normalizeProduct, formatPrice } from "../../utils/productMapper";
 import { enrichProduct } from "../../data/mockProductDetails";
 import { useCart } from "../../context/CartContext";
+import { ENABLE_BUY_WALLET } from "../../config/featureFlags";
 import ProductImageGallery from "../../components/product/ProductImageGallery";
 import ProductReviewCard from "../../components/product/ProductReviewCard";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function ProductReviewsScreen({ route, navigation }) {
+  const { t } = useAppLanguage();
   const raw = route.params?.product;
   const product = raw ? enrichProduct(normalizeProduct(raw)) : null;
   const { addItem } = useCart();
@@ -32,12 +35,13 @@ export default function ProductReviewsScreen({ route, navigation }) {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={22} color={colors.textHeading} />
         </TouchableOpacity>
-        <Text style={styles.error}>Produit introuvable</Text>
+        <Text style={styles.error}>{t("mobile.product.notFound")}</Text>
       </SafeAreaView>
     );
   }
 
   const handleContinue = () => {
+    if (!ENABLE_BUY_WALLET) return;
     addItem({ ...product, selectedColor, selectedStorage }, quantity);
     navigation.navigate("Checkout");
   };
@@ -48,7 +52,7 @@ export default function ProductReviewsScreen({ route, navigation }) {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={22} color={colors.textHeading} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Review & Ratings</Text>
+        <Text style={styles.headerTitle}>{t("mobile.product.reviewsTitle")}</Text>
         <View style={styles.headerSpacer} />
       </SafeAreaView>
 
@@ -106,7 +110,10 @@ export default function ProductReviewsScreen({ route, navigation }) {
           </View>
 
           <Text style={styles.reviewsCount}>
-            {product.reviews} reviews · {product.sold} sold
+            {t("mobile.product.reviewsCount", {
+              count: product.reviews,
+              sold: product.sold,
+            })}
           </Text>
 
           {product.reviewsList.map((review) => (
@@ -115,6 +122,7 @@ export default function ProductReviewsScreen({ route, navigation }) {
         </View>
       </ScrollView>
 
+      {ENABLE_BUY_WALLET ? (
       <View style={styles.footer}>
         <View style={styles.qtyRow}>
           <TouchableOpacity
@@ -132,16 +140,17 @@ export default function ProductReviewsScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
         <View style={styles.footerPrice}>
-          <Text style={styles.subtotalLabel}>Total Price</Text>
+          <Text style={styles.subtotalLabel}>{t("mobile.product.totalPrice")}</Text>
           <Text style={styles.subtotalValue}>
             {formatPrice(product.priceDa * quantity)}
           </Text>
         </View>
         <TouchableOpacity style={styles.continueBtn} onPress={handleContinue}>
-          <Text style={styles.continueText}>Continue</Text>
+          <Text style={styles.continueText}>{t("mobile.common.continue")}</Text>
           <Ionicons name="arrow-forward" size={16} color={colors.white} />
         </TouchableOpacity>
       </View>
+      ) : null}
     </View>
   );
 }

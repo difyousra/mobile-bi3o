@@ -27,6 +27,7 @@ import {
 import { useVoiceRecorder } from "../../hooks/useVoiceRecorder";
 import { colors } from "../../theme/colors";
 import { formatPrice } from "../../utils/productMapper";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function ChatContent({
   conversation,
@@ -34,6 +35,7 @@ export default function ChatContent({
   onBack,
   navigation,
 }) {
+  const { t } = useAppLanguage();
   const { user } = useAuth();
   const currentUserId = user?.id ?? null;
   const id = conversationId ?? conversation.id;
@@ -67,8 +69,8 @@ export default function ChatContent({
     } catch (error) {
       setDraft(text);
       Alert.alert(
-        "Envoi impossible",
-        error?.message ?? "Réessayez dans un instant."
+        t("mobile.messages.sendFailedTitle"),
+        error?.message ?? t("mobile.messages.sendFailedBody")
       );
     }
   };
@@ -89,20 +91,26 @@ export default function ChatContent({
   };
 
   const handleMenuPress = () => {
-    Alert.alert("Options", undefined, [
+    Alert.alert(t("mobile.messages.optionsTitle"), undefined, [
       {
-        text: "Archiver",
+        text: t("mobile.messages.archive"),
         onPress: () =>
           archiveMutation.mutate(id, {
             onSuccess: () => {
-              Alert.alert("Archivée", "Conversation archivée.");
+              Alert.alert(
+                t("mobile.messages.archivedTitle"),
+                t("mobile.messages.archivedBody")
+              );
               onBack?.();
             },
             onError: (e) =>
-              Alert.alert("Erreur", e?.message ?? "Archive impossible."),
+              Alert.alert(
+                t("mobile.common.error"),
+                e?.message ?? t("mobile.messages.archiveError")
+              ),
           }),
       },
-      { text: "Annuler", style: "cancel" },
+      { text: t("mobile.common.cancel"), style: "cancel" },
     ]);
   };
 
@@ -116,8 +124,8 @@ export default function ChatContent({
       });
     } catch (error) {
       Alert.alert(
-        "Photo",
-        error?.message ?? "L'envoi de la photo a échoué."
+        t("mobile.messages.photoTitle"),
+        error?.message ?? t("mobile.messages.photoSendError")
       );
     }
   };
@@ -125,7 +133,10 @@ export default function ChatContent({
   const pickFromGallery = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert("Permission", "Autorisez l'accès à la galerie.");
+      Alert.alert(
+        t("mobile.account.galleryPermissionTitle"),
+        t("mobile.account.galleryPermission")
+      );
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -139,7 +150,10 @@ export default function ChatContent({
   const pickFromCamera = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert("Permission", "Autorisez l'accès à l'appareil photo.");
+      Alert.alert(
+        t("mobile.account.galleryPermissionTitle"),
+        t("mobile.messages.cameraPermission")
+      );
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -151,10 +165,10 @@ export default function ChatContent({
   };
 
   const handleAttachPress = () => {
-    Alert.alert("Envoyer une photo", undefined, [
-      { text: "Galerie", onPress: () => pickFromGallery() },
-      { text: "Appareil photo", onPress: () => pickFromCamera() },
-      { text: "Annuler", style: "cancel" },
+    Alert.alert(t("mobile.messages.sendPhotoTitle"), undefined, [
+      { text: t("mobile.messages.gallery"), onPress: () => pickFromGallery() },
+      { text: t("mobile.messages.camera"), onPress: () => pickFromCamera() },
+      { text: t("mobile.common.cancel"), style: "cancel" },
     ]);
   };
 
@@ -163,9 +177,9 @@ export default function ChatContent({
     if (!result?.ok) {
       const msg =
         result?.error === "not-allowed"
-          ? "Autorisez l'accès au micro pour envoyer un message vocal."
-          : "Impossible de démarrer l'enregistrement.";
-      Alert.alert("Micro", msg);
+          ? t("mobile.messages.micDenied")
+          : t("mobile.messages.micError");
+      Alert.alert(t("mobile.messages.micTitle"), msg);
     }
   };
 
@@ -176,8 +190,8 @@ export default function ChatContent({
       await audioMutation.mutateAsync(file);
     } catch (error) {
       Alert.alert(
-        "Vocal",
-        error?.message ?? "L'envoi du message vocal a échoué."
+        t("mobile.messages.voiceTitle"),
+        error?.message ?? t("mobile.messages.voiceSendError")
       );
     }
   };
@@ -226,7 +240,7 @@ export default function ChatContent({
 
         {isError ? (
           <Text style={styles.error} onPress={() => refetch()}>
-            Impossible de charger les messages. Toucher pour réessayer.
+            {t("mobile.messages.loadMessagesError")}
           </Text>
         ) : null}
 

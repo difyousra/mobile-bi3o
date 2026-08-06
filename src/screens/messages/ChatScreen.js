@@ -2,8 +2,10 @@ import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { useMessages } from "../../context/MessagesContext";
 import ChatContent from "../../components/messages/ChatContent";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function ChatScreen({ route, navigation }) {
+  const { t } = useAppLanguage();
   const { conversationId, seedConversation } = route.params ?? {};
   const { getConversation, isLoading } = useMessages();
   const fromList = getConversation(conversationId);
@@ -25,14 +27,14 @@ export default function ChatScreen({ route, navigation }) {
 
   const safeConversation = conversation ?? {
     id: conversationId,
-    sellerName: "Conversation",
+    sellerName: t("mobile.messages.conversationFallback"),
     sellerAvatar:
       "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&q=80",
-    lastSeen: "Messagerie Bi3oo",
+    lastSeen: t("mobile.messages.messagingBrand"),
     product: {
       id: route.params?.annonceId ?? conversationId,
-      title: route.params?.productTitle ?? "Annonce",
-      status: "Annonce",
+      title: route.params?.productTitle ?? t("mobile.messages.listingFallback"),
+      status: t("mobile.messages.listingFallback"),
       price: "",
       image:
         route.params?.productImage ??

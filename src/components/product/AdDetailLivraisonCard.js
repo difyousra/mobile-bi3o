@@ -6,6 +6,7 @@ import {
   normalizeLivraisonPartners,
 } from "../../features/annonces/utils/livraisonFinalizer";
 import { colors } from "../../theme/colors";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 /** Logos partenaires — mêmes fichiers que bi3oo_front_new_design/public/images/livraison */
 export const LIVRAISON_PARTNER_LOGOS = {
@@ -15,18 +16,24 @@ export const LIVRAISON_PARTNER_LOGOS = {
   Yalidine: require("../../../assets/livraison/yalidine.png"),
 };
 
-async function openPartnerWebsite(name) {
+async function openPartnerWebsite(name, t) {
   const url = LIVRAISON_PARTNER_WEBSITES[name];
   if (!url) return;
   try {
     const can = await Linking.canOpenURL(url);
     if (!can) {
-      Alert.alert("Lien", `Impossible d'ouvrir ${name}.`);
+      Alert.alert(
+        t("mobile.product.linkErrorTitle"),
+        t("mobile.product.linkOpenFailed", { name })
+      );
       return;
     }
     await Linking.openURL(url);
   } catch {
-    Alert.alert("Lien", `Impossible d'ouvrir le site de ${name}.`);
+    Alert.alert(
+      t("mobile.product.linkErrorTitle"),
+      t("mobile.product.linkOpenFailedGeneric", { name })
+    );
   }
 }
 
@@ -39,11 +46,12 @@ export function LivraisonPartnersGrid({
   readOnly = true,
   onToggle,
 }) {
+  const { t } = useAppLanguage();
   const selectedSet = new Set(normalizeLivraisonPartners(selected));
 
   return (
     <View style={styles.partners}>
-      <Text style={styles.partnersLabel}>Partenaires</Text>
+      <Text style={styles.partnersLabel}>{t("forms.deposit.livraison.partnersShort")}</Text>
       <View style={styles.partnerGrid}>
         {LIVRAISON_PARTENAIRE_OPTIONS.map((name) => {
           const on = selectedSet.has(name);
@@ -71,10 +79,12 @@ export function LivraisonPartnersGrid({
                 style={[styles.partner, on && styles.partnerOn]}
                 activeOpacity={website ? 0.75 : 1}
                 disabled={!website}
-                onPress={() => openPartnerWebsite(name)}
+                onPress={() => openPartnerWebsite(name, t)}
                 accessibilityRole="link"
                 accessibilityLabel={
-                  website ? `${name}, ouvrir le site` : name
+                  website
+                    ? t("mobile.product.partnerOpenSite", { name })
+                    : name
                 }
               >
                 {content}
@@ -89,13 +99,13 @@ export function LivraisonPartnersGrid({
               activeOpacity={0.85}
               onPress={() => onToggle?.(name)}
               onLongPress={
-                website ? () => openPartnerWebsite(name) : undefined
+                website ? () => openPartnerWebsite(name, t) : undefined
               }
               accessibilityRole="button"
               accessibilityState={{ selected: on }}
               accessibilityLabel={name}
               accessibilityHint={
-                website ? "Appui long pour ouvrir le site" : undefined
+                website ? t("mobile.product.longPressOpenSite") : undefined
               }
             >
               {content}
@@ -108,7 +118,7 @@ export function LivraisonPartnersGrid({
 }
 
 /**
- * Carte « En livraison » — alignée web AdDetailLivraisonCard + LivraisonFinaliserCard.
+ * Carte « En livraison » — alignée web AdDetailLivraisonCard + LivraisonFinalizerCard.
  * Affiche toujours les 5 sociétés ; celles sélectionnées sont marquées ✓.
  */
 export default function AdDetailLivraisonCard({
@@ -116,6 +126,8 @@ export default function AdDetailLivraisonCard({
   partenaires = [],
   bureau = "",
 }) {
+  const { t } = useAppLanguage();
+
   if (!livraisonDisponible) return null;
 
   const selected = normalizeLivraisonPartners(partenaires);
@@ -129,14 +141,14 @@ export default function AdDetailLivraisonCard({
             <Ionicons name="car-outline" size={16} color="#475569" />
           </View>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={styles.title}>En livraison</Text>
+            <Text style={styles.title}>{t("forms.deposit.livraison.title")}</Text>
             <Text style={styles.subtitle}>
-              Les frais de livraison sont à la charge de l'acheteur
+              {t("forms.deposit.livraison.subtitle")}
             </Text>
           </View>
         </View>
         <View style={styles.activeBadge}>
-          <Text style={styles.activeBadgeText}>Activé</Text>
+          <Text style={styles.activeBadgeText}>{t("forms.deposit.livraison.active")}</Text>
         </View>
       </View>
 
@@ -144,7 +156,7 @@ export default function AdDetailLivraisonCard({
 
       {bureauText ? (
         <View style={styles.bureau}>
-          <Text style={styles.bureauLabel}>Bureau ou point relais</Text>
+          <Text style={styles.bureauLabel}>{t("forms.deposit.livraison.bureauLabel")}</Text>
           <Text style={styles.bureauValue}>{bureauText}</Text>
         </View>
       ) : null}

@@ -19,6 +19,8 @@ import {
   fetchSousCategories,
 } from "../../services/taxoService";
 import { categoryLabel } from "../../models/adMapper";
+import { subcategoryNodeLabel } from "../../i18n/taxonomyLabels";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 /**
  * Sélection catégorie + sous-catégorie depuis la taxo API.
@@ -32,6 +34,7 @@ export default function CategoryPicker({
   categorieId: categorieIdProp,
   onChange,
 }) {
+  const { t } = useAppLanguage();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState("category"); // category | subcategory
   const [pickedCategorieId, setPickedCategorieId] = useState(
@@ -63,10 +66,10 @@ export default function CategoryPicker({
     () =>
       (tree || []).map((node) => ({
         id: Number(node.id),
-        nom: categoryLabel(node),
+        nom: categoryLabel(node, t),
         sousFromTree: node.sousCategories ?? node.children ?? [],
       })),
-    [tree]
+    [tree, t]
   );
 
   const selectedSous = useMemo(
@@ -88,8 +91,9 @@ export default function CategoryPicker({
     return cat?.nom ?? "";
   }, [categories, selectedCategorieId]);
 
-  const selectedLabel =
-    selectedSous?.nom ?? value ?? "";
+  const selectedLabel = selectedSous
+    ? subcategoryNodeLabel(selectedSous, t)
+    : value ?? "";
 
   const sousForCategory = useMemo(() => {
     if (pickedCategorieId == null) return [];
@@ -97,17 +101,21 @@ export default function CategoryPicker({
     const fromTree = (cat?.sousFromTree || [])
       .map((s) => ({
         id: Number(s.id),
-        nom: categoryLabel(s),
+        nom: subcategoryNodeLabel(s, t),
         categorieId: Number(pickedCategorieId),
       }))
       .filter((s) => Number.isFinite(s.id));
 
     if (fromTree.length > 0) return fromTree;
 
-    return sousCategories.filter(
-      (s) => Number(s.categorieId) === Number(pickedCategorieId)
-    );
-  }, [pickedCategorieId, categories, sousCategories]);
+    // Fallback : on localise même si le backend renvoie `nom` en FR.
+    return sousCategories
+      .filter((s) => Number(s.categorieId) === Number(pickedCategorieId))
+      .map((s) => ({
+        ...s,
+        nom: subcategoryNodeLabel(s, t),
+      }));
+  }, [pickedCategorieId, categories, sousCategories, t]);
 
   const filteredCategories = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -162,21 +170,21 @@ export default function CategoryPicker({
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.label}>Catégorie</Text>
+      <Text style={styles.label}>{t("mobile.publish.category")}</Text>
       <TouchableOpacity
         style={styles.select}
         onPress={openPicker}
         activeOpacity={0.8}
       >
         <Text style={[styles.value, !displayValue && styles.placeholder]}>
-          {displayValue || "Sélectionner une catégorie"}
+          {displayValue || t("mobile.publish.selectCategory")}
         </Text>
         <Ionicons name="chevron-down" size={20} color={colors.greyMuted} />
       </TouchableOpacity>
 
       {isLoading ? <ActivityIndicator color={colors.primary} /> : null}
       {isError ? (
-        <Text style={styles.error}>Impossible de charger la taxonomie.</Text>
+        <Text style={styles.error}>{t("mobile.publish.taxonomyError")}</Text>
       ) : null}
 
       {/* Raccourcis catégories racines */}
@@ -239,8 +247,8 @@ export default function CategoryPicker({
               )}
               <Text style={styles.sheetTitle}>
                 {step === "category"
-                  ? "Choisir une catégorie"
-                  : "Choisir une sous-catégorie"}
+                  ? t("mobile.publish.chooseCategory")
+                  : t("mobile.publish.chooseSubcategory")}
               </Text>
               <TouchableOpacity onPress={() => setOpen(false)}>
                 <Ionicons name="close" size={22} color={colors.navy} />
@@ -250,7 +258,7 @@ export default function CategoryPicker({
             {step === "subcategory" && pickedCategorieId != null ? (
               <Text style={styles.sheetSubtitle}>
                 {categories.find((c) => c.id === Number(pickedCategorieId))
-                  ?.nom || "Catégorie"}
+                  ?.nom || t("mobile.publish.category")}
               </Text>
             ) : null}
 
@@ -262,8 +270,8 @@ export default function CategoryPicker({
                 onChangeText={setSearch}
                 placeholder={
                   step === "category"
-                    ? "Rechercher une catégorie…"
-                    : "Rechercher une sous-catégorie…"
+                    ? t("mobile.publish.searchCategory")
+                    : t("mobile.publish.searchSubcategory")
                 }
                 placeholderTextColor={colors.placeholder}
                 autoCorrect={false}
@@ -321,11 +329,13 @@ export default function CategoryPicker({
                   })}
 
               {step === "category" && filteredCategories.length === 0 ? (
-                <Text style={styles.empty}>Aucune catégorie trouvée.</Text>
+                <Text style={styles.empty}>
+                  {t("mobile.publish.noCategoryFound")}
+                </Text>
               ) : null}
               {step === "subcategory" && filteredSous.length === 0 ? (
                 <Text style={styles.empty}>
-                  Aucune sous-catégorie pour cette catégorie.
+                  {t("mobile.publish.noSubcategoryFound")}
                 </Text>
               ) : null}
             </ScrollView>

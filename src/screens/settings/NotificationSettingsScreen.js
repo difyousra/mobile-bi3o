@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
 import SettingsScreenHeader from "../../components/settings/SettingsScreenHeader";
 import { useUserPreferences } from "../../hooks/useUserPreferences";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 const TOGGLE_ON = "#1B2B4B";
 const TOGGLE_OFF = "#C8CDD3";
@@ -88,30 +89,25 @@ function GroupBlock({ subtitle, children }) {
   );
 }
 
-function PromoBanner({ onClose, onActivate }) {
+function PromoBanner({ onClose, onActivate, closeLabel, title, text, activateLabel }) {
   return (
     <View style={styles.promo}>
       <TouchableOpacity
         style={styles.promoClose}
         onPress={onClose}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        accessibilityLabel="Fermer"
+        accessibilityLabel={closeLabel}
       >
         <Ionicons name="close" size={18} color={colors.textMuted} />
       </TouchableOpacity>
-      <Text style={styles.promoTitle}>
-        Soyez le premier sur les bonnes affaires !
-      </Text>
-      <Text style={styles.promoText}>
-        Activez les notifications pour être averti dès qu'une nouvelle annonce
-        correspond à votre recherche
-      </Text>
+      <Text style={styles.promoTitle}>{title}</Text>
+      <Text style={styles.promoText}>{text}</Text>
       <TouchableOpacity
         style={styles.promoBtn}
         onPress={onActivate}
         activeOpacity={0.85}
       >
-        <Text style={styles.promoBtnText}>Activer les notifications</Text>
+        <Text style={styles.promoBtnText}>{activateLabel}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -119,6 +115,7 @@ function PromoBanner({ onClose, onActivate }) {
 
 export default function NotificationSettingsScreen({ navigation }) {
   const { prefs, ready, setPreference } = useUserPreferences();
+  const { t } = useAppLanguage();
   const [expanded, setExpanded] = useState({
     messaging: true,
     adLife: true,
@@ -142,11 +139,15 @@ export default function NotificationSettingsScreen({ navigation }) {
     setPreference("notifPromoBannerVisible", false);
   };
 
+  const screenTitle = t("mobile.accountSettings.notifications");
+  const channelMobile = t("mobile.settings.notifications.channelMobile");
+  const channelEmail = t("mobile.settings.notifications.channelEmail");
+
   if (!ready) {
     return (
       <SafeAreaView style={styles.safe} edges={["top"]}>
         <SettingsScreenHeader
-          title="Notifications"
+          title={screenTitle}
           onBack={() => navigation.goBack()}
         />
         <View style={styles.loading}>
@@ -160,7 +161,7 @@ export default function NotificationSettingsScreen({ navigation }) {
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <View style={styles.headerWrap}>
         <SettingsScreenHeader
-          title="Notifications"
+          title={screenTitle}
           onBack={() => navigation.goBack()}
         />
       </View>
@@ -173,24 +174,28 @@ export default function NotificationSettingsScreen({ navigation }) {
           <PromoBanner
             onClose={() => setPreference("notifPromoBannerVisible", false)}
             onActivate={activateAllPush}
+            closeLabel={t("mobile.common.close")}
+            title={t("mobile.settings.notifications.promoTitle")}
+            text={t("mobile.settings.notifications.promoText")}
+            activateLabel={t("mobile.settings.notifications.promoActivate")}
           />
         ) : null}
 
         <ExpandableSection
-          title="Messagerie"
+          title={t("mobile.settings.notifications.sectionMessaging")}
           expanded={expanded.messaging}
           onToggle={() => toggleSection("messaging")}
         >
-          <GroupBlock subtitle="Nouveaux messages">
+          <GroupBlock subtitle={t("mobile.settings.notifications.groupNewMessages")}>
             <ChannelRow
               icon="phone-portrait-outline"
-              label="Notifications mobile"
+              label={channelMobile}
               value={!!prefs.notifMsgPush}
               onValueChange={(v) => setPreference("notifMsgPush", v)}
             />
             <ChannelRow
               icon="mail-outline"
-              label="E-mails"
+              label={channelEmail}
               value={!!prefs.notifMsgEmail}
               onValueChange={(v) => setPreference("notifMsgEmail", v)}
               isLast
@@ -199,14 +204,14 @@ export default function NotificationSettingsScreen({ navigation }) {
         </ExpandableSection>
 
         <ExpandableSection
-          title="Vie de l'annonce"
+          title={t("mobile.settings.notifications.sectionAdLife")}
           expanded={expanded.adLife}
           onToggle={() => toggleSection("adLife")}
         >
-          <GroupBlock subtitle="Mise en favoris de mes annonces">
+          <GroupBlock subtitle={t("mobile.settings.notifications.groupFavorites")}>
             <ChannelRow
               icon="phone-portrait-outline"
-              label="Notifications mobile"
+              label={channelMobile}
               value={!!prefs.notifFavoritePush}
               onValueChange={(v) => setPreference("notifFavoritePush", v)}
               isLast
@@ -215,14 +220,14 @@ export default function NotificationSettingsScreen({ navigation }) {
         </ExpandableSection>
 
         <ExpandableSection
-          title="Mise en ligne de mes annonces"
+          title={t("mobile.settings.notifications.sectionPublished")}
           expanded={expanded.published}
           onToggle={() => toggleSection("published")}
         >
           <GroupBlock>
             <ChannelRow
               icon="phone-portrait-outline"
-              label="Notifications mobile"
+              label={channelMobile}
               value={!!prefs.notifPublishedPush}
               onValueChange={(v) => setPreference("notifPublishedPush", v)}
               isLast
@@ -231,14 +236,14 @@ export default function NotificationSettingsScreen({ navigation }) {
         </ExpandableSection>
 
         <ExpandableSection
-          title="Expiration de mes annonces"
+          title={t("mobile.settings.notifications.sectionExpiry")}
           expanded={expanded.expiry}
           onToggle={() => toggleSection("expiry")}
         >
           <GroupBlock>
             <ChannelRow
               icon="phone-portrait-outline"
-              label="Notifications mobile"
+              label={channelMobile}
               value={!!prefs.notifExpiryPush}
               onValueChange={(v) => setPreference("notifExpiryPush", v)}
               isLast
@@ -247,30 +252,30 @@ export default function NotificationSettingsScreen({ navigation }) {
         </ExpandableSection>
 
         <ExpandableSection
-          title="Actus, offres et conseils"
+          title={t("mobile.settings.notifications.sectionNews")}
           expanded={expanded.news}
           onToggle={() => toggleSection("news")}
         >
-          <GroupBlock subtitle="Newsletters à propos des nouvelles fonctionnalités, des offres promo du moment et des tendances de recherche">
+          <GroupBlock subtitle={t("mobile.settings.notifications.groupNewsletter")}>
             <ChannelRow
               icon="phone-portrait-outline"
-              label="Notifications mobile"
+              label={channelMobile}
               value={!!prefs.notifNewsletterPush}
               onValueChange={(v) => setPreference("notifNewsletterPush", v)}
             />
             <ChannelRow
               icon="mail-outline"
-              label="E-mails"
+              label={channelEmail}
               value={!!prefs.notifNewsletterEmail}
               onValueChange={(v) => setPreference("notifNewsletterEmail", v)}
               isLast
             />
           </GroupBlock>
           <View style={styles.groupDivider} />
-          <GroupBlock subtitle="Communications personnalisées par rapport à votre utilisation et des conseils rien que pour vous">
+          <GroupBlock subtitle={t("mobile.settings.notifications.groupPersonalized")}>
             <ChannelRow
               icon="phone-portrait-outline"
-              label="Notifications mobile"
+              label={channelMobile}
               value={!!prefs.notifNewsPersonalizedPush}
               onValueChange={(v) =>
                 setPreference("notifNewsPersonalizedPush", v)
@@ -278,7 +283,7 @@ export default function NotificationSettingsScreen({ navigation }) {
             />
             <ChannelRow
               icon="mail-outline"
-              label="E-mails"
+              label={channelEmail}
               value={!!prefs.notifNewsPersonalizedEmail}
               onValueChange={(v) =>
                 setPreference("notifNewsPersonalizedEmail", v)

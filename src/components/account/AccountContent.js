@@ -31,37 +31,39 @@ import {
 import { resolveMediaUrl } from "../../utils/mediaUrl";
 import { alertDialog, confirmDialog } from "../../utils/confirmDialog";
 import { useTabBarInset } from "../../hooks/useTabBarInset";
+import { ENABLE_BUY_WALLET } from "../../config/featureFlags";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 import WalletBalanceCard from "./WalletBalanceCard";
 import TopUpModal from "./TopUpModal";
 
-const MENU_ITEMS = [
+const MENU_ITEM_DEFS = [
   {
     id: "password",
-    label: "Change Password",
+    labelKey: "settings.security.changePassword",
     icon: "key-outline",
     route: "ChangePassword",
   },
   {
     id: "editProfile",
-    label: "Modifier le profil",
+    labelKey: "profilePublicUi.editTitle",
     icon: "create-outline",
     route: "EditProfile",
   },
   {
     id: "favorites",
-    label: "My favourites",
+    labelKey: "nav.favorites",
     icon: "heart-outline",
     tab: "Favorites",
   },
   {
     id: "reservations",
-    label: "Mes réservations",
+    labelKey: "mobile.account.reservations",
     icon: "calendar-outline",
     route: "MyReservations",
   },
   {
     id: "settings",
-    label: "Mes paramètres",
+    labelKey: "mobile.accountSettings.title",
     icon: "settings-outline",
     route: "AccountSettings",
   },
@@ -82,6 +84,7 @@ function ActivityTile({ item, onPress }) {
 }
 
 export default function AccountContent() {
+  const { t } = useAppLanguage();
   const navigation = useNavigation();
   const tabBarInset = useTabBarInset();
   const { user, setUser, logout, refreshUser } = useAuth();
@@ -123,14 +126,14 @@ export default function AccountContent() {
     () => [
       {
         id: "selling",
-        label: "Annonces",
+        label: t("profileUi.tabListings"),
         icon: "cube-outline",
         badge: Number(managedAds?.totalElements ?? managedAds?.content?.length ?? 0),
         route: "MyListings",
       },
       {
         id: "reservations",
-        label: "Réserv.",
+        label: t("mobile.account.reservationsShort"),
         icon: "calendar-outline",
         badge: Number(
           reservations?.totalElements ?? reservations?.content?.length ?? 0
@@ -139,7 +142,7 @@ export default function AccountContent() {
       },
       {
         id: "contact",
-        label: "Messages",
+        label: t("common.messages"),
         icon: "chatbubble-outline",
         badge: conversations.reduce(
           (sum, conv) => sum + Number(conv?.unreadCount ?? 0),
@@ -148,7 +151,16 @@ export default function AccountContent() {
         route: "Messages",
       },
     ],
-    [managedAds, conversations, reservations]
+    [managedAds, conversations, reservations, t]
+  );
+
+  const menuItems = useMemo(
+    () =>
+      MENU_ITEM_DEFS.map((item) => ({
+        ...item,
+        label: t(item.labelKey),
+      })),
+    [t]
   );
 
   const handleActivityPress = (item) => {
@@ -176,7 +188,10 @@ export default function AccountContent() {
   const handleAvatarPress = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      alertDialog("Permission", "Autorisez l'accès à la galerie.");
+      alertDialog(
+        t("mobile.account.galleryPermissionTitle"),
+        t("mobile.account.galleryPermission")
+      );
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -206,22 +221,28 @@ export default function AccountContent() {
       }
       await refreshUser?.();
       await refetchPublicSeller?.();
-      alertDialog("Avatar", "Photo de profil mise à jour.");
+      alertDialog(
+        t("mobile.account.avatarTitle"),
+        t("mobile.account.avatarUpdated")
+      );
     } catch (error) {
       alertDialog(
-        "Avatar",
-        error?.message ?? "Upload impossible (POST /users/me/avatar)."
+        t("mobile.account.avatarTitle"),
+        error?.message ?? t("mobile.account.avatarUploadError")
       );
     }
   };
 
   const handleLogout = () => {
-    confirmDialog("Déconnexion", "Voulez-vous vous déconnecter ?", [
-      { text: "Annuler", style: "cancel" },
-      {
-        text: "Me déconnecter",
-        style: "destructive",
-        onPress: async () => {
+    confirmDialog(
+      t("mobile.account.logoutConfirmTitle"),
+      t("mobile.account.logoutConfirmBody"),
+      [
+        { text: t("mobile.common.cancel"), style: "cancel" },
+        {
+          text: t("mobile.account.logoutAction"),
+          style: "destructive",
+          onPress: async () => {
           try {
             await logout();
           } catch {
@@ -261,9 +282,11 @@ export default function AccountContent() {
             </View>
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={styles.greeting}>Hi, {displayName}</Text>
+            <Text style={styles.greeting}>
+              {t("mobile.account.greeting", { name: displayName })}
+            </Text>
             <Text style={styles.greetingSub}>
-              {user?.email ?? "Ready to shop again?"}
+              {user?.email ?? t("mobile.account.greetingSub")}
             </Text>
             {city ? <Text style={styles.accountType}>{city}</Text> : null}
             {bio ? (
@@ -278,32 +301,36 @@ export default function AccountContent() {
         </View>
 
         <View style={styles.sheet}>
-          <TouchableOpacity
-            style={styles.walletHeader}
-            onPress={() => navigation.navigate("MyWallet")}
-          >
-            <Text style={styles.walletBrand}>
-              <Text style={styles.walletBrandAccent}>Bi3oo </Text>
-              Wallet
-            </Text>
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color={colors.textMuted}
-            />
-          </TouchableOpacity>
+          {ENABLE_BUY_WALLET ? (
+            <>
+              <TouchableOpacity
+                style={styles.walletHeader}
+                onPress={() => navigation.navigate("MyWallet")}
+              >
+                <Text style={styles.walletBrand}>
+                  <Text style={styles.walletBrandAccent}>Bi3oo </Text>
+                  {t("mobile.account.walletBrandSuffix")}
+                </Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color={colors.textMuted}
+                />
+              </TouchableOpacity>
 
-          <WalletBalanceCard
-            balance={balance}
-            balanceVisible={balanceVisible}
-            onToggleVisibility={() => setBalanceVisible((v) => !v)}
-            updatedAt={balanceUpdated}
-            onTransfer={() => {}}
-            onTopUp={() => setTopUpVisible(true)}
-            onPressCard={() => navigation.navigate("MyWallet")}
-          />
+              <WalletBalanceCard
+                balance={balance}
+                balanceVisible={balanceVisible}
+                onToggleVisibility={() => setBalanceVisible((v) => !v)}
+                updatedAt={balanceUpdated}
+                onTransfer={() => {}}
+                onTopUp={() => setTopUpVisible(true)}
+                onPressCard={() => navigation.navigate("MyWallet")}
+              />
+            </>
+          ) : null}
 
-          <Text style={styles.sectionTitle}>Mon activité</Text>
+          <Text style={styles.sectionTitle}>{t("mobile.account.myActivity")}</Text>
           <View style={styles.activityRow}>
             {activityItems.map((item) => (
               <ActivityTile
@@ -315,7 +342,7 @@ export default function AccountContent() {
           </View>
 
           <View style={styles.menuCard}>
-            {MENU_ITEMS.map((item, index) => (
+            {menuItems.map((item, index) => (
               <TouchableOpacity
                 key={item.id}
                 style={[styles.menuRow, index > 0 && styles.menuRowBorder]}
@@ -338,10 +365,10 @@ export default function AccountContent() {
             style={styles.logoutRow}
             onPress={handleLogout}
             accessibilityRole="button"
-            accessibilityLabel="Me déconnecter"
+            accessibilityLabel={t("mobile.account.logoutAction")}
           >
             <Ionicons name="power-outline" size={22} color={colors.primary} />
-            <Text style={styles.logoutText}>Me déconnecter</Text>
+            <Text style={styles.logoutText}>{t("mobile.account.logoutAction")}</Text>
             <Ionicons
               name="chevron-forward"
               size={20}
@@ -351,13 +378,15 @@ export default function AccountContent() {
         </View>
       </ScrollView>
 
-      <TopUpModal
-        visible={topUpVisible}
-        amount={topUpAmount}
-        onChangeAmount={setTopUpAmount}
-        onClose={() => setTopUpVisible(false)}
-        onConfirm={handleTopUpConfirm}
-      />
+      {ENABLE_BUY_WALLET ? (
+        <TopUpModal
+          visible={topUpVisible}
+          amount={topUpAmount}
+          onChangeAmount={setTopUpAmount}
+          onClose={() => setTopUpVisible(false)}
+          onConfirm={handleTopUpConfirm}
+        />
+      ) : null}
     </>
   );
 }

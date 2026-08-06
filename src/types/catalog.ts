@@ -6,6 +6,7 @@ export type AdCard = {
   titre: string;
   prix?: number;
   ville?: string;
+  codePostal?: string;
   coverUrl?: string;
   photosCount?: number;
   createdAt?: string;
@@ -13,6 +14,8 @@ export type AdCard = {
   sousCategorieId?: number;
   userId?: number;
   vendeurPublicNom?: string;
+  vendeurPublicPhotoUrl?: string;
+  vendeurPhotoUrl?: string;
   vendeurEstPro?: boolean;
   favorisCount?: number;
   views?: number;

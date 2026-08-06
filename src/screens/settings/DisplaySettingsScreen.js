@@ -16,6 +16,7 @@ import {
   SettingsSwitchRow,
 } from "../../components/settings/SettingsListRows";
 import { useUserPreferences } from "../../hooks/useUserPreferences";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 const LANGUAGES = [
   { id: "fr", label: "Français" },
@@ -25,11 +26,19 @@ const LANGUAGES = [
 
 export default function DisplaySettingsScreen({ navigation }) {
   const { prefs, ready, setPreference } = useUserPreferences();
+  const { t, language, setLanguage } = useAppLanguage();
+
+  const selectedLang = language || prefs.language || "fr";
+
+  const onSelectLanguage = async (id) => {
+    await setPreference("language", id);
+    await setLanguage(id);
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <SettingsScreenHeader
-        title="Affichage"
+        title={t("mobile.display.title")}
         onBack={() => navigation.goBack()}
       />
       {!ready ? (
@@ -41,15 +50,12 @@ export default function DisplaySettingsScreen({ navigation }) {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          <SettingsIntro>
-            Personnalisez la langue et la densité d’affichage de l’application.
-            Le changement de langue sera appliqué progressivement aux écrans.
-          </SettingsIntro>
+          <SettingsIntro>{t("mobile.display.intro")}</SettingsIntro>
 
-          <Text style={styles.sectionLabel}>Langue</Text>
+          <Text style={styles.sectionLabel}>{t("mobile.display.language")}</Text>
           <SettingsSectionCard>
             {LANGUAGES.map((lang, index) => {
-              const selected = prefs.language === lang.id;
+              const selected = selectedLang === lang.id;
               return (
                 <TouchableOpacity
                   key={lang.id}
@@ -57,8 +63,11 @@ export default function DisplaySettingsScreen({ navigation }) {
                     styles.langRow,
                     index === LANGUAGES.length - 1 && styles.langRowLast,
                   ]}
-                  onPress={() => setPreference("language", lang.id)}
+                  onPress={() => onSelectLanguage(lang.id)}
                   activeOpacity={0.65}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  accessibilityLabel={lang.label}
                 >
                   <Text style={styles.langLabel}>{lang.label}</Text>
                   {selected ? (
@@ -79,11 +88,11 @@ export default function DisplaySettingsScreen({ navigation }) {
             })}
           </SettingsSectionCard>
 
-          <Text style={styles.sectionLabel}>Listes</Text>
+          <Text style={styles.sectionLabel}>{t("mobile.display.lists")}</Text>
           <SettingsSectionCard>
             <SettingsSwitchRow
-              label="Listes compactes"
-              subtitle="Réduire l’espacement des cartes d’annonces."
+              label={t("mobile.display.compactLists")}
+              subtitle={t("mobile.display.compactListsHint")}
               value={prefs.compactLists}
               onValueChange={(v) => setPreference("compactLists", v)}
               isLast

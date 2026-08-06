@@ -15,8 +15,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
 import { useChangePassword } from "../../hooks/useProfile";
+import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 export default function ChangePasswordScreen({ navigation }) {
+  const { t } = useAppLanguage();
   const mutation = useChangePassword();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -24,15 +26,24 @@ export default function ChangePasswordScreen({ navigation }) {
 
   const handleSubmit = async () => {
     if (!currentPassword.trim()) {
-      Alert.alert("Mot de passe", "Le mot de passe actuel est obligatoire.");
+      Alert.alert(
+        t("accountSettingsPage.sectionPassword"),
+        t("authLogin.passwordRequired")
+      );
       return;
     }
     if (newPassword.length < 8) {
-      Alert.alert("Mot de passe", "Au moins 8 caractères.");
+      Alert.alert(
+        t("accountSettingsPage.sectionPassword"),
+        t("accountSettingsPage.errPwdLen")
+      );
       return;
     }
     if (newPassword !== confirm) {
-      Alert.alert("Mot de passe", "La confirmation ne correspond pas.");
+      Alert.alert(
+        t("accountSettingsPage.sectionPassword"),
+        t("accountSettingsPage.errPwdMatch")
+      );
       return;
     }
     try {
@@ -40,13 +51,13 @@ export default function ChangePasswordScreen({ navigation }) {
         currentPassword: currentPassword.trim(),
         newPassword,
       });
-      Alert.alert("Succès", "Mot de passe mis à jour.", [
-        { text: "OK", onPress: () => navigation.goBack() },
+      Alert.alert(t("mobile.common.success"), t("accountSettingsPage.toastPassword"), [
+        { text: t("mobile.common.ok"), onPress: () => navigation.goBack() },
       ]);
     } catch (error) {
       Alert.alert(
-        "Erreur",
-        error?.message ?? "Impossible de changer le mot de passe."
+        t("mobile.common.error"),
+        error?.message ?? t("accountSettingsPage.errPwdChange")
       );
     }
   };
@@ -57,7 +68,7 @@ export default function ChangePasswordScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={22} color={colors.textHeading} />
         </TouchableOpacity>
-        <Text style={styles.title}>Changer le mot de passe</Text>
+        <Text style={styles.title}>{t("settings.security.changePassword")}</Text>
         <View style={{ width: 22 }} />
       </View>
 
@@ -66,7 +77,7 @@ export default function ChangePasswordScreen({ navigation }) {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView contentContainerStyle={styles.content}>
-          <Text style={styles.label}>Mot de passe actuel</Text>
+          <Text style={styles.label}>{t("accountSettingsPage.currentPassword")}</Text>
           <TextInput
             style={styles.input}
             secureTextEntry
@@ -77,24 +88,24 @@ export default function ChangePasswordScreen({ navigation }) {
             autoCapitalize="none"
           />
 
-          <Text style={styles.label}>Nouveau mot de passe</Text>
+          <Text style={styles.label}>{t("accountSettingsPage.newPassword")}</Text>
           <TextInput
             style={styles.input}
             secureTextEntry
             value={newPassword}
             onChangeText={setNewPassword}
-            placeholder="Au moins 8 caractères"
+            placeholder={t("authRegister.minPassword")}
             placeholderTextColor={colors.textMuted}
             autoCapitalize="none"
           />
 
-          <Text style={styles.label}>Confirmer</Text>
+          <Text style={styles.label}>{t("accountSettingsPage.confirmPassword")}</Text>
           <TextInput
             style={styles.input}
             secureTextEntry
             value={confirm}
             onChangeText={setConfirm}
-            placeholder="••••••••"
+            placeholder={t("accountSettingsPage.confirmPasswordPh")}
             placeholderTextColor={colors.textMuted}
             autoCapitalize="none"
           />
@@ -107,7 +118,9 @@ export default function ChangePasswordScreen({ navigation }) {
             {mutation.isPending ? (
               <ActivityIndicator color={colors.white} />
             ) : (
-              <Text style={styles.btnText}>Enregistrer</Text>
+              <Text style={styles.btnText}>
+                {t("accountSettingsPage.updatePassword")}
+              </Text>
             )}
           </TouchableOpacity>
         </ScrollView>

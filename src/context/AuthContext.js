@@ -18,14 +18,13 @@ import {
   navigateToReturnTarget,
   resetToHome,
 } from "../navigation/navigationRef";
+import i18n from "../i18n";
 
 const AuthContext = createContext(null);
 
-const LOGIN_ERROR_MESSAGES = {
-  ACCOUNT_DISABLED_PENDING_PRO:
-    "Votre compte professionnel est en attente de validation par l'équipe Bi3oo.",
-  ACCOUNT_DISABLED_ADMIN:
-    "Ce compte a été désactivé. Contactez le support Bi3oo.",
+const LOGIN_ERROR_I18N_KEYS = {
+  ACCOUNT_DISABLED_PENDING_PRO: "mobile.auth.accountDisabledPendingPro",
+  ACCOUNT_DISABLED_ADMIN: "mobile.auth.accountDisabledAdmin",
 };
 
 async function enrichUserWithPhoto(user) {
@@ -46,20 +45,22 @@ function loginErrorMessage(parsed) {
   const { statusCode, message, error } = parsed;
 
   if (statusCode === 403) {
-    if (error && LOGIN_ERROR_MESSAGES[error]) return LOGIN_ERROR_MESSAGES[error];
-    if (message && LOGIN_ERROR_MESSAGES[message]) {
-      return LOGIN_ERROR_MESSAGES[message];
+    if (error && LOGIN_ERROR_I18N_KEYS[error]) {
+      return i18n.t(LOGIN_ERROR_I18N_KEYS[error]);
+    }
+    if (message && LOGIN_ERROR_I18N_KEYS[message]) {
+      return i18n.t(LOGIN_ERROR_I18N_KEYS[message]);
     }
     return typeof error === "string" && error.length > 40
       ? error
-      : message ?? "Accès refusé.";
+      : message ?? i18n.t("mobile.auth.accessDenied");
   }
 
   if (statusCode === 401 || message === "Credentials are wrong") {
-    return "E-mail ou mot de passe incorrect.";
+    return i18n.t("mobile.auth.wrongCredentials");
   }
 
-  return message ?? "Connexion impossible.";
+  return message ?? i18n.t("mobile.auth.loginFailed");
 }
 
 export function AuthProvider({ children }) {
@@ -159,7 +160,7 @@ export function AuthProvider({ children }) {
           ok: false,
           message:
             me.message ??
-            "Connexion réussie mais impossible de charger le profil.",
+            i18n.t("mobile.auth.profileLoadFailed"),
         };
       } finally {
         setIsSubmitting(false);
@@ -223,7 +224,7 @@ export function AuthProvider({ children }) {
         ok: true,
         message:
           result.data?.message ??
-          "Si un compte existe, un e-mail a été envoyé.",
+          i18n.t("mobile.auth.forgotPasswordSent"),
       };
     } finally {
       setIsSubmitting(false);
@@ -260,7 +261,7 @@ export function AuthProvider({ children }) {
         await authService.logout();
         return {
           ok: false,
-          message: me.message ?? "Échange OAuth réussi mais profil inaccessible.",
+          message: me.message ?? i18n.t("mobile.auth.oauthProfileFailed"),
         };
       } finally {
         setIsSubmitting(false);
