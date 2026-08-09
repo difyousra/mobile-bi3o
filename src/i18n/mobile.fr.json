@@ -186,7 +186,7 @@
     "tabs": {
       "listings": "Favoris",
       "searches": "Mes recherches",
-      "sellers": "Mes vendeurs"
+      "sellers": "Mes abonnés"
     },
     "loadError": "Impossible de charger les favoris (JWT requis).",
     "searchesLoadError": "Impossible de charger vos recherches sauvegardées.",

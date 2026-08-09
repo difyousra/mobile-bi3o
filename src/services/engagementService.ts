@@ -150,56 +150,82 @@ export async function markAllNotificationsRead(): Promise<void> {
   await apiClient.post("/me/notifications/read-all");
 }
 
-/** GET /me/recherches */
+/** GET /me/recherches — charge toutes les pages. */
 export async function fetchSavedSearches(): Promise<SavedSearch[]> {
-  const { data } = await apiClient.get<unknown>("/me/recherches");
-  const rows = Array.isArray(data) ? data : asPage<SavedSearchRaw>(data).content;
+  const pageSize = 100;
+  const all: SavedSearch[] = [];
+  let page = 0;
+  let totalPages = 1;
 
-  return rows
-    .map((row: any) => {
-      const idNum = Number(row?.id);
-      if (!Number.isFinite(idNum)) return null;
+  while (page < totalPages && page < 20) {
+    const { data } = await apiClient.get<unknown>("/me/recherches", {
+      params: { page, size: pageSize, sort: "updatedAt,desc" },
+    });
 
-      const name = String(row?.name ?? row?.label ?? row?.titre ?? "").trim();
-      const queryJson = row?.queryJson ?? row?.query_json;
-      let query: string | undefined;
-      let filters: Record<string, unknown> | undefined;
+    const rows = Array.isArray(data)
+      ? data
+      : asPage<SavedSearchRaw>(data).content;
+    const mapped = rows
+      .map((row: any) => {
+        const idNum = Number(row?.id);
+        if (!Number.isFinite(idNum)) return null;
 
-      if (typeof queryJson === "string" && queryJson.trim()) {
-        try {
-          const parsed = JSON.parse(queryJson);
-          if (parsed && typeof parsed === "object") {
-            filters = parsed as Record<string, unknown>;
-            query =
-              (typeof parsed.q === "string" && parsed.q) ||
-              (typeof parsed.search === "string" && parsed.search) ||
-              (typeof parsed.query === "string" && parsed.query) ||
-              undefined;
-            if (typeof query === "string" && query.startsWith("?q=")) {
-              query = decodeURIComponent(query.replace(/^\?q=/, ""));
+        const name = String(row?.name ?? row?.label ?? row?.titre ?? "").trim();
+        const queryJson = row?.queryJson ?? row?.query_json;
+        let query: string | undefined;
+        let filters: Record<string, unknown> | undefined;
+
+        if (typeof queryJson === "string" && queryJson.trim()) {
+          try {
+            const parsed = JSON.parse(queryJson);
+            if (parsed && typeof parsed === "object") {
+              filters = parsed as Record<string, unknown>;
+              query =
+                (typeof parsed.q === "string" && parsed.q) ||
+                (typeof parsed.search === "string" && parsed.search) ||
+                (typeof parsed.query === "string" && parsed.query) ||
+                undefined;
+              if (typeof query === "string" && query.startsWith("?q=")) {
+                query = decodeURIComponent(query.replace(/^\?q=/, ""));
+              }
             }
+          } catch {
+            query = queryJson;
           }
-        } catch {
-          // queryJson non JSON → traiter comme texte brut
-          query = queryJson;
+        } else if (queryJson && typeof queryJson === "object") {
+          filters = queryJson as Record<string, unknown>;
+          query =
+            (typeof (queryJson as any).q === "string" &&
+              (queryJson as any).q) ||
+            undefined;
         }
-      } else if (queryJson && typeof queryJson === "object") {
-        filters = queryJson as Record<string, unknown>;
-        query =
-          (typeof (queryJson as any).q === "string" && (queryJson as any).q) ||
-          undefined;
-      }
 
-      return {
-        id: idNum,
-        label: name || query || `Recherche #${idNum}`,
-        query: query || name || "",
-        queryJson: typeof queryJson === "string" ? queryJson : undefined,
-        filters,
-        createdAt: row?.createdAt,
-      } as SavedSearch;
-    })
-    .filter((s): s is SavedSearch => s != null);
+        return {
+          id: idNum,
+          label: name || query || `Recherche #${idNum}`,
+          query: query || name || "",
+          queryJson: typeof queryJson === "string" ? queryJson : undefined,
+          filters,
+          createdAt: row?.createdAt ?? row?.updatedAt,
+        } as SavedSearch;
+      })
+      .filter((s): s is SavedSearch => s != null);
+
+    all.push(...mapped);
+
+    if (Array.isArray(data)) {
+      break;
+    }
+    const p = asPage<SavedSearchRaw>(data);
+    totalPages = Math.max(1, Number(p.totalPages) || 1);
+    if (mapped.length === 0) break;
+    page += 1;
+  }
+
+  // Déduplique par id (sécurité pagination).
+  const byId = new Map<number, SavedSearch>();
+  for (const s of all) byId.set(s.id, s);
+  return [...byId.values()];
 }
 
 /**
@@ -228,20 +254,28 @@ export async function createSavedSearch(payload: {
 }
 
 /**
- * GET /users/me/following — onglet « Mes vendeurs ».
+ * GET /users/me/following — onglet « Mes vendeurs » (toutes les pages).
  */
 export async function fetchFollowedSellers(params?: {
   page?: number;
   size?: number;
 }): Promise<FollowedSellersPage> {
-  const { data } = await apiClient.get<unknown>("/users/me/following", {
-    params: { page: params?.page ?? 0, size: params?.size ?? 50 },
-  });
-  const page = asPage<FollowedSellerDto>(data);
-  // Normalise les ids (Long Jackson parfois string).
-  return {
-    ...page,
-    content: page.content
+  const pageSize = params?.size ?? 100;
+  const all: FollowedSellerDto[] = [];
+  let page = params?.page ?? 0;
+  let totalPages = 1;
+  let lastPageMeta: ReturnType<typeof asPage<FollowedSellerDto>> | null = null;
+
+  // Si un page précis est demandé, une seule page.
+  const singlePage = params?.page != null;
+
+  while (page < totalPages && page < 20) {
+    const { data } = await apiClient.get<unknown>("/users/me/following", {
+      params: { page, size: pageSize, sort: "createdAt,desc" },
+    });
+    const p = asPage<FollowedSellerDto>(data);
+    lastPageMeta = p;
+    const mapped = p.content
       .map((row) => {
         if (!row || typeof row !== "object") return null;
         const id = Number(
@@ -252,8 +286,31 @@ export async function fetchFollowedSellers(params?: {
         if (!Number.isFinite(id) || id <= 0) return null;
         return { ...(row as FollowedSellerDto), id };
       })
-      .filter((s): s is FollowedSellerDto => s != null),
-  };
+      .filter((s): s is FollowedSellerDto => s != null);
+    all.push(...mapped);
+    totalPages = Math.max(1, Number(p.totalPages) || 1);
+    if (singlePage || mapped.length === 0) break;
+    page += 1;
+  }
+
+  const byId = new Map<number, FollowedSellerDto>();
+  for (const s of all) byId.set(s.id, s);
+  const content = [...byId.values()];
+
+  return {
+    content,
+    number: 0,
+    size: content.length,
+    totalElements: content.length,
+    totalPages: 1,
+    first: true,
+    last: true,
+    ...(lastPageMeta
+      ? {
+          totalElements: Number(lastPageMeta.totalElements) || content.length,
+        }
+      : {}),
+  } as FollowedSellersPage;
 }
 
 /** DELETE /me/recherches/{id} */

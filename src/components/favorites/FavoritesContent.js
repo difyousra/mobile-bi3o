@@ -2,21 +2,22 @@ import { useCallback, useMemo, useState } from "react";
 import {
   View,
   FlatList,
+  ScrollView,
   StyleSheet,
   Text,
   ActivityIndicator,
   TouchableOpacity,
   RefreshControl,
+  Image,
 } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import HomeHeader from "../home/HomeHeader";
 import HomeSearchBar from "../home/HomeSearchBar";
 import FavoritesTabs from "./FavoritesTabs";
 import ExperienceRatingCard from "./ExperienceRatingCard";
 import MarketplaceProductCard from "../home/MarketplaceProductCard";
-import SavedSellerRow from "./SavedSellerRow";
-import SavedSearchRow from "./SavedSearchRow";
 import { useFavorites } from "../../context/FavoritesContext";
 import {
   useFollowedSellers,
@@ -52,18 +53,17 @@ function sellerDisplayName(row, t) {
     : t("annonceDetail.memberBi3oo");
 }
 
-/** Retire les clés texte de recherche du payload filtres sauvegardé. */
 function filtersFromSavedSearch(item) {
   const raw = item?.filters;
   if (!raw || typeof raw !== "object") return undefined;
-  const {
-    q: _q,
-    query: _query,
-    search: _search,
-    ...rest
-  } = raw;
-  const merged = { ...DEFAULT_SEARCH_FILTERS, ...rest };
-  return merged;
+  const { q: _q, query: _query, search: _search, ...rest } = raw;
+  return { ...DEFAULT_SEARCH_FILTERS, ...rest };
+}
+
+function asArray(value) {
+  if (Array.isArray(value)) return value;
+  if (value && Array.isArray(value.content)) return value.content;
+  return [];
 }
 
 export default function FavoritesContent() {
@@ -80,7 +80,7 @@ export default function FavoritesContent() {
     refetch,
   } = useFavorites();
   const {
-    data: savedSearches = [],
+    data: savedSearchesData,
     isLoading: searchesLoading,
     isError: searchesError,
     refetch: refetchSearches,
@@ -100,38 +100,69 @@ export default function FavoritesContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [rating, setRating] = useState(0);
 
-  const go = (name, params) => {
-    // Remonte au stack racine si besoin (onglet Favoris → écrans stack).
-    const parent = navigation.getParent?.();
-    if (parent?.navigate) {
-      parent.navigate(name, params);
-      return;
-    }
-    if (navigation.navigate) {
-      navigation.navigate(name, params);
-      return;
-    }
-    rootNavigate(name, params);
-  };
+  const handleTabSelect = useCallback((id) => {
+    setActiveTab(id);
+    // Ne pas filtrer les autres onglets avec le texte saisi sur Favoris annonces.
+    setSearchQuery("");
+  }, []);
+
+  const savedSearches = asArray(savedSearchesData);
+  const sellers = useMemo(
+    () => asArray(followedSellersPage).filter((s) => sellerIdOf(s) != null),
+    [followedSellersPage]
+  );
+
+  const go = useCallback(
+    (name, params) => {
+      try {
+        const parent = navigation.getParent?.();
+        if (parent?.navigate) {
+          parent.navigate(name, params);
+          return;
+        }
+        if (navigation.navigate) {
+          navigation.navigate(name, params);
+          return;
+        }
+        rootNavigate(name, params);
+      } catch {
+        rootNavigate(name, params);
+      }
+    },
+    [navigation]
+  );
 
   const favoritesTabs = useMemo(
     () => [
-      { id: "annonces", label: t("mobile.favorites.tabs.listings") },
-      { id: "recherches", label: t("mobile.favorites.tabs.searches") },
-      { id: "vendeurs", label: t("mobile.favorites.tabs.sellers") },
+      {
+        id: "annonces",
+        label: t("mobile.favorites.tabs.listings"),
+        count: asArray(products).length,
+      },
+      {
+        id: "recherches",
+        label: t("mobile.favorites.tabs.searches"),
+        count: savedSearches.length,
+      },
+      {
+        id: "vendeurs",
+        label: t("mobile.favorites.tabs.sellers"),
+        count: sellers.length,
+      },
     ],
-    [t]
+    [t, products, savedSearches.length, sellers.length]
   );
 
   const visibleProducts = useMemo(() => {
+    const list = asArray(products);
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter(
+    if (!q) return list;
+    return list.filter(
       (p) =>
-        String(p.title || "")
+        String(p?.title || "")
           .toLowerCase()
           .includes(q) ||
-        String(p.location || "")
+        String(p?.location || "")
           .toLowerCase()
           .includes(q)
     );
@@ -141,17 +172,10 @@ export default function FavoritesContent() {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return savedSearches;
     return savedSearches.filter((s) => {
-      const label = String(s.label ?? s.titre ?? s.query ?? "");
+      const label = String(s?.label ?? s?.titre ?? s?.query ?? "");
       return label.toLowerCase().includes(q);
     });
   }, [savedSearches, searchQuery]);
-
-  const sellers = useMemo(() => {
-    const rows = Array.isArray(followedSellersPage)
-      ? followedSellersPage
-      : followedSellersPage?.content ?? [];
-    return rows.filter((s) => sellerIdOf(s) != null);
-  }, [followedSellersPage]);
 
   const filteredSellers = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -162,95 +186,93 @@ export default function FavoritesContent() {
   }, [sellers, searchQuery, t]);
 
   const onRefresh = useCallback(() => {
-    refetch();
-    refetchSearches();
-    refetchSellers();
+    refetch?.();
+    refetchSearches?.();
+    refetchSellers?.();
   }, [refetch, refetchSearches, refetchSellers]);
 
   useFocusEffect(
     useCallback(() => {
-      refetchSearches();
-      refetchSellers();
+      refetchSearches?.();
+      refetchSellers?.();
     }, [refetchSearches, refetchSellers])
   );
 
-  const handleRate = (value) => {
-    setRating(value);
-    showDevMessage(
-      t("mobile.favorites.ratingThanks"),
-      t("mobile.favorites.ratingMessage", { value })
-    );
-  };
-
   const openSavedSearch = (item) => {
-    const query = String(item.query ?? item.label ?? "").trim();
+    const query = String(item?.query ?? item?.label ?? "").trim();
     go("Search", {
       initialQuery: query,
       filters: filtersFromSavedSearch(item),
     });
   };
 
-  const header = (
-    <View style={styles.headerBlock}>
-      <HomeHeader
-        onNotificationPress={() => go("Notifications")}
-        onLogoPress={() => {
-          const parent = navigation.getParent?.();
-          if (parent?.navigate) {
-            parent.navigate("MainTabs", { screen: "Home" });
-          } else {
-            navigation.navigate("Home");
+  const refreshing =
+    activeTab === "annonces"
+      ? Boolean(isLoading)
+      : activeTab === "recherches"
+        ? Boolean(searchesLoading || searchesFetching)
+        : Boolean(sellersLoading || sellersFetching);
+
+  return (
+    <SafeAreaView style={styles.safe} edges={["top"]}>
+      <View style={styles.headerBlock}>
+        <HomeHeader
+          onNotificationPress={() => go("Notifications")}
+          onLogoPress={() => {
+            try {
+              navigation.navigate("Home");
+            } catch {
+              go("MainTabs", { screen: "Home" });
+            }
+          }}
+        />
+        {Number(unreadCount) > 0 ? (
+          <Text style={styles.unreadHint}>
+            {t("mobile.favorites.unread", { count: Number(unreadCount) || 0 })}
+          </Text>
+        ) : null}
+        <HomeSearchBar
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          onFilterPress={() => go("Search")}
+          placeholder={
+            activeTab === "vendeurs"
+              ? t("mobile.favorites.searchSellersPlaceholder")
+              : activeTab === "recherches"
+                ? t("mobile.favorites.searchSearchesPlaceholder")
+                : undefined
           }
-        }}
-      />
-      {unreadCount > 0 ? (
-        <Text style={styles.unreadHint}>
-          {t("mobile.favorites.unread", { count: unreadCount })}
-        </Text>
-      ) : null}
-      <HomeSearchBar
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        onFilterPress={() => go("Search")}
-        placeholder={
-          activeTab === "vendeurs"
-            ? t("mobile.favorites.searchSellersPlaceholder")
-            : activeTab === "recherches"
-              ? t("mobile.favorites.searchSearchesPlaceholder")
-              : undefined
-        }
-      />
-      <FavoritesTabs
-        tabs={favoritesTabs}
-        activeId={activeTab}
-        onSelect={setActiveTab}
-      />
-    </View>
-  );
+        />
+        <FavoritesTabs
+          tabs={favoritesTabs}
+          activeId={activeTab}
+          onSelect={handleTabSelect}
+        />
+      </View>
 
-  const listPadding = { paddingBottom: tabBarInset };
-
-  if (activeTab === "annonces") {
-    return (
-      <SafeAreaView style={styles.safe} edges={["top"]}>
-        {header}
+      {activeTab === "annonces" ? (
         <FlatList
+          style={styles.flex}
           data={visibleProducts}
-          keyExtractor={(item) => String(item.id)}
+          keyExtractor={(item, index) => String(item?.id ?? index)}
           numColumns={2}
           columnWrapperStyle={styles.gridRow}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={[styles.list, listPadding]}
+          contentContainerStyle={[
+            styles.list,
+            { paddingBottom: tabBarInset },
+            visibleProducts.length === 0 && styles.listEmpty,
+          ]}
           keyboardShouldPersistTaps="handled"
           refreshControl={
-            <RefreshControl refreshing={isLoading} onRefresh={onRefresh} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
           ListHeaderComponent={
             <>
-              {isLoading && products.length === 0 ? (
+              {isLoading && visibleProducts.length === 0 ? (
                 <ActivityIndicator
                   color={colors.primary}
-                  style={{ marginVertical: 24 }}
+                  style={styles.loader}
                 />
               ) : null}
               {isError ? (
@@ -258,15 +280,31 @@ export default function FavoritesContent() {
                   <Text style={styles.error}>
                     {t("mobile.favorites.loadError")}
                   </Text>
+                  <Text style={styles.retry}>{t("mobile.common.retry")}</Text>
                 </TouchableOpacity>
               ) : null}
-              {!isLoading && visibleProducts.length === 0 ? (
-                <Text style={styles.empty}>{t("favoritesUi.emptyHint")}</Text>
+              {!isLoading && !isError && visibleProducts.length === 0 ? (
+                <Text style={styles.empty}>
+                  {t("favoritesUi.emptyHint", {
+                    defaultValue: t("mobile.favorites.searchesEmpty"),
+                  })}
+                </Text>
               ) : null}
             </>
           }
           ListFooterComponent={
-            <ExperienceRatingCard rating={rating} onRate={handleRate} />
+            visibleProducts.length > 0 ? (
+              <ExperienceRatingCard
+                rating={rating}
+                onRate={(value) => {
+                  setRating(value);
+                  showDevMessage(
+                    t("mobile.favorites.ratingThanks"),
+                    t("mobile.favorites.ratingMessage", { value })
+                  );
+                }}
+              />
+            ) : null
           }
           renderItem={({ item }) => (
             <MarketplaceProductCard
@@ -282,143 +320,175 @@ export default function FavoritesContent() {
             />
           )}
         />
-      </SafeAreaView>
-    );
-  }
+      ) : null}
 
-  if (activeTab === "recherches") {
-    return (
-      <SafeAreaView style={styles.safe} edges={["top"]}>
-        {header}
-        <FlatList
-          data={filteredSearches}
-          keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={[styles.list, listPadding]}
+      {activeTab === "recherches" ? (
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={[
+            styles.list,
+            { paddingBottom: tabBarInset },
+            filteredSearches.length === 0 && styles.listEmpty,
+          ]}
           keyboardShouldPersistTaps="handled"
           refreshControl={
-            <RefreshControl
-              refreshing={Boolean(searchesLoading || searchesFetching)}
-              onRefresh={onRefresh}
-            />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
-          ListHeaderComponent={
-            <>
-              {searchesLoading && filteredSearches.length === 0 ? (
-                <ActivityIndicator
-                  color={colors.primary}
-                  style={{ marginVertical: 24 }}
-                />
-              ) : null}
-              {searchesError ? (
-                <TouchableOpacity onPress={() => refetchSearches()}>
-                  <Text style={styles.error}>
-                    {t("mobile.favorites.searchesLoadError")}
-                  </Text>
-                  <Text style={styles.retry}>{t("mobile.common.retry")}</Text>
-                </TouchableOpacity>
-              ) : null}
-            </>
-          }
-          ListEmptyComponent={
-            !searchesLoading && !searchesError ? (
-              <Text style={styles.empty}>
-                {t("mobile.favorites.searchesEmpty")}
+        >
+          {searchesLoading && filteredSearches.length === 0 ? (
+            <ActivityIndicator color={colors.primary} style={styles.loader} />
+          ) : null}
+          {searchesError ? (
+            <TouchableOpacity onPress={() => refetchSearches?.()}>
+              <Text style={styles.error}>
+                {t("mobile.favorites.searchesLoadError")}
               </Text>
-            ) : null
-          }
-          renderItem={({ item }) => {
+              <Text style={styles.retry}>{t("mobile.common.retry")}</Text>
+            </TouchableOpacity>
+          ) : null}
+          {!searchesLoading && !searchesError && filteredSearches.length === 0 ? (
+            <Text style={styles.empty}>
+              {t("mobile.favorites.searchesEmpty")}
+            </Text>
+          ) : null}
+          {filteredSearches.length > 0 ? (
+            <Text style={styles.sectionCount}>
+              {t("mobile.favorites.resultsCount", {
+                count: filteredSearches.length,
+              })}
+            </Text>
+          ) : null}
+          {filteredSearches.map((item) => {
             const label =
-              item.label ??
-              item.titre ??
-              item.query ??
+              item?.label ??
+              item?.titre ??
+              item?.query ??
               t("mobile.favorites.defaultSearch");
             return (
-              <SavedSearchRow
-                item={{
-                  id: item.id,
-                  query: label,
-                  results: null,
-                  date: item.createdAt
-                    ? String(item.createdAt).slice(0, 10)
-                    : "",
-                }}
-                onPress={() => openSavedSearch(item)}
-                onRemove={(id) => deleteSearch.mutate(id)}
-              />
+              <View key={String(item?.id)} style={styles.row}>
+                <TouchableOpacity
+                  style={styles.rowMain}
+                  activeOpacity={0.85}
+                  onPress={() => openSavedSearch(item)}
+                >
+                  <View style={styles.searchIcon}>
+                    <Ionicons
+                      name="search-outline"
+                      size={18}
+                      color={colors.primary}
+                    />
+                  </View>
+                  <View style={styles.rowInfo}>
+                    <Text style={styles.rowTitle} numberOfLines={2}>
+                      {String(label)}
+                    </Text>
+                    {item?.createdAt ? (
+                      <Text style={styles.rowMeta}>
+                        {String(item.createdAt).slice(0, 10)}
+                      </Text>
+                    ) : null}
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => deleteSearch.mutate(item.id)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={styles.delete}>{t("mobile.common.delete")}</Text>
+                </TouchableOpacity>
+              </View>
             );
-          }}
-        />
-      </SafeAreaView>
-    );
-  }
+          })}
+        </ScrollView>
+      ) : null}
 
-  // vendeurs
-  return (
-    <SafeAreaView style={styles.safe} edges={["top"]}>
-      {header}
-      <FlatList
-        data={filteredSellers}
-        keyExtractor={(item) => String(sellerIdOf(item))}
-        contentContainerStyle={[styles.list, listPadding]}
-        keyboardShouldPersistTaps="handled"
-        ListHeaderComponent={
-          <>
-            {sellersLoading && filteredSellers.length === 0 ? (
-              <ActivityIndicator
-                color={colors.primary}
-                style={{ marginVertical: 24 }}
-              />
-            ) : null}
-            {sellersError ? (
-              <TouchableOpacity onPress={() => refetchSellers()}>
-                <Text style={styles.error}>
-                  {t("mobile.favorites.sellersLoadError")}
-                </Text>
-                <Text style={styles.retry}>{t("mobile.common.retry")}</Text>
-              </TouchableOpacity>
-            ) : null}
-          </>
-        }
-        ListEmptyComponent={
-          !sellersLoading && !sellersError ? (
+      {activeTab === "vendeurs" ? (
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={[
+            styles.list,
+            { paddingBottom: tabBarInset },
+            filteredSellers.length === 0 && styles.listEmpty,
+          ]}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          {sellersLoading && filteredSellers.length === 0 ? (
+            <ActivityIndicator color={colors.primary} style={styles.loader} />
+          ) : null}
+          {sellersError ? (
+            <TouchableOpacity onPress={() => refetchSellers?.()}>
+              <Text style={styles.error}>
+                {t("mobile.favorites.sellersLoadError")}
+              </Text>
+              <Text style={styles.retry}>{t("mobile.common.retry")}</Text>
+            </TouchableOpacity>
+          ) : null}
+          {!sellersLoading && !sellersError && filteredSellers.length === 0 ? (
             <Text style={styles.empty}>
               {t("mobile.favorites.sellersEmpty")}
             </Text>
-          ) : null
-        }
-        refreshControl={
-          <RefreshControl
-            refreshing={Boolean(sellersLoading || sellersFetching)}
-            onRefresh={onRefresh}
-          />
-        }
-        renderItem={({ item }) => {
-          const id = sellerIdOf(item);
-          const name = sellerDisplayName(item, t);
-          const avatar = resolveMediaUrl(item.photoUrl) || "";
-          const seller = {
-            id,
-            name,
-            avatar,
-            listings: Number(item.adsCount ?? 0),
-            rating: 0,
-          };
-
-          return (
-            <SavedSellerRow
-              seller={seller}
-              onPress={() =>
-                go("SellerProfile", {
-                  sellerId: id,
-                  sellerName: name,
-                  sellerAvatar: avatar,
-                })
-              }
-              onUnfollow={(sellerId) => removeSavedSeller(sellerId)}
-            />
-          );
-        }}
-      />
+          ) : null}
+          {filteredSellers.length > 0 ? (
+            <Text style={styles.sectionCount}>
+              {t("mobile.favorites.resultsCount", {
+                count: filteredSellers.length,
+              })}
+            </Text>
+          ) : null}
+          {filteredSellers.map((item) => {
+            const id = sellerIdOf(item);
+            const name = sellerDisplayName(item, t);
+            const avatar = resolveMediaUrl(item?.photoUrl) || "";
+            const listings = Number(item?.adsCount ?? 0) || 0;
+            return (
+              <View key={String(id)} style={styles.row}>
+                <TouchableOpacity
+                  style={styles.rowMain}
+                  activeOpacity={0.85}
+                  onPress={() =>
+                    go("SellerProfile", {
+                      sellerId: id,
+                      sellerName: name,
+                      sellerAvatar: avatar,
+                    })
+                  }
+                >
+                  {avatar ? (
+                    <Image source={{ uri: avatar }} style={styles.avatar} />
+                  ) : (
+                    <View style={[styles.avatar, styles.avatarFallback]}>
+                      <Ionicons
+                        name="person"
+                        size={22}
+                        color={colors.iconMuted}
+                      />
+                    </View>
+                  )}
+                  <View style={styles.rowInfo}>
+                    <Text style={styles.rowTitle} numberOfLines={1}>
+                      {name}
+                    </Text>
+                    <Text style={styles.rowMeta}>
+                      {t("mobile.favorites.listingsCount", {
+                        count: listings,
+                      })}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.heartBtn}
+                  onPress={() => removeSavedSeller?.(id)}
+                  accessibilityLabel={t("profileUi.unfollow")}
+                >
+                  <Ionicons name="heart" size={16} color={colors.primary} />
+                </TouchableOpacity>
+              </View>
+            );
+          })}
+        </ScrollView>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -428,6 +498,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.white,
   },
+  flex: {
+    flex: 1,
+  },
   headerBlock: {
     paddingHorizontal: 16,
     paddingTop: 4,
@@ -436,10 +509,15 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingHorizontal: 16,
+  },
+  listEmpty: {
     flexGrow: 1,
   },
   gridRow: {
     justifyContent: "space-between",
+  },
+  loader: {
+    marginVertical: 24,
   },
   error: {
     color: "#D32F2F",
@@ -468,5 +546,71 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     marginBottom: 8,
+  },
+  sectionCount: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.textMuted,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  rowMain: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  searchIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: "rgba(201, 0, 23, 0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#F0F2F5",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarFallback: {},
+  rowInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  rowTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.textDark,
+  },
+  rowMeta: {
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  delete: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  heartBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.white,
   },
 });

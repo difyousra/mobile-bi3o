@@ -6,6 +6,8 @@ export default function FavoritesTabs({ tabs, activeId, onSelect }) {
     <View style={styles.row}>
       {tabs.map((tab) => {
         const isActive = tab.id === activeId;
+        const count =
+          typeof tab.count === "number" && tab.count >= 0 ? tab.count : null;
 
         return (
           <Pressable
@@ -24,6 +26,7 @@ export default function FavoritesTabs({ tabs, activeId, onSelect }) {
               numberOfLines={1}
             >
               {tab.label}
+              {count != null ? ` (${count})` : ""}
             </Text>
             {isActive ? <View style={styles.indicator} /> : null}
           </Pressable>
@@ -53,7 +56,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   label: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "500",
     color: colors.textMuted,
     textAlign: "center",
@@ -65,8 +68,8 @@ const styles = StyleSheet.create({
   indicator: {
     position: "absolute",
     bottom: 0,
-    left: "10%",
-    right: "10%",
+    left: "8%",
+    right: "8%",
     height: 3,
     borderRadius: 2,
     backgroundColor: colors.textDark,

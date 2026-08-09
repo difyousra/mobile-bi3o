@@ -186,8 +186,8 @@ export function useFollowedSellers() {
   const { isAuthenticated } = useAuth();
   return useQuery({
     queryKey: queryKeys.followedSellers,
-    queryFn: () => engagement.fetchFollowedSellers({ page: 0, size: 50 }),
-    staleTime: 60_000,
+    queryFn: () => engagement.fetchFollowedSellers({ size: 100 }),
+    staleTime: 30_000,
     enabled: isAuthenticated,
   });
 }
@@ -197,7 +197,7 @@ export function useSavedSearches() {
   return useQuery({
     queryKey: queryKeys.savedSearches,
     queryFn: engagement.fetchSavedSearches,
-    staleTime: 60_000,
+    staleTime: 30_000,
     enabled: isAuthenticated,
   });
 }

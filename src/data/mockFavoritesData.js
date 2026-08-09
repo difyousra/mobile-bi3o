@@ -1,7 +1,7 @@
 export const FAVORITES_TABS = [
   { id: "annonces", label: "Favoris" },
   { id: "recherches", label: "Mes recherches" },
-  { id: "vendeurs", label: "Mes vendeurs" },
+  { id: "vendeurs", label: "Mes abonnés" },
 ];
 
 export const FAVORITE_PRODUCTS = [
