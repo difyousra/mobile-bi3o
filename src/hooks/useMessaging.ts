@@ -136,6 +136,23 @@ export function useMyReservations(page = 0) {
   });
 }
 
+export function useAnnonceReservations(
+  annonceId?: number | string,
+  page = 0
+) {
+  const { isAuthenticated } = useAuth();
+  return useQuery({
+    queryKey: queryKeys.annonceReservations(annonceId ?? 0, page),
+    queryFn: () =>
+      reservationService.fetchAnnonceReservations(annonceId!, {
+        page,
+        size: 20,
+      }),
+    staleTime: 30_000,
+    enabled: isAuthenticated && annonceId != null && annonceId !== "",
+  });
+}
+
 export function useCreateReservation() {
   const qc = useQueryClient();
   return useMutation({

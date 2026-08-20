@@ -367,5 +367,5 @@ export function buildVacancesFilterSchema(sousCategorieId = null, taxoAttributs 
     return buildSubcategorySchemaFromDeposit(id, taxoAttributs);
   }
 
-  return [PRICE_RANGE];
+  return [PRICE_RANGE, STAY_DATES_FIELD];
 }

@@ -11,7 +11,7 @@ export const API_BASE_URL =
   Constants.expoConfig?.extra?.apiUrl ??
   "https://new.bi3oo.com/api";
 
-/** STOMP — ne pas activer tant que REST messagerie n’est pas validé */
+/** STOMP temps réel — notifications + messagerie */
 export const WS_URL =
   process.env.EXPO_PUBLIC_WS_URL ?? "wss://new.bi3oo.com/ws";
 

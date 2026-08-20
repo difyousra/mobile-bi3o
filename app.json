@@ -25,7 +25,10 @@
       "permissions": [
         "RECORD_AUDIO",
         "CAMERA",
-        "READ_MEDIA_IMAGES"
+        "READ_MEDIA_IMAGES",
+        "POST_NOTIFICATIONS",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
       ]
     },
     "web": {
@@ -35,6 +38,15 @@
       "expo-secure-store",
       "expo-web-browser",
       "expo-localization",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#C90017",
+          "defaultChannel": "bi3oo-default",
+          "sounds": []
+        }
+      ],
       [
         "expo-av",
         {

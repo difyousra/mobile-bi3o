@@ -21,6 +21,7 @@
     "security": "تسجيل الدخول والأمان",
     "privacy": "الخصوصية",
     "notifications": "الإشعارات",
+    "reservations": "حجوزاتي",
     "lotDiscounts": "خصومات الدفعات",
     "display": "العرض",
     "legal": "المعلومات القانونية"
@@ -136,13 +137,19 @@
       "sectionAdLife": "نشاط الإعلان",
       "sectionPublished": "نشر إعلاناتي",
       "sectionExpiry": "انتهاء إعلاناتي",
+      "sectionActivity": "النشاط على إعلاناتي",
       "sectionNews": "أخبار وعروض ونصائح",
       "groupNewMessages": "رسائل جديدة",
       "groupFavorites": "إضافة إعلاناتي إلى المفضلة",
+      "groupActivity": "متابعات، مشاهدات، حجوزات، بلاغات…",
       "groupNewsletter": "نشرات إخبارية حول الميزات الجديدة والعروض الحالية واتجاهات البحث",
       "groupPersonalized": "اتصالات مخصصة وفق استخدامك ونصائح لك وحدك",
       "channelMobile": "إشعارات الجوال",
-      "channelEmail": "رسائل البريد"
+      "permissionTitle": "الإشعارات",
+      "permissionBody": "اسمح بإشعارات Bi3oo في إعدادات هاتفك لعرض التنبيهات أعلى الشاشة حتى عند إغلاق التطبيق.",
+      "loadError": "تعذّر تحميل تفضيلاتك من الخادم.",
+      "saveError": "تعذّر حفظ تفضيلاتك. حاول مرة أخرى.",
+      "apiHint": "يتم مزامنة التفضيلات مع حساب Bi3oo (إشعارات الجوال فقط)."
     }
   },
   "account": {
@@ -550,7 +557,26 @@
     "markAllShort": "قراءة الكل",
     "unread_one": "{{count}} غير مقروء",
     "unread_other": "{{count}} غير مقروءة",
-    "fallbackTitle": "إشعار"
+    "fallbackTitle": "إشعار",
+    "typeMessage": "رسالة",
+    "typeReservationRequest": "حجز",
+    "typeReservationStatus": "حجز",
+    "typeFollow": "متابعة",
+    "typeFavorite": "مفضلة",
+    "typeAdView": "مشاهدة",
+    "typeWhatsapp": "واتساب",
+    "typeReport": "بلاغ",
+    "typeFollowedAd": "متابَعون",
+    "typePublished": "نشر",
+    "typeSystem": "نظام",
+    "typeReminder": "تذكير",
+    "accept": "قبول",
+    "reject": "رفض",
+    "dismiss": "تجاهل",
+    "actionTitle": "حجز",
+    "acceptConfirm": "قبول طلب الحجز هذا؟",
+    "rejectConfirm": "رفض طلب الحجز هذا؟",
+    "dismissConfirm": "تجاهل هذا الإشعار؟"
   },
   "wallet": {
     "updatedAt": "تم التحديث : {{date}}",
@@ -589,7 +615,9 @@
     "empty": "لا توجد حجوزات.",
     "statusConfirmed": "مؤكدة",
     "statusCancelled": "ملغاة",
-    "statusRejected": "مرفوضة"
+    "statusRejected": "مرفوضة",
+    "statusPending": "قيد الانتظار",
+    "allAvailable": "لا توجد تواريخ محجوزة حالياً."
   },
   "categoryUi": {
     "noSubcategories": "لا توجد فئات فرعية.",

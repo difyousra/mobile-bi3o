@@ -9,16 +9,32 @@ export type FollowStatus = {
   suivi?: boolean;
 };
 
+export type NotificationAction = {
+  label?: string;
+  url?: string;
+  actionType?: string;
+};
+
 export type NotificationItem = {
   id: number;
   title?: string;
   titre?: string;
   message?: string;
   body?: string;
+  excerpt?: string;
   read?: boolean;
   lu?: boolean;
   createdAt?: string;
   type?: string;
+  actorUserId?: number;
+  actorName?: string;
+  actorAvatarUrl?: string;
+  actorInitials?: string;
+  conversationId?: number;
+  reservationId?: number;
+  annonceId?: number;
+  primaryAction?: NotificationAction;
+  secondaryAction?: NotificationAction;
 };
 
 export type NotificationsPage = Page<NotificationItem>;
@@ -26,6 +42,7 @@ export type NotificationsPage = Page<NotificationItem>;
 export type UnreadCount = {
   count?: number;
   unreadCount?: number;
+  unreadMessagesCount?: number;
   total?: number;
 };
 

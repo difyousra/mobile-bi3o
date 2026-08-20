@@ -188,13 +188,25 @@ export default function SearchContent({
   const sortLabel = t(SORT_LABEL_KEYS[sortId] ?? SORT_LABEL_KEYS.relevance);
 
   const categoryChipLabel = useMemo(() => {
-    if (initialCategoryLabel) return initialCategoryLabel;
+    if (sousCategorieId) {
+      const fromFlat = allSous.find((s) => Number(s.id) === Number(sousCategorieId));
+      if (fromFlat) return subcategoryNodeLabel(fromFlat, t);
+      for (const node of tree ?? []) {
+        const nested = node?.sousCategories ?? node?.children ?? [];
+        const found = nested.find((s) => Number(s.id) === Number(sousCategorieId));
+        if (found) return subcategoryNodeLabel(found, t);
+      }
+    }
+
     if (categorieId) {
       const chip = chips.find((c) => Number(c.rawId) === Number(categorieId));
       if (chip?.label) return chip.label;
+      // Taxonomy not loaded yet: keep the label passed by navigation.
+      if (initialCategoryLabel) return initialCategoryLabel;
     }
+
     return "";
-  }, [initialCategoryLabel, categorieId, chips]);
+  }, [initialCategoryLabel, categorieId, sousCategorieId, chips, allSous, tree, t]);
 
   const resultsTitle = useMemo(() => {
     if (categoryChipLabel) {

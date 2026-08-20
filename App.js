@@ -14,6 +14,7 @@ import { CheckoutProvider } from "./src/context/CheckoutContext";
 import { WalletProvider } from "./src/context/WalletContext";
 import { FavoritesProvider } from "./src/context/FavoritesContext";
 import { MessagesProvider } from "./src/context/MessagesContext";
+import { NotificationsRealtimeProvider } from "./src/context/NotificationsRealtimeProvider";
 import {
   extractOAuthCodeFromUrl,
   isOAuthReturnUrl,
@@ -207,10 +208,12 @@ function AppContent() {
         <WalletProvider>
           <FavoritesProvider>
             <MessagesProvider>
-              <View style={styles.root}>
-                <AppNavigator />
-                <AuthFlowOverlay />
-              </View>
+              <NotificationsRealtimeProvider>
+                <View style={styles.root}>
+                  <AppNavigator />
+                  <AuthFlowOverlay />
+                </View>
+              </NotificationsRealtimeProvider>
             </MessagesProvider>
           </FavoritesProvider>
         </WalletProvider>

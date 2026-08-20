@@ -2,9 +2,11 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  useInfiniteQuery,
 } from "@tanstack/react-query";
 import { queryKeys } from "../api/queryKeys";
 import * as engagement from "../services/engagementService";
+import * as reservationService from "../services/reservationService";
 import { mapAdCardToUi } from "../models/adMapper";
 import { resolveExchangeRates } from "../services/exchangeService";
 import { useAuth } from "../context/AuthContext";
@@ -142,19 +144,40 @@ export function useToggleFollow() {
 }
 
 export function useNotifications(page = 0, size = 20) {
+  const { isAuthenticated } = useAuth();
   return useQuery({
     queryKey: queryKeys.notifications(page),
     queryFn: () => engagement.fetchNotifications({ page, size }),
     staleTime: 30_000,
+    enabled: isAuthenticated,
+  });
+}
+
+/** Liste paginée infinie — écran Notifications. */
+export function useInfiniteNotifications(size = 20) {
+  const { isAuthenticated } = useAuth();
+  return useInfiniteQuery({
+    queryKey: queryKeys.notificationsInfinite,
+    queryFn: ({ pageParam }) =>
+      engagement.fetchNotifications({ page: pageParam, size }),
+    initialPageParam: 0,
+    getNextPageParam: (last) =>
+      last?.last === true ? undefined : (last?.number ?? 0) + 1,
+    staleTime: 30_000,
+    enabled: isAuthenticated,
   });
 }
 
 export function useUnreadNotificationsCount() {
+  const { isAuthenticated } = useAuth();
   return useQuery({
     queryKey: queryKeys.notificationsUnread,
     queryFn: engagement.fetchUnreadCount,
-    staleTime: 30_000,
-    refetchInterval: 60_000,
+    staleTime: 10_000,
+    // Fallback si STOMP coupé ; le live met à jour le cache directement.
+    refetchInterval: isAuthenticated ? 20_000 : false,
+    refetchIntervalInBackground: false,
+    enabled: isAuthenticated,
   });
 }
 
@@ -174,6 +197,38 @@ export function useMarkAllNotificationsRead() {
     mutationFn: () => engagement.markAllNotificationsRead(),
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["me", "notifications"] });
+    },
+  });
+}
+
+/**
+ * Accepter / rejeter une demande de réservation depuis une notification,
+ * puis dismiss côté inbox (aligné web).
+ */
+export function useReservationNotificationAction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      notificationId,
+      reservationId,
+      action,
+    }: {
+      notificationId: number | string;
+      reservationId: number | string;
+      action: "accept" | "reject" | "dismiss";
+    }) => {
+      if (action === "accept" || action === "reject") {
+        const status = action === "accept" ? "CONFIRMEE" : "REFUSEE";
+        await reservationService.updateReservationStatus(reservationId, status);
+      }
+      await engagement.dismissReservationNotification(
+        notificationId,
+        reservationId
+      );
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["me", "notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["reservations"] });
     },
   });
 }

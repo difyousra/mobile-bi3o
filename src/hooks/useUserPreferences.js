@@ -9,17 +9,8 @@ export const DEFAULT_PREFERENCES = {
   showPhoneOnAds: false,
   allowPersonalizedAds: true,
 
-  /** Notifications — aligné UI paramètres (mobile / e-mail) */
+  /** Notifications mobile — voir useNotificationPreferences + API /me/notification-preferences */
   notifPromoBannerVisible: true,
-  notifMsgPush: true,
-  notifMsgEmail: true,
-  notifFavoritePush: true,
-  notifPublishedPush: true,
-  notifExpiryPush: true,
-  notifNewsletterPush: false,
-  notifNewsletterEmail: false,
-  notifNewsPersonalizedPush: true,
-  notifNewsPersonalizedEmail: true,
 
   /** Lots */
   lotDiscountsEnabled: true,
@@ -28,7 +19,7 @@ export const DEFAULT_PREFERENCES = {
   compactLists: false,
 };
 
-async function readPrefs() {
+export async function readPrefs() {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
     if (!raw) return { ...DEFAULT_PREFERENCES };

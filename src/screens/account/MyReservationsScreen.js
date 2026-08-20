@@ -11,22 +11,28 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
-import { useMyReservations } from "../../hooks/useMessaging";
+import { useMyReservations, useAnnonceReservations } from "../../hooks/useMessaging";
 import * as reservationService from "../../services/reservationService";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 function statusLabel(item, t) {
-  const raw = String(item.status ?? item.statut ?? "PENDING").toUpperCase();
-  if (raw === "CONFIRMED") return t("mobile.reservations.statusConfirmed");
-  if (raw === "CANCELLED") return t("mobile.reservations.statusCancelled");
-  if (raw === "REJECTED") return t("mobile.reservations.statusRejected");
+  const raw = String(item.status ?? item.statut ?? "EN_ATTENTE").toUpperCase();
+  if (raw === "CONFIRMEE" || raw === "CONFIRMED") return t("mobile.reservations.statusConfirmed");
+  if (raw === "ANNULEE" || raw === "CANCELLED") return t("mobile.reservations.statusCancelled");
+  if (raw === "REFUSEE" || raw === "REJECTED") return t("mobile.reservations.statusRejected");
+  if (raw === "EN_ATTENTE" || raw === "PENDING") return t("mobile.reservations.statusPending");
   return raw;
 }
 
 export default function MyReservationsScreen({ navigation, route }) {
   const { t } = useAppLanguage();
-  const { data, isLoading, isError, refetch, isRefetching } = useMyReservations(0);
+  const annonceId = route.params?.annonceId;
+  const mine = useMyReservations(0);
+  const owner = useAnnonceReservations(annonceId, 0);
+  const { data, isLoading, isError, refetch, isRefetching } = annonceId
+    ? owner
+    : mine;
   const qc = useQueryClient();
 
   const items = useMemo(() => data?.content ?? [], [data]);
@@ -45,7 +51,11 @@ export default function MyReservationsScreen({ navigation, route }) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={22} color={colors.textHeading} />
         </TouchableOpacity>
-        <Text style={styles.title}>{t("mobile.account.reservations")}</Text>
+        <Text style={styles.title}>
+          {annonceId
+            ? t("annonceDetail.viewRequests")
+            : t("mobile.account.reservations")}
+        </Text>
         <View style={{ width: 22 }} />
       </View>
 
@@ -77,11 +87,18 @@ export default function MyReservationsScreen({ navigation, route }) {
                 })}
               </Text>
               <Text style={styles.cardMeta}>
-                {item.dateDebut ?? item.startDate ?? "?"} →{" "}
-                {item.dateFin ?? item.endDate ?? "?"}
+                {item.dateArrivee ?? item.dateDebut ?? item.startDate ?? "?"} →{" "}
+                {item.dateDepart ?? item.dateFin ?? item.endDate ?? "?"}
+                {item.voyageurs != null
+                  ? ` · ${t("annonceDetail.travelers")} ${item.voyageurs}`
+                  : ""}
               </Text>
               <View style={styles.actions}>
-                {["CONFIRMED", "CANCELLED", "REJECTED"].map((st) => (
+                {[
+                  ["CONFIRMEE", t("mobile.reservations.statusConfirmed")],
+                  ["ANNULEE", t("mobile.reservations.statusCancelled")],
+                  ["REFUSEE", t("mobile.reservations.statusRejected")],
+                ].map(([st, label]) => (
                   <TouchableOpacity
                     key={st}
                     style={styles.chip}
@@ -89,13 +106,7 @@ export default function MyReservationsScreen({ navigation, route }) {
                       statusMutation.mutate({ id: item.id, status: st })
                     }
                   >
-                    <Text style={styles.chipText}>
-                      {st === "CONFIRMED"
-                        ? t("mobile.reservations.statusConfirmed")
-                        : st === "CANCELLED"
-                          ? t("mobile.reservations.statusCancelled")
-                          : t("mobile.reservations.statusRejected")}
-                    </Text>
+                    <Text style={styles.chipText}>{label}</Text>
                   </TouchableOpacity>
                 ))}
               </View>

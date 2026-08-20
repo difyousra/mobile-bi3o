@@ -30,7 +30,7 @@ import {
 import { resolveExchangeRates } from "../../services/exchangeService";
 import { useFollowStatus, useToggleFollow } from "../../hooks/useEngagement";
 import { useStartConversation, useReservationCalendar } from "../../hooks/useMessaging";
-import { mapPublicSeller, extractCalendarBusyDates } from "../../utils/profileHelpers";
+import { mapPublicSeller } from "../../utils/profileHelpers";
 import {
   resolveLocationCoords,
   whatsappUrl,
@@ -44,10 +44,12 @@ import { resolveMediaUrl } from "../../utils/mediaUrl";
 import SellerTypeBadge from "../../components/common/SellerTypeBadge";
 import PriceConversionRow from "../../components/common/PriceConversionRow";
 import AdDetailLivraisonCard from "../../components/product/AdDetailLivraisonCard";
+import AdDetailReservationCard from "../../components/product/AdDetailReservationCard";
 import MortgageLoanSimulator from "../../features/immobilier/components/MortgageLoanSimulator";
 import VehicleFinancingSimulator from "../../features/vehicules/components/VehicleFinancingSimulator";
 import { isImmobilierAd } from "../../features/immobilier/utils/isImmobilierAd";
 import { isVehicleAd } from "../../features/vehicules/utils/isVehicleAd";
+import { isLocationsSaisonnieresAd } from "../../features/vacances/utils/isVacancesAd";
 import { confirmDialog, alertDialog } from "../../utils/confirmDialog";
 import { useAppLanguage } from "../../i18n/LanguageProvider";
 import {
@@ -166,6 +168,62 @@ const bStyles = StyleSheet.create({
   offre: { backgroundColor: "#EEF9F0" }, demande: { backgroundColor: "#FFF3E0" },
   text: { fontSize: 11, fontWeight: "700", color: colors.textHeading },
 });
+
+const DESCRIPTION_MAX_LINES = 4;
+const DESCRIPTION_CHAR_THRESHOLD = 120;
+
+function estimateDescriptionTruncated(text) {
+  if (!text) return false;
+  if ((text.match(/\n/g)?.length ?? 0) >= DESCRIPTION_MAX_LINES) return true;
+  return text.length > DESCRIPTION_CHAR_THRESHOLD;
+}
+
+function DescriptionSection({ description }) {
+  const { t } = useAppLanguage();
+  const [expanded, setExpanded] = useState(false);
+  const [measuredTruncated, setMeasuredTruncated] = useState(false);
+  const content = description || t("mobile.product.noDescription");
+  const needsTruncate =
+    Boolean(description) &&
+    (measuredTruncated || estimateDescriptionTruncated(description));
+
+  return (
+    <View style={styles.section}>
+      {description ? (
+        <View style={styles.descriptionMeasureWrap} pointerEvents="none">
+          <Text
+            style={styles.description}
+            onTextLayout={(e) =>
+              setMeasuredTruncated(e.nativeEvent.lines.length > DESCRIPTION_MAX_LINES)
+            }
+          >
+            {content}
+          </Text>
+        </View>
+      ) : null}
+      <Text
+        style={styles.description}
+        numberOfLines={expanded ? undefined : DESCRIPTION_MAX_LINES}
+        ellipsizeMode="tail"
+      >
+        {content}
+      </Text>
+      {needsTruncate ? (
+        <TouchableOpacity
+          style={styles.descriptionToggle}
+          activeOpacity={0.85}
+          onPress={() => setExpanded((v) => !v)}
+        >
+          <Text style={styles.descriptionToggleText}>
+            {expanded
+              ? t("annonceDetail.descriptionSeeLess")
+              : t("annonceDetail.descriptionSeeMore")}
+          </Text>
+        </TouchableOpacity>
+      ) : null}
+    </View>
+  );
+}
 
 /* ─── Attributs ────────────────────────────────────────────────────────────── */
 
@@ -549,10 +607,8 @@ export default function ProductDetailScreen({ route, navigation }) {
   const { isFavorite, toggleFavorite } = useFavorites();
   const { isAuthenticated, requireAuth } = useAuth();
   const startConversation = useStartConversation();
-  const { data: calendarData } = useReservationCalendar(annonceId);
-  const busyDates = useMemo(
-    () => extractCalendarBusyDates(calendarData).slice(0, 10),
-    [calendarData]
+  const { data: calendarData } = useReservationCalendar(
+    isLocationsSaisonnieresAd(product ?? fallbackRaw) ? annonceId : undefined
   );
 
   const [imageIndex, setImageIndex] = useState(0);
@@ -786,11 +842,7 @@ export default function ProductDetailScreen({ route, navigation }) {
           </View>
 
           {activeTab === "description" ? (
-            <View style={styles.section}>
-              <Text style={styles.description}>
-                {p.description || t("mobile.product.noDescription")}
-              </Text>
-            </View>
+            <DescriptionSection key={p.description ?? "empty"} description={p.description} />
           ) : (
             <AttributsSection attributs={p.attributs} />
           )}
@@ -848,22 +900,14 @@ export default function ProductDetailScreen({ route, navigation }) {
             isPending={startConversation.isPending}
           />
 
-          {/* Réservation */}
-          {busyDates.length > 0 && (
-            <View style={styles.section}>
-              <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionTitle}>{t("mobile.product.reservation")}</Text>
-                <TouchableOpacity
-                  onPress={() => navigation.navigate("MyReservations", { annonceId: annonceId ?? p.id })}
-                >
-                  <Text style={styles.seeAll}>{t("mobile.product.requestReservation")}</Text>
-                </TouchableOpacity>
-              </View>
-              <Text style={styles.description}>
-                {t("mobile.product.busyDates", { dates: busyDates.join(", ") })}
-              </Text>
-            </View>
-          )}
+          {isLocationsSaisonnieresAd(p) ? (
+            <AdDetailReservationCard
+              annonceId={annonceId ?? p.id}
+              sellerId={p.sellerId}
+              calendarData={calendarData}
+              navigation={navigation}
+            />
+          ) : null}
 
           {/* Annonces similaires */}
           <SimilarAds
@@ -955,6 +999,16 @@ const styles = StyleSheet.create({
   },
   seeAll: { fontSize: 13, fontWeight: "600", color: colors.primary },
   description: { fontSize: 14, lineHeight: 22, color: colors.textMuted },
+  descriptionMeasureWrap: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    opacity: 0,
+    zIndex: -1,
+  },
+  descriptionToggle: { marginTop: 10, alignSelf: "flex-start" },
+  descriptionToggleText: { fontSize: 14, fontWeight: "600", color: colors.navy },
   attrGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   attrItem: {
     width: "47%", backgroundColor: colors.surfaceMuted, borderRadius: 10, padding: 10,

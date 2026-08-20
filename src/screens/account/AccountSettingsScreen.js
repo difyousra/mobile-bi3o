@@ -46,6 +46,11 @@ export default function AccountSettingsScreen({ navigation }) {
       route: "NotificationSettings",
     },
     {
+      id: "reservations",
+      label: t("mobile.accountSettings.reservations"),
+      route: "MyReservations",
+    },
+    {
       id: "lotDiscounts",
       label: t("mobile.accountSettings.lotDiscounts"),
       route: "LotDiscountsSettings",

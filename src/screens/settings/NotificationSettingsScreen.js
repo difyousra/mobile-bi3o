@@ -6,13 +6,19 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
 import SettingsScreenHeader from "../../components/settings/SettingsScreenHeader";
 import { useUserPreferences } from "../../hooks/useUserPreferences";
+import { useNotificationPreferences } from "../../hooks/useNotificationPreferences";
 import { useAppLanguage } from "../../i18n/LanguageProvider";
+import {
+  requestNotificationPermission,
+  registerPushTokenWithBackend,
+} from "../../services/pushNotifications";
 
 const TOGGLE_ON = "#1B2B4B";
 const TOGGLE_OFF = "#C8CDD3";
@@ -46,14 +52,18 @@ function NotifToggle({ value, onValueChange }) {
   );
 }
 
-function ChannelRow({ icon, label, value, onValueChange, isLast }) {
+function ChannelRow({ label, value, onValueChange, isLast, busy }) {
   return (
     <View style={[styles.channelRow, isLast && styles.channelRowLast]}>
       <View style={styles.channelLeft}>
-        <Ionicons name={icon} size={20} color={colors.textHeading} />
+        <Ionicons name="phone-portrait-outline" size={20} color={colors.textHeading} />
         <Text style={styles.channelLabel}>{label}</Text>
       </View>
-      <NotifToggle value={value} onValueChange={onValueChange} />
+      {busy ? (
+        <ActivityIndicator size="small" color={colors.primary} />
+      ) : (
+        <NotifToggle value={value} onValueChange={onValueChange} />
+      )}
     </View>
   );
 }
@@ -89,7 +99,7 @@ function GroupBlock({ subtitle, children }) {
   );
 }
 
-function PromoBanner({ onClose, onActivate, closeLabel, title, text, activateLabel }) {
+function PromoBanner({ onClose, onActivate, closeLabel, title, text, activateLabel, loading }) {
   return (
     <View style={styles.promo}>
       <TouchableOpacity
@@ -106,42 +116,93 @@ function PromoBanner({ onClose, onActivate, closeLabel, title, text, activateLab
         style={styles.promoBtn}
         onPress={onActivate}
         activeOpacity={0.85}
+        disabled={loading}
       >
-        <Text style={styles.promoBtnText}>{activateLabel}</Text>
+        {loading ? (
+          <ActivityIndicator color={colors.white} />
+        ) : (
+          <Text style={styles.promoBtnText}>{activateLabel}</Text>
+        )}
       </TouchableOpacity>
     </View>
   );
 }
 
 export default function NotificationSettingsScreen({ navigation }) {
-  const { prefs, ready, setPreference } = useUserPreferences();
+  const { prefs: localPrefs, setPreference } = useUserPreferences();
+  const { prefs, ready, syncing, error, updatePref, updateMany } =
+    useNotificationPreferences();
   const { t } = useAppLanguage();
   const [expanded, setExpanded] = useState({
     messaging: true,
     adLife: true,
     published: true,
     expiry: true,
+    activity: true,
     news: true,
   });
 
-  const showPromo = prefs.notifPromoBannerVisible !== false;
+  const showPromo = localPrefs.notifPromoBannerVisible !== false;
+  const channelMobile = t("mobile.settings.notifications.channelMobile");
 
   const toggleSection = (key) => {
     setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const activateAllPush = () => {
-    setPreference("notifMsgPush", true);
-    setPreference("notifFavoritePush", true);
-    setPreference("notifPublishedPush", true);
-    setPreference("notifExpiryPush", true);
-    setPreference("notifNewsPersonalizedPush", true);
-    setPreference("notifPromoBannerVisible", false);
+  const showSaveError = () => {
+    Alert.alert(
+      t("mobile.common.error"),
+      t("mobile.settings.notifications.saveError")
+    );
+  };
+
+  const enableMobilePush = async (key, value) => {
+    const result = await updatePref(key, value);
+    if (!result.ok) {
+      showSaveError();
+      return;
+    }
+
+    // Permission OS optionnelle — ne bloque pas la prefs API.
+    if (value) {
+      try {
+        const ok = await requestNotificationPermission();
+        if (ok) {
+          await registerPushTokenWithBackend();
+        }
+      } catch {
+        // Expo Go / web : prefs enregistrées, push OS indisponible
+      }
+    }
+  };
+
+  const activateAllPush = async () => {
+    const result = await updateMany({
+      msgPush: true,
+      favoritePush: true,
+      publishedPush: true,
+      expiryPush: true,
+      personalizedPush: true,
+      newsletterPush: true,
+      activityPush: true,
+    });
+    if (!result.ok) {
+      showSaveError();
+      return;
+    }
+    await setPreference("notifPromoBannerVisible", false);
+
+    try {
+      const ok = await requestNotificationPermission();
+      if (ok) {
+        await registerPushTokenWithBackend();
+      }
+    } catch {
+      // ignore
+    }
   };
 
   const screenTitle = t("mobile.accountSettings.notifications");
-  const channelMobile = t("mobile.settings.notifications.channelMobile");
-  const channelEmail = t("mobile.settings.notifications.channelEmail");
 
   if (!ready) {
     return (
@@ -170,6 +231,14 @@ export default function NotificationSettingsScreen({ navigation }) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        {error === "load_failed" ? (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorText}>
+              {t("mobile.settings.notifications.loadError")}
+            </Text>
+          </View>
+        ) : null}
+
         {showPromo ? (
           <PromoBanner
             onClose={() => setPreference("notifPromoBannerVisible", false)}
@@ -178,6 +247,7 @@ export default function NotificationSettingsScreen({ navigation }) {
             title={t("mobile.settings.notifications.promoTitle")}
             text={t("mobile.settings.notifications.promoText")}
             activateLabel={t("mobile.settings.notifications.promoActivate")}
+            loading={syncing}
           />
         ) : null}
 
@@ -188,16 +258,9 @@ export default function NotificationSettingsScreen({ navigation }) {
         >
           <GroupBlock subtitle={t("mobile.settings.notifications.groupNewMessages")}>
             <ChannelRow
-              icon="phone-portrait-outline"
               label={channelMobile}
-              value={!!prefs.notifMsgPush}
-              onValueChange={(v) => setPreference("notifMsgPush", v)}
-            />
-            <ChannelRow
-              icon="mail-outline"
-              label={channelEmail}
-              value={!!prefs.notifMsgEmail}
-              onValueChange={(v) => setPreference("notifMsgEmail", v)}
+              value={!!prefs.msgPush}
+              onValueChange={(v) => enableMobilePush("msgPush", v)}
               isLast
             />
           </GroupBlock>
@@ -210,10 +273,9 @@ export default function NotificationSettingsScreen({ navigation }) {
         >
           <GroupBlock subtitle={t("mobile.settings.notifications.groupFavorites")}>
             <ChannelRow
-              icon="phone-portrait-outline"
               label={channelMobile}
-              value={!!prefs.notifFavoritePush}
-              onValueChange={(v) => setPreference("notifFavoritePush", v)}
+              value={!!prefs.favoritePush}
+              onValueChange={(v) => enableMobilePush("favoritePush", v)}
               isLast
             />
           </GroupBlock>
@@ -226,10 +288,9 @@ export default function NotificationSettingsScreen({ navigation }) {
         >
           <GroupBlock>
             <ChannelRow
-              icon="phone-portrait-outline"
               label={channelMobile}
-              value={!!prefs.notifPublishedPush}
-              onValueChange={(v) => setPreference("notifPublishedPush", v)}
+              value={!!prefs.publishedPush}
+              onValueChange={(v) => enableMobilePush("publishedPush", v)}
               isLast
             />
           </GroupBlock>
@@ -242,10 +303,24 @@ export default function NotificationSettingsScreen({ navigation }) {
         >
           <GroupBlock>
             <ChannelRow
-              icon="phone-portrait-outline"
               label={channelMobile}
-              value={!!prefs.notifExpiryPush}
-              onValueChange={(v) => setPreference("notifExpiryPush", v)}
+              value={!!prefs.expiryPush}
+              onValueChange={(v) => enableMobilePush("expiryPush", v)}
+              isLast
+            />
+          </GroupBlock>
+        </ExpandableSection>
+
+        <ExpandableSection
+          title={t("mobile.settings.notifications.sectionActivity")}
+          expanded={expanded.activity}
+          onToggle={() => toggleSection("activity")}
+        >
+          <GroupBlock subtitle={t("mobile.settings.notifications.groupActivity")}>
+            <ChannelRow
+              label={channelMobile}
+              value={!!prefs.activityPush}
+              onValueChange={(v) => enableMobilePush("activityPush", v)}
               isLast
             />
           </GroupBlock>
@@ -258,40 +333,26 @@ export default function NotificationSettingsScreen({ navigation }) {
         >
           <GroupBlock subtitle={t("mobile.settings.notifications.groupNewsletter")}>
             <ChannelRow
-              icon="phone-portrait-outline"
               label={channelMobile}
-              value={!!prefs.notifNewsletterPush}
-              onValueChange={(v) => setPreference("notifNewsletterPush", v)}
-            />
-            <ChannelRow
-              icon="mail-outline"
-              label={channelEmail}
-              value={!!prefs.notifNewsletterEmail}
-              onValueChange={(v) => setPreference("notifNewsletterEmail", v)}
+              value={!!prefs.newsletterPush}
+              onValueChange={(v) => enableMobilePush("newsletterPush", v)}
               isLast
             />
           </GroupBlock>
           <View style={styles.groupDivider} />
           <GroupBlock subtitle={t("mobile.settings.notifications.groupPersonalized")}>
             <ChannelRow
-              icon="phone-portrait-outline"
               label={channelMobile}
-              value={!!prefs.notifNewsPersonalizedPush}
-              onValueChange={(v) =>
-                setPreference("notifNewsPersonalizedPush", v)
-              }
-            />
-            <ChannelRow
-              icon="mail-outline"
-              label={channelEmail}
-              value={!!prefs.notifNewsPersonalizedEmail}
-              onValueChange={(v) =>
-                setPreference("notifNewsPersonalizedEmail", v)
-              }
+              value={!!prefs.personalizedPush}
+              onValueChange={(v) => enableMobilePush("personalizedPush", v)}
               isLast
             />
           </GroupBlock>
         </ExpandableSection>
+
+        <Text style={styles.apiHint}>
+          {t("mobile.settings.notifications.apiHint")}
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -320,6 +381,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: PAGE_BG,
+  },
+  errorBanner: {
+    backgroundColor: "#FDECEC",
+    borderRadius: 10,
+    padding: 12,
+  },
+  errorText: {
+    color: colors.primary,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  apiHint: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.textMuted,
+    textAlign: "center",
+    paddingHorizontal: 8,
+    marginTop: 4,
   },
   promo: {
     backgroundColor: "#E9EBEE",
@@ -353,6 +432,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: "center",
+    minHeight: 48,
+    justifyContent: "center",
   },
   promoBtnText: {
     color: colors.white,

@@ -21,6 +21,7 @@
     "security": "Login & security",
     "privacy": "Privacy",
     "notifications": "Notifications",
+    "reservations": "My reservations",
     "lotDiscounts": "Lot discounts",
     "display": "Display",
     "legal": "Legal information"
@@ -136,13 +137,19 @@
       "sectionAdLife": "Listing activity",
       "sectionPublished": "My listings going live",
       "sectionExpiry": "My listings expiring",
+      "sectionActivity": "Activity on my listings",
       "sectionNews": "News, offers & tips",
       "groupNewMessages": "New messages",
       "groupFavorites": "My listings added to favorites",
+      "groupActivity": "Follows, views, bookings, reports…",
       "groupNewsletter": "Newsletters about new features, current promo offers and search trends",
       "groupPersonalized": "Personalized communications based on your usage and tips just for you",
       "channelMobile": "Mobile notifications",
-      "channelEmail": "Emails"
+      "permissionTitle": "Notifications",
+      "permissionBody": "Allow Bi3oo notifications in your phone settings to get banners at the top of the screen, even when the app is closed.",
+      "loadError": "Could not load your preferences from the server.",
+      "saveError": "Could not save your preferences. Please try again.",
+      "apiHint": "Preferences are synced with your Bi3oo account (mobile notifications only)."
     }
   },
   "account": {
@@ -550,7 +557,26 @@
     "markAllShort": "Mark all read",
     "unread_one": "{{count}} unread",
     "unread_other": "{{count}} unread",
-    "fallbackTitle": "Notification"
+    "fallbackTitle": "Notification",
+    "typeMessage": "Message",
+    "typeReservationRequest": "Booking",
+    "typeReservationStatus": "Booking",
+    "typeFollow": "Follow",
+    "typeFavorite": "Favorite",
+    "typeAdView": "View",
+    "typeWhatsapp": "WhatsApp",
+    "typeReport": "Report",
+    "typeFollowedAd": "Following",
+    "typePublished": "Published",
+    "typeSystem": "System",
+    "typeReminder": "Reminder",
+    "accept": "Accept",
+    "reject": "Decline",
+    "dismiss": "Dismiss",
+    "actionTitle": "Booking",
+    "acceptConfirm": "Accept this booking request?",
+    "rejectConfirm": "Decline this booking request?",
+    "dismissConfirm": "Dismiss this notification?"
   },
   "wallet": {
     "updatedAt": "Updated: {{date}}",
@@ -589,7 +615,9 @@
     "empty": "No bookings.",
     "statusConfirmed": "Confirmed",
     "statusCancelled": "Cancelled",
-    "statusRejected": "Rejected"
+    "statusRejected": "Rejected",
+    "statusPending": "Pending",
+    "allAvailable": "No booked dates at the moment."
   },
   "categoryUi": {
     "noSubcategories": "No subcategories.",

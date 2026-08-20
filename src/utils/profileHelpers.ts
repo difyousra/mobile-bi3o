@@ -167,31 +167,63 @@ export function mapPublicSeller(data: unknown, fallbackId: number): PublicSeller
   };
 }
 
+const CALENDAR_ARRAY_KEYS = [
+  "dates",
+  "occupied",
+  "content",
+  "busyDates",
+  "occupiedDates",
+  "datesOccupees",
+  "reservedDates",
+  "unavailableDates",
+  "indisponibilites",
+  "periodes",
+  "reservations",
+  "items",
+  "calendar",
+  "data",
+];
+
+function pickCalendarDate(row: Record<string, unknown>, keys: string[]): string {
+  for (const key of keys) {
+    const value = row[key];
+    if (value != null && String(value).trim()) return String(value).trim();
+  }
+  return "";
+}
+
+function formatCalendarEntry(item: unknown): string {
+  if (typeof item === "string") return item.trim();
+  if (!item || typeof item !== "object") return "";
+  const row = item as Record<string, unknown>;
+  const start = pickCalendarDate(row, [
+    "date",
+    "jour",
+    "day",
+    "value",
+    "startDate",
+    "dateDebut",
+    "debut",
+    "from",
+    "start",
+  ]);
+  const end = pickCalendarDate(row, ["endDate", "dateFin", "fin", "to", "end"]);
+  if (start && end && start !== end) return `${start} → ${end}`;
+  return start;
+}
+
 /** Extrait dates occupées du calendrier réservation (défensif). */
 export function extractCalendarBusyDates(data: unknown): string[] {
   if (!data) return [];
   if (Array.isArray(data)) {
-    return data
-      .map((item) => {
-        if (typeof item === "string") return item;
-        if (item && typeof item === "object") {
-          const row = item as Record<string, unknown>;
-          return String(
-            row.date ?? row.jour ?? row.startDate ?? row.dateDebut ?? ""
-          );
-        }
-        return "";
-      })
-      .filter(Boolean);
+    return data.map(formatCalendarEntry).filter(Boolean);
   }
   if (typeof data === "object") {
     const obj = data as Record<string, unknown>;
-    if (Array.isArray(obj.dates)) return extractCalendarBusyDates(obj.dates);
-    if (Array.isArray(obj.occupied)) {
-      return extractCalendarBusyDates(obj.occupied);
-    }
-    if (Array.isArray(obj.content)) {
-      return extractCalendarBusyDates(obj.content);
+    for (const key of CALENDAR_ARRAY_KEYS) {
+      if (Array.isArray(obj[key])) {
+        return extractCalendarBusyDates(obj[key]);
+      }
     }
   }
   return [];

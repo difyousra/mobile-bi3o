@@ -150,6 +150,18 @@ export async function markAllNotificationsRead(): Promise<void> {
   await apiClient.post("/me/notifications/read-all");
 }
 
+/** POST /me/notifications/{id}/dismiss-reservation?reservationId= */
+export async function dismissReservationNotification(
+  notificationId: number | string,
+  reservationId: number | string
+): Promise<void> {
+  await apiClient.post(
+    `/me/notifications/${notificationId}/dismiss-reservation`,
+    null,
+    { params: { reservationId } }
+  );
+}
+
 /** GET /me/recherches — charge toutes les pages. */
 export async function fetchSavedSearches(): Promise<SavedSearch[]> {
   const pageSize = 100;

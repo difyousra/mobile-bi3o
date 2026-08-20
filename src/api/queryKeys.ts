@@ -44,6 +44,7 @@ export const queryKeys = {
     ["users", "follow", sellerId] as const,
   followedSellers: ["users", "follow", "list"] as const,
   notifications: (page: number) => ["me", "notifications", page] as const,
+  notificationsInfinite: ["me", "notifications", "infinite"] as const,
   notificationsUnread: ["me", "notifications", "unread"] as const,
   savedSearches: ["me", "recherches"] as const,
   myAds: (page: number) => ["annonces", "me", "manage", page] as const,
@@ -52,5 +53,7 @@ export const queryKeys = {
   reservationCalendar: (annonceId: number | string) =>
     ["reservations", "calendar", annonceId] as const,
   myReservations: (page: number) => ["reservations", "me", page] as const,
+  annonceReservations: (annonceId: number | string, page: number) =>
+    ["reservations", "annonce", annonceId, page] as const,
   exchange: ["exchange", "current"] as const,
 };
