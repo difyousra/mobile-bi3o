@@ -129,7 +129,12 @@ function PhotoGallery({ photos, activeIndex, onSelect }) {
 }
 
 const gStyles = StyleSheet.create({
-  hero: { width: "100%", height: 300, backgroundColor: colors.surfaceMuted },
+  hero: {
+    width: "100%",
+    height: 300,
+    backgroundColor: colors.surfaceMuted,
+    overflow: "hidden",
+  },
   heroImg: { width: "100%", height: "100%" },
   placeholder: { alignItems: "center", justifyContent: "center" },
   counter: {

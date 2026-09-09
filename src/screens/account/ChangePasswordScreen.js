@@ -68,7 +68,7 @@ export default function ChangePasswordScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={22} color={colors.textHeading} />
         </TouchableOpacity>
-        <Text style={styles.title}>{t("settings.security.changePassword")}</Text>
+        <Text style={styles.title}>{t("mobile.settings.security.changePassword")}</Text>
         <View style={{ width: 22 }} />
       </View>
 

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../api/queryKeys";
 import * as taxoService from "../services/taxoService";
 import * as annoncesService from "../services/annoncesService";
@@ -34,6 +34,34 @@ function filterByTitre(page: PublicAdsPage, titre: string): PublicAdsPage {
   };
 }
 
+/** Fallback client si GET catalogue (sans POST search) : particulier | professionnel. */
+function filterByVendeurType(
+  page: PublicAdsPage,
+  vendeurType?: string | null
+): PublicAdsPage {
+  const wanted = String(vendeurType || "").trim().toLowerCase();
+  if (!wanted) return page;
+  const wantPro = wanted === "professionnel" || wanted === "pro";
+  const wantPart =
+    wanted === "particulier" || wanted === "individual" || wanted === "part";
+  if (!wantPro && !wantPart) return page;
+
+  const content = (page.content ?? []).filter((ad) => {
+    const isPro = Boolean(ad.vendeurEstPro);
+    return wantPro ? isPro : !isPro;
+  });
+  return {
+    ...page,
+    content,
+    totalElements: content.length,
+    number: 0,
+    size: content.length,
+    totalPages: 1,
+    first: true,
+    last: true,
+  };
+}
+
 /**
  * Recherche catalogue :
  * - Catégorie / sous-catégorie seule → GET léger (coverUrl / photos), pas le POST lourd.
@@ -49,6 +77,7 @@ async function searchCatalog(options: {
   prixMin?: number | null;
   prixMax?: number | null;
   type?: string | null;
+  vendeurType?: string | null;
   disponibiliteDateArrivee?: string | null;
   disponibiliteDateDepart?: string | null;
 }): Promise<PublicAdsPage> {
@@ -62,16 +91,19 @@ async function searchCatalog(options: {
     prixMin,
     prixMax,
     type,
+    vendeurType,
     disponibiliteDateArrivee,
     disponibiliteDateDepart,
   } = options;
   const trimmed = titre.trim();
+  const vendeur = String(vendeurType || "").trim() || null;
   const needsFullSearch =
     trimmed.length > 0 ||
     attributs.length > 0 ||
     prixMin != null ||
     prixMax != null ||
     Boolean(type) ||
+    Boolean(vendeur) ||
     Boolean(disponibiliteDateArrivee && disponibiliteDateDepart);
 
   // Parcours catégorie (Home → résultats) : endpoint public rapide avec coverUrl.
@@ -98,6 +130,7 @@ async function searchCatalog(options: {
     if (prixMin) body.prixMin = prixMin;
     if (prixMax) body.prixMax = prixMax;
     if (type) body.type = type;
+    if (vendeur) body.vendeurType = vendeur;
     if (disponibiliteDateArrivee) {
       body.disponibiliteDateArrivee = disponibiliteDateArrivee;
     }
@@ -131,7 +164,7 @@ async function searchCatalog(options: {
     });
   }
 
-  return filterByTitre(base, trimmed);
+  return filterByVendeurType(filterByTitre(base, trimmed), vendeur);
 }
 
 export function useCategoriesTree() {
@@ -210,6 +243,80 @@ export function usePublicAds(options?: {
   return { ...query, products, pageData: query.data };
 }
 
+/** Catalogue public paginé à l’infini (Home). */
+export function useInfinitePublicAds(options?: {
+  size?: number;
+  categorieId?: number | "all";
+  sousCategorieId?: number | null;
+}) {
+  const size = options?.size ?? 24;
+  const categorieId = options?.categorieId ?? "all";
+  const sousCategorieId = options?.sousCategorieId ?? null;
+  const eurToDzd = exchangeService.resolveExchangeRates(useExchangeRate().data).eurToDzd;
+
+  const query = useInfiniteQuery({
+    queryKey: queryKeys.publicAdsInfinite(size, categorieId, sousCategorieId),
+    queryFn: ({ pageParam }) => {
+      if (sousCategorieId) {
+        return annoncesService.fetchAdsBySousCategorie(sousCategorieId, {
+          page: pageParam,
+          size,
+        });
+      }
+      if (
+        categorieId !== "all" &&
+        typeof categorieId === "number" &&
+        !Number.isNaN(categorieId)
+      ) {
+        return annoncesService.fetchAdsByCategorie(categorieId, {
+          page: pageParam,
+          size,
+        });
+      }
+      return annoncesService.fetchPublicAds({ page: pageParam, size });
+    },
+    initialPageParam: 0,
+    getNextPageParam: (last) => {
+      if (!last) return undefined;
+      if (last.last === true) return undefined;
+      const number = last.number ?? 0;
+      const totalPages = last.totalPages;
+      if (typeof totalPages === "number" && number + 1 >= totalPages) {
+        return undefined;
+      }
+      if ((last.content?.length ?? 0) === 0) return undefined;
+      return number + 1;
+    },
+    staleTime: STALE_ADS_MS,
+  });
+
+  const ads =
+    query.data?.pages.flatMap((page) => page.content ?? []) ?? [];
+  const products = ads.map((ad: AdCard) => mapAdCardToUi(ad, { eurToDzd }));
+  const firstPage = query.data?.pages?.[0];
+  const lastPage = query.data?.pages?.[query.data.pages.length - 1];
+
+  const pageData: PublicAdsPage | undefined = firstPage
+    ? {
+        ...lastPage!,
+        content: ads,
+        totalElements: firstPage.totalElements ?? ads.length,
+        totalPages: firstPage.totalPages ?? lastPage?.totalPages,
+        number: lastPage?.number ?? 0,
+        size: firstPage.size ?? size,
+        first: true,
+        last: lastPage?.last ?? true,
+      }
+    : undefined;
+
+  return {
+    ...query,
+    products,
+    ads,
+    pageData,
+  };
+}
+
 export function usePublicAd(id: number | string | undefined) {
   const eurToDzd = exchangeService.resolveExchangeRates(useExchangeRate().data).eurToDzd;
 
@@ -239,6 +346,7 @@ export function useSearchAds(
     prixMin?: number | null;
     prixMax?: number | null;
     type?: string | null;
+    vendeurType?: string | null;
     disponibiliteDateArrivee?: string | null;
     disponibiliteDateDepart?: string | null;
   }
@@ -250,6 +358,7 @@ export function useSearchAds(
   const prixMin = options?.prixMin ?? null;
   const prixMax = options?.prixMax ?? null;
   const type = options?.type ?? null;
+  const vendeurType = options?.vendeurType ?? null;
   const disponibiliteDateArrivee = options?.disponibiliteDateArrivee ?? null;
   const disponibiliteDateDepart = options?.disponibiliteDateDepart ?? null;
   const eurToDzd = exchangeService.resolveExchangeRates(useExchangeRate().data).eurToDzd;
@@ -259,6 +368,7 @@ export function useSearchAds(
     prixMin != null ||
     prixMax != null ||
     type != null ||
+    Boolean(vendeurType) ||
     Boolean(disponibiliteDateArrivee && disponibiliteDateDepart);
   const hasCriteria =
     trimmed.length > 0 || categorieId != null || sousCategorieId != null || hasAttributeCriteria;
@@ -275,7 +385,8 @@ export function useSearchAds(
       prixMax,
       type,
       disponibiliteDateArrivee,
-      disponibiliteDateDepart
+      disponibiliteDateDepart,
+      vendeurType
     ),
     queryFn: () =>
       searchCatalog({
@@ -288,6 +399,7 @@ export function useSearchAds(
         prixMin,
         prixMax,
         type,
+        vendeurType,
         disponibiliteDateArrivee,
         disponibiliteDateDepart,
       }),
@@ -315,6 +427,107 @@ export function useSearchAds(
     isLoading: hasCriteria ? query.isLoading : publicFallback.isLoading,
     isError: hasCriteria ? query.isError : publicFallback.isError,
     isFetching: hasCriteria ? query.isFetching : publicFallback.isFetching,
+  };
+}
+
+/**
+ * Recherche / catalogue paginé à l’infini (scroll bas de page → page suivante).
+ */
+export function useInfiniteSearchAds(
+  titre: string,
+  size = 24,
+  options?: {
+    categorieId?: number | null;
+    sousCategorieId?: number | null;
+    attributs?: object[];
+    prixMin?: number | null;
+    prixMax?: number | null;
+    type?: string | null;
+    vendeurType?: string | null;
+    disponibiliteDateArrivee?: string | null;
+    disponibiliteDateDepart?: string | null;
+  }
+) {
+  const trimmed = titre.trim();
+  const categorieId = options?.categorieId ?? null;
+  const sousCategorieId = options?.sousCategorieId ?? null;
+  const attributs = options?.attributs ?? [];
+  const prixMin = options?.prixMin ?? null;
+  const prixMax = options?.prixMax ?? null;
+  const type = options?.type ?? null;
+  const vendeurType = options?.vendeurType ?? null;
+  const disponibiliteDateArrivee = options?.disponibiliteDateArrivee ?? null;
+  const disponibiliteDateDepart = options?.disponibiliteDateDepart ?? null;
+  const eurToDzd = exchangeService.resolveExchangeRates(useExchangeRate().data).eurToDzd;
+
+  const query = useInfiniteQuery({
+    queryKey: queryKeys.searchAdsInfinite(
+      trimmed,
+      size,
+      categorieId,
+      sousCategorieId,
+      attributs,
+      prixMin,
+      prixMax,
+      type,
+      disponibiliteDateArrivee,
+      disponibiliteDateDepart,
+      vendeurType
+    ),
+    queryFn: ({ pageParam }) =>
+      searchCatalog({
+        titre: trimmed,
+        page: pageParam,
+        size,
+        categorieId,
+        sousCategorieId,
+        attributs,
+        prixMin,
+        prixMax,
+        type,
+        vendeurType,
+        disponibiliteDateArrivee,
+        disponibiliteDateDepart,
+      }),
+    initialPageParam: 0,
+    getNextPageParam: (last) => {
+      if (!last) return undefined;
+      if (last.last === true) return undefined;
+      const number = last.number ?? 0;
+      const totalPages = last.totalPages;
+      if (typeof totalPages === "number" && number + 1 >= totalPages) {
+        return undefined;
+      }
+      if ((last.content?.length ?? 0) === 0) return undefined;
+      return number + 1;
+    },
+    staleTime: STALE_ADS_MS,
+  });
+
+  const ads =
+    query.data?.pages.flatMap((page) => page.content ?? []) ?? [];
+  const products = ads.map((ad: AdCard) => mapAdCardToUi(ad, { eurToDzd }));
+  const firstPage = query.data?.pages?.[0];
+  const lastPage = query.data?.pages?.[query.data.pages.length - 1];
+
+  const pageData: PublicAdsPage | undefined = firstPage
+    ? {
+        ...lastPage!,
+        content: ads,
+        totalElements: firstPage.totalElements ?? ads.length,
+        totalPages: firstPage.totalPages ?? lastPage?.totalPages,
+        number: lastPage?.number ?? 0,
+        size: firstPage.size ?? size,
+        first: true,
+        last: lastPage?.last ?? true,
+      }
+    : undefined;
+
+  return {
+    ...query,
+    products,
+    ads,
+    pageData,
   };
 }
 
@@ -346,6 +559,62 @@ export function useSellerPublicAds(
       ),
     }),
   });
+}
+
+/** Infinite scroll — annonces d’un vendeur (profil / abonnés). */
+export function useInfiniteSellerPublicAds(
+  userId: number | string | undefined,
+  size = 24
+) {
+  const eurToDzd = exchangeService.resolveExchangeRates(useExchangeRate().data).eurToDzd;
+  const id = Number(userId) || 0;
+
+  const query = useInfiniteQuery({
+    queryKey: queryKeys.sellerPublicAdsInfinite(id, size),
+    queryFn: ({ pageParam }) =>
+      annoncesService.fetchSellerPublicAds(userId!, {
+        page: pageParam,
+        size,
+      }),
+    initialPageParam: 0,
+    getNextPageParam: (last) => {
+      if (!last) return undefined;
+      if (last.last === true) return undefined;
+      const number = last.number ?? 0;
+      const totalPages = last.totalPages;
+      if (typeof totalPages === "number" && number + 1 >= totalPages) {
+        return undefined;
+      }
+      if ((last.content?.length ?? 0) === 0) return undefined;
+      return number + 1;
+    },
+    enabled: userId != null && id > 0,
+    staleTime: 60_000,
+  });
+
+  const ads =
+    query.data?.pages.flatMap((page) => page.content ?? []) ?? [];
+  const products = ads.map((ad: AdCard) => mapAdCardToUi(ad, { eurToDzd }));
+  const firstPage = query.data?.pages?.[0];
+  const lastPage = query.data?.pages?.[query.data.pages.length - 1];
+
+  return {
+    ...query,
+    products,
+    ads,
+    pageData: firstPage
+      ? {
+          ...lastPage!,
+          content: ads,
+          totalElements: firstPage.totalElements ?? ads.length,
+          totalPages: firstPage.totalPages ?? lastPage?.totalPages,
+          number: lastPage?.number ?? 0,
+          size: firstPage.size ?? size,
+          first: true,
+          last: lastPage?.last ?? true,
+        }
+      : undefined,
+  };
 }
 
 /**

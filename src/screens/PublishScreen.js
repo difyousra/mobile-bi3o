@@ -129,7 +129,7 @@ export default function PublishScreen() {
             reset();
           },
         },
-        { text: t("common.ok"), style: "cancel", onPress: reset },
+        { text: t("mobile.common.ok"), style: "cancel", onPress: reset },
       ]);
     } catch (error) {
       const codeMessages = {
@@ -157,7 +157,7 @@ export default function PublishScreen() {
         return;
       }
 
-      notify(t("mobile.publish.publishErrorTitle"), message, [{ text: t("common.ok") }]);
+      notify(t("mobile.publish.publishErrorTitle"), message, [{ text: t("mobile.common.ok") }]);
     }
   };
 

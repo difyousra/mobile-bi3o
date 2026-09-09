@@ -78,4 +78,4 @@ export const LEGAL_COPY_FR = {
   },
 };
 
-export const WEB_LEGAL_BASE = "https://new.bi3oo.com";
+export const WEB_LEGAL_BASE = "https://bi3oo.com";

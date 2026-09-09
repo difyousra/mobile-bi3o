@@ -52,6 +52,7 @@ export default function MapSearchScreen({ navigation, route }) {
   const prixMin = filters.prixMin ? Number(filters.prixMin) : null;
   const prixMax = filters.prixMax ? Number(filters.prixMax) : null;
   const annonceType = filters.type ?? null;
+  const vendeurType = filters.vendeurType ? String(filters.vendeurType) : null;
   const disponibiliteDateArrivee = filters.disponibiliteDateArrivee ?? null;
   const disponibiliteDateDepart = filters.disponibiliteDateDepart ?? null;
   const location = filters.location ?? DEFAULT_SEARCH_FILTERS.location;
@@ -69,6 +70,7 @@ export default function MapSearchScreen({ navigation, route }) {
       prixMin,
       prixMax,
       type: annonceType,
+      vendeurType,
       disponibiliteDateArrivee,
       disponibiliteDateDepart,
     }

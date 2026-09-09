@@ -2,9 +2,12 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useState,
 } from "react";
 import { useConversations } from "../hooks/useMessaging";
+import { getBlockedUserIds } from "../utils/blockedUsers";
 
 const MessagesContext = createContext(null);
 
@@ -15,6 +18,25 @@ const MessagesContext = createContext(null);
 export function MessagesProvider({ children }) {
   const { data = [], isLoading, isError, refetch, isRefetching } =
     useConversations();
+  const [blockedIds, setBlockedIds] = useState([]);
+
+  const refreshBlocked = useCallback(async () => {
+    const ids = await getBlockedUserIds();
+    setBlockedIds(ids);
+  }, []);
+
+  useEffect(() => {
+    refreshBlocked();
+  }, [refreshBlocked]);
+
+  const visibleConversations = useMemo(() => {
+    if (!blockedIds.length) return data;
+    const set = new Set(blockedIds);
+    return data.filter((c) => {
+      const sid = Number(c.sellerId);
+      return !Number.isFinite(sid) || !set.has(sid);
+    });
+  }, [data, blockedIds]);
 
   const getConversation = useCallback(
     (id) => data.find((c) => String(c.id) === String(id)),
@@ -23,16 +45,16 @@ export function MessagesProvider({ children }) {
 
   const filterConversations = useCallback(
     (query) => {
-      if (!query?.trim()) return data;
+      if (!query?.trim()) return visibleConversations;
       const q = query.toLowerCase();
-      return data.filter(
+      return visibleConversations.filter(
         (c) =>
           c.sellerName.toLowerCase().includes(q) ||
           c.product.title.toLowerCase().includes(q) ||
           (c.preview ?? "").toLowerCase().includes(q)
       );
     },
-    [data]
+    [visibleConversations]
   );
 
   const value = useMemo(
@@ -41,10 +63,11 @@ export function MessagesProvider({ children }) {
       isLoading,
       isError,
       isRefetching,
-      conversations: data,
+      conversations: visibleConversations,
       getConversation,
       filterConversations,
       refetch,
+      refreshBlocked,
       /** @deprecated local persistence removed — use useSendMessage */
       updateMessages: () => {},
     }),
@@ -52,10 +75,11 @@ export function MessagesProvider({ children }) {
       isLoading,
       isError,
       isRefetching,
-      data,
+      visibleConversations,
       getConversation,
       filterConversations,
       refetch,
+      refreshBlocked,
     ]
   );
 

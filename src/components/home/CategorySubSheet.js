@@ -54,9 +54,9 @@ export default function CategorySubSheet({
             onPress={onClose}
             hitSlop={12}
             accessibilityRole="button"
-            accessibilityLabel={t("common.cancel")}
+            accessibilityLabel={t("mobile.common.cancel")}
           >
-            <Text style={styles.cancel}>{t("common.cancel")}</Text>
+            <Text style={styles.cancel}>{t("mobile.common.cancel")}</Text>
           </TouchableOpacity>
         </View>
 

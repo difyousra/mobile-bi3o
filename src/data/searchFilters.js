@@ -4,6 +4,7 @@ export const DEFAULT_SEARCH_FILTERS = {
   sousCategorieId: null,
   priceMin: "",
   priceMax: "",
+  vendeurType: "",
 };
 
 export function countActiveFilters(filters) {
@@ -14,6 +15,7 @@ export function countActiveFilters(filters) {
   if (filters.priceMax?.trim?.() || filters.prixMax) count += 1;
   if (filters.location && filters.location !== "Toute l'Algérie") count += 1;
   if (filters.type || filters.annonceType) count += 1;
+  if (filters.vendeurType) count += 1;
   if (filters.disponibiliteDateArrivee && filters.disponibiliteDateDepart) count += 1;
   return count;
 }

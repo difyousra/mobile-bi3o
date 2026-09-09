@@ -15,7 +15,9 @@ export default function TransactionRow({ transaction }) {
   const isCredit = transaction.amount > 0;
   const amountText = `${isCredit ? "+" : ""}${formatPrice(Math.abs(transaction.amount))}`;
   const typeKey = TX_TYPE_KEYS[transaction.type];
-  const typeLabel = typeKey ? t(typeKey) : transaction.type;
+  const typeLabel = typeKey
+    ? t(typeKey)
+    : t("mobile.wallet.txTypeOther", { defaultValue: "Opération" });
 
   return (
     <View style={styles.row}>

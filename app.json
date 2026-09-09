@@ -10,9 +10,10 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Bi3oo utilise le micro pour envoyer des messages vocaux.",
-        "NSCameraUsageDescription": "Bi3oo utilise l'appareil photo pour envoyer des photos dans les messages.",
-        "NSPhotoLibraryUsageDescription": "Bi3oo accède à vos photos pour les envoyer dans les messages."
+        "NSMicrophoneUsageDescription": "Bi3oo utilise le micro pour la recherche vocale et les messages vocaux.",
+        "NSSpeechRecognitionUsageDescription": "Bi3oo utilise la reconnaissance vocale pour convertir votre voix en texte de recherche.",
+        "NSCameraUsageDescription": "Bi3oo utilise l'appareil photo pour illustrer vos annonces et envoyer des photos dans les messages.",
+        "NSPhotoLibraryUsageDescription": "Bi3oo accède à vos photos pour illustrer vos annonces et les envoyer dans les messages."
       }
     },
     "android": {
@@ -50,14 +51,21 @@
       [
         "expo-av",
         {
-          "microphonePermission": "Bi3oo utilise le micro pour envoyer des messages vocaux."
+          "microphonePermission": "Bi3oo utilise le micro pour la recherche vocale et les messages vocaux."
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Bi3oo utilise le micro pour la recherche vocale et les messages vocaux.",
+          "speechRecognitionPermission": "Bi3oo utilise la reconnaissance vocale pour convertir votre voix en texte de recherche."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Bi3oo accède à vos photos pour les envoyer dans les messages.",
-          "cameraPermission": "Bi3oo utilise l'appareil photo pour envoyer des photos dans les messages."
+          "photosPermission": "Bi3oo accède à vos photos pour illustrer vos annonces et les envoyer dans les messages.",
+          "cameraPermission": "Bi3oo utilise l'appareil photo pour illustrer vos annonces et envoyer des photos dans les messages."
         }
       ]
     ]

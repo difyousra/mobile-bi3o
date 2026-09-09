@@ -5,7 +5,7 @@ import {
   useMemo,
 } from "react";
 import {
-  useFavoritesPage,
+  useInfiniteFavorites,
   useToggleFavorite,
   useToggleFollow,
 } from "../hooks/useEngagement";
@@ -20,8 +20,18 @@ const FavoritesContext = createContext(null);
  */
 export function FavoritesProvider({ children }) {
   const { isAuthenticated, requireAuth } = useAuth();
-  const { products, favoriteIds, isLoading, isError, refetch, pageData } =
-    useFavoritesPage(0, 48);
+  const {
+    products,
+    favoriteIds,
+    isLoading,
+    isError,
+    refetch,
+    pageData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isRefetching,
+  } = useInfiniteFavorites(24);
   const toggleMutation = useToggleFavorite();
   const followMutation = useToggleFollow();
 
@@ -70,6 +80,7 @@ export function FavoritesProvider({ children }) {
       isReady: !isLoading,
       isLoading,
       isError,
+      isRefetching,
       favoriteIds,
       products,
       pageData,
@@ -80,11 +91,15 @@ export function FavoritesProvider({ children }) {
       followSeller,
       unfollowSeller,
       refetch,
+      fetchNextPage,
+      hasNextPage,
+      isFetchingNextPage,
       isToggling: toggleMutation.isPending,
     }),
     [
       isLoading,
       isError,
+      isRefetching,
       favoriteIds,
       products,
       pageData,
@@ -93,6 +108,9 @@ export function FavoritesProvider({ children }) {
       unfollowSeller,
       followSeller,
       refetch,
+      fetchNextPage,
+      hasNextPage,
+      isFetchingNextPage,
       toggleMutation.isPending,
     ]
   );

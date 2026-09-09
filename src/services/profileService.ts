@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import { apiClient } from "../api/client";
 import { API_BASE_URL, UPLOAD_TIMEOUT_MS } from "../config/api";
 import { getAccessToken } from "../api/tokenManager";
@@ -20,17 +21,41 @@ export async function changePassword(
   await apiClient.patch("/users/me/password", body);
 }
 
+async function appendPhotoPart(
+  form: FormData,
+  fieldName: string,
+  photo: LocalPhoto
+): Promise<void> {
+  const fileName = photo.fileName ?? "avatar.jpg";
+  const mimeType = photo.mimeType ?? "image/jpeg";
+
+  // Sur web, `{ uri, type, name }` n’envoie pas de vraie part fichier
+  // → erreur backend « Required part 'file' is not present ».
+  if (Platform.OS === "web") {
+    const fileResponse = await fetch(photo.uri);
+    const blob = await fileResponse.blob();
+    const typed =
+      blob.type && blob.type !== "application/octet-stream"
+        ? blob
+        : new Blob([blob], { type: mimeType });
+    form.append(fieldName, typed, fileName);
+    return;
+  }
+
+  form.append(fieldName, {
+    uri: photo.uri,
+    type: mimeType,
+    name: fileName,
+  } as unknown as Blob);
+}
+
 /**
  * POST /users/me/avatar — multipart `file` (mobile_api.md §2 / mapping).
  */
 export async function uploadAvatar(photo: LocalPhoto): Promise<User | unknown> {
   const token = await getAccessToken();
   const form = new FormData();
-  form.append("file", {
-    uri: photo.uri,
-    type: photo.mimeType ?? "image/jpeg",
-    name: photo.fileName ?? "avatar.jpg",
-  } as unknown as Blob);
+  await appendPhotoPart(form, "file", photo);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);

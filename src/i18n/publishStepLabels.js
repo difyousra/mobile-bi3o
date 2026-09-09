@@ -24,13 +24,10 @@ export function localizePublishStepCopy(stepConfig, t, subcategoryConfig) {
           })
         : t("forms.deposit.photosLabel");
       stepLabel = t("forms.deposit.photosLabel");
-      subtitle =
-        subtitle && stepConfig.subtitle.includes("7 fois")
-          ? t("forms.deposit.photosHint", { max: 10 })
-          : t("forms.deposit.photosHint", {
-              max: 10,
-              defaultValue: subtitle,
-            });
+      subtitle = t("mobile.publish.photosHint", {
+        max: 10,
+        defaultValue: "Ajoutez jusqu'à {{max}} photos pour mieux vendre.",
+      });
       break;
     case "immobilierFields":
     case "vehicleFields":

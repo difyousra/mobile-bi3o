@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   View,
-  ScrollView,
+  FlatList,
   StyleSheet,
   Text,
   ActivityIndicator,
@@ -19,7 +19,7 @@ import MarketplaceProductCard from "./MarketplaceProductCard";
 import { PROMO_BANNERS } from "../../data/mockHomeData";
 import {
   useCategoryChips,
-  usePublicAds,
+  useInfinitePublicAds,
   useSousCategories,
   useExchangeRate,
 } from "../../hooks/useCatalog";
@@ -30,10 +30,6 @@ import { colors } from "../../theme/colors";
 import { useTabBarInset } from "../../hooks/useTabBarInset";
 import { useAppLanguage } from "../../i18n/LanguageProvider";
 import { subcategoryNodeLabel } from "../../i18n/taxonomyLabels";
-
-function ProductGrid({ children }) {
-  return <View style={styles.grid}>{children}</View>;
-}
 
 export default function HomeContent() {
   const { t } = useAppLanguage();
@@ -95,10 +91,11 @@ export default function HomeContent() {
     isLoading: adsLoading,
     isError: adsError,
     isRefetching,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
     refetch: refetchAds,
-    pageData,
-  } = usePublicAds({
-    page: 0,
+  } = useInfinitePublicAds({
     size: 24,
     categorieId,
     sousCategorieId: activeSousCategorie,
@@ -191,10 +188,6 @@ export default function HomeContent() {
     });
   };
 
-  const handleChatPress = () => {
-    navigation.navigate("Messages");
-  };
-
   const handleNotificationPress = () => {
     navigation.navigate("Notifications");
   };
@@ -210,88 +203,102 @@ export default function HomeContent() {
 
   const loading = taxoLoading || adsLoading;
 
+  const listHeader = (
+    <View>
+      <HomeHeader
+        onNotificationPress={handleNotificationPress}
+        onLogoPress={() =>
+          navigation.navigate("MainTabs", { screen: "Home" })
+        }
+      />
+
+      <HomeSearchBar
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        onFilterPress={handleFilterPress}
+        onSubmitEditing={() =>
+          navigation.navigate("Search", {
+            initialQuery: searchQuery,
+            filters: buildSearchFilters(),
+          })
+        }
+        onVoiceFinalResult={(text) =>
+          navigation.navigate("Search", {
+            initialQuery: text,
+            filters: buildSearchFilters(),
+          })
+        }
+      />
+
+      <CategoryChips
+        categories={chips}
+        activeId={activeCategory}
+        onSelect={handleCategorySelect}
+      />
+
+      <PromoBanner banners={PROMO_BANNERS} onCtaPress={handleBannerCta} />
+
+      <SectionHeader
+        title={t("mobile.home.listingsSection")}
+        icon="pricetag"
+        iconColor={colors.primary}
+      />
+
+      {loading ? (
+        <ActivityIndicator
+          style={styles.loader}
+          color={colors.primary}
+          size="large"
+        />
+      ) : null}
+
+      {(taxoError || adsError) && !loading ? (
+        <Text style={styles.error}>{t("mobile.home.loadCatalogError")}</Text>
+      ) : null}
+
+      {!loading && filteredProducts.length === 0 ? (
+        <Text style={styles.empty}>{t("mobile.home.emptyListings")}</Text>
+      ) : null}
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <ScrollView
+      <FlatList
+        data={loading ? [] : filteredProducts}
+        keyExtractor={(item) => String(item.id)}
+        numColumns={2}
+        columnWrapperStyle={styles.gridRow}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scroll, { paddingBottom: tabBarInset }]}
         keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl refreshing={isRefetching} onRefresh={onRefresh} />
         }
-      >
-        <HomeHeader
-          onNotificationPress={handleNotificationPress}
-          onLogoPress={() =>
-            navigation.navigate("MainTabs", { screen: "Home" })
-          }
-        />
-
-        <HomeSearchBar
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          onFilterPress={handleFilterPress}
-          onSubmitEditing={() =>
-            navigation.navigate("Search", {
-              initialQuery: searchQuery,
-              filters: buildSearchFilters(),
-            })
-          }
-        />
-
-        <CategoryChips
-          categories={chips}
-          activeId={activeCategory}
-          onSelect={handleCategorySelect}
-        />
-
-        <PromoBanner banners={PROMO_BANNERS} onCtaPress={handleBannerCta} />
-
-        <SectionHeader
-          title={t("mobile.home.listingsSection")}
-          icon="pricetag"
-          iconColor={colors.primary}
-        />
-
-        {loading ? (
-          <ActivityIndicator
-            style={styles.loader}
-            color={colors.primary}
-            size="large"
+        ListHeaderComponent={listHeader}
+        onEndReached={() => {
+          if (loading || isFetchingNextPage || !hasNextPage) return;
+          fetchNextPage();
+        }}
+        onEndReachedThreshold={0.4}
+        renderItem={({ item }) => (
+          <MarketplaceProductCard
+            product={item}
+            isFavorite={isFavorite(item.id)}
+            onPress={handleProductPress}
+            onToggleFavorite={toggleFavorite}
+            rates={priceRates}
           />
-        ) : null}
-
-        {(taxoError || adsError) && !loading ? (
-          <Text style={styles.error}>{t("mobile.home.loadCatalogError")}</Text>
-        ) : null}
-
-        {!loading && filteredProducts.length === 0 ? (
-          <Text style={styles.empty}>{t("mobile.home.emptyListings")}</Text>
-        ) : null}
-
-        <ProductGrid>
-          {filteredProducts.map((product) => (
-            <MarketplaceProductCard
-              key={product.id}
-              product={product}
-              isFavorite={isFavorite(product.id)}
-              onPress={handleProductPress}
-              onToggleFavorite={toggleFavorite}
-              rates={priceRates}
+        )}
+        ListFooterComponent={
+          isFetchingNextPage ? (
+            <ActivityIndicator
+              color={colors.primary}
+              style={{ marginVertical: 16 }}
             />
-          ))}
-        </ProductGrid>
-
-        {pageData && !pageData.last ? (
-          <Text style={styles.hint}>
-            {t("mobile.home.pagination", {
-              total: pageData.totalElements,
-              page: pageData.number + 1,
-              pages: pageData.totalPages,
-            })}
-          </Text>
-        ) : null}
-      </ScrollView>
+          ) : null
+        }
+      />
 
       <CategorySubSheet
         visible={subSheetVisible}
@@ -321,10 +328,9 @@ const styles = StyleSheet.create({
   scroll: {
     paddingHorizontal: 16,
   },
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+  gridRow: {
     justifyContent: "space-between",
+    marginBottom: 12,
   },
   loader: {
     marginVertical: 24,
@@ -340,11 +346,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginVertical: 24,
     fontSize: 14,
-  },
-  hint: {
-    color: colors.textMuted,
-    textAlign: "center",
-    marginTop: 12,
-    fontSize: 12,
   },
 });

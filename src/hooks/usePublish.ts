@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { queryKeys } from "../api/queryKeys";
 import * as publishService from "../services/publishService";
 import {
@@ -16,6 +21,53 @@ export function useMyManagedAds(page = 0, size = 20) {
     staleTime: 30_000,
     enabled: isAuthenticated,
   });
+}
+
+/** Infinite scroll — GET /annonces/me/manage (même pattern que l’accueil). */
+export function useInfiniteMyManagedAds(size = 20) {
+  const { isAuthenticated } = useAuth();
+
+  const query = useInfiniteQuery({
+    queryKey: queryKeys.myAdsInfinite(size),
+    queryFn: ({ pageParam }) =>
+      publishService.fetchMyManagedAds({ page: pageParam, size }),
+    initialPageParam: 0,
+    getNextPageParam: (last) => {
+      if (!last) return undefined;
+      if (last.last === true) return undefined;
+      const number = last.number ?? 0;
+      const totalPages = last.totalPages;
+      if (typeof totalPages === "number" && number + 1 >= totalPages) {
+        return undefined;
+      }
+      if ((last.content?.length ?? 0) === 0) return undefined;
+      return number + 1;
+    },
+    staleTime: 30_000,
+    enabled: isAuthenticated,
+  });
+
+  const items =
+    query.data?.pages.flatMap((page) => page.content ?? []) ?? [];
+  const firstPage = query.data?.pages?.[0];
+  const lastPage = query.data?.pages?.[query.data.pages.length - 1];
+
+  return {
+    ...query,
+    items,
+    pageData: firstPage
+      ? {
+          ...lastPage!,
+          content: items,
+          totalElements: firstPage.totalElements ?? items.length,
+          totalPages: firstPage.totalPages ?? lastPage?.totalPages,
+          number: lastPage?.number ?? 0,
+          size: firstPage.size ?? size,
+          first: true,
+          last: lastPage?.last ?? true,
+        }
+      : undefined,
+  };
 }
 
 export function usePauseAnnonce() {

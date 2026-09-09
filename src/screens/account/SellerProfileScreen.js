@@ -1,8 +1,8 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import {
   View,
   Text,
-  ScrollView,
+  FlatList,
   Image,
   TouchableOpacity,
   StyleSheet,
@@ -17,7 +17,7 @@ import { queryKeys } from "../../api/queryKeys";
 import { fetchPublicSeller } from "../../services/annoncesService";
 import { mapPublicSeller } from "../../utils/profileHelpers";
 import { formatPrice } from "../../utils/productMapper";
-import { useSellerPublicAds } from "../../hooks/useCatalog";
+import { useInfiniteSellerPublicAds } from "../../hooks/useCatalog";
 import {
   useFollowStatus,
   useToggleFollow,
@@ -29,6 +29,7 @@ const { width: SCREEN_W } = Dimensions.get("window");
 const CARD_GAP = 12;
 const H_PAD = 16;
 const CARD_W = (SCREEN_W - H_PAD * 2 - CARD_GAP) / 2;
+const PAGE_SIZE = 24;
 
 function SellerAdCard({ item, onPress, priceOnRequestLabel }) {
   return (
@@ -75,18 +76,26 @@ export default function SellerProfileScreen({ route, navigation }) {
   );
 
   const {
-    data: sellerAds,
+    products,
+    pageData,
     isLoading: adsLoading,
     isError: adsError,
-  } = useSellerPublicAds(sellerId, 50);
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteSellerPublicAds(sellerId, PAGE_SIZE);
 
-  const products = sellerAds?.products ?? [];
-  const adsTotal = sellerAds?.totalElements ?? products.length;
+  const adsTotal = pageData?.totalElements ?? products.length;
 
   const { data: following = false } = useFollowStatus(
     isAuthenticated ? sellerId : undefined
   );
   const toggleFollow = useToggleFollow();
+
+  const onEndReached = useCallback(() => {
+    if (adsLoading || isFetchingNextPage || !hasNextPage) return;
+    fetchNextPage();
+  }, [adsLoading, isFetchingNextPage, hasNextPage, fetchNextPage]);
 
   if (!sellerId) {
     navigation.goBack();
@@ -107,6 +116,96 @@ export default function SellerProfileScreen({ route, navigation }) {
     });
   };
 
+  const listHeader = (
+    <View>
+      {isLoading ? (
+        <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
+      ) : null}
+
+      {isError ? (
+        <Text style={styles.error}>{t("mobile.profilePublicUi.loadError")}</Text>
+      ) : null}
+
+      <View style={styles.profileCard}>
+        {seller.avatar ? (
+          <Image source={{ uri: seller.avatar }} style={styles.avatar} />
+        ) : (
+          <View style={[styles.avatar, styles.avatarFallback]}>
+            <Ionicons name="person" size={40} color={colors.iconMuted} />
+          </View>
+        )}
+        <Text style={styles.name}>{seller.name || seedName}</Text>
+        {seller.typeCompte ? (
+          <View style={styles.badgeRow}>
+            <View
+              style={[
+                styles.typeBadge,
+                (seller.typeCompte === "PRO" ||
+                  seller.typeCompte === "PROFESSIONNEL") &&
+                  styles.typeBadgePro,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.typeBadgeText,
+                  (seller.typeCompte === "PRO" ||
+                    seller.typeCompte === "PROFESSIONNEL") &&
+                    styles.typeBadgeTextPro,
+                ]}
+              >
+                {seller.typeCompte === "PRO" ||
+                seller.typeCompte === "PROFESSIONNEL"
+                  ? t("profileUi.accountTypePro")
+                  : t("profileUi.accountTypeParticulier")}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+        {seller.ville ? (
+          <Text style={styles.meta}>
+            <Ionicons name="location-outline" size={14} color={colors.textMuted} />{" "}
+            {seller.ville}
+          </Text>
+        ) : null}
+        <Text style={styles.adsCount}>
+          {t("profilePublicUi.adsOnline", { count: adsTotal })}
+        </Text>
+        {seller.bio ? <Text style={styles.bio}>{seller.bio}</Text> : null}
+
+        <TouchableOpacity
+          style={[styles.followBtn, following && styles.followBtnActive]}
+          disabled={toggleFollow.isPending}
+          onPress={handleFollow}
+        >
+          <Ionicons
+            name={following ? "heart" : "heart-outline"}
+            size={16}
+            color={following ? colors.white : colors.primary}
+          />
+          <Text
+            style={[styles.followText, following && styles.followTextActive]}
+          >
+            {following ? t("profilePublicUi.following") : t("profilePublicUi.follow")}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <Text style={styles.sectionTitle}>{t("profilePublicUi.adsTab")}</Text>
+
+      {adsLoading && products.length === 0 ? (
+        <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />
+      ) : null}
+
+      {adsError ? (
+        <Text style={styles.error}>{t("categoryUi.loadListingsError")}</Text>
+      ) : null}
+
+      {!adsLoading && products.length === 0 ? (
+        <Text style={styles.empty}>{t("mobile.profilePublicUi.emptyAds")}</Text>
+      ) : null}
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <View style={styles.header}>
@@ -122,112 +221,37 @@ export default function SellerProfileScreen({ route, navigation }) {
         <View style={{ width: 26 }} />
       </View>
 
-      <ScrollView
+      <FlatList
+        data={products}
+        keyExtractor={(item) => String(item.id)}
+        numColumns={2}
+        columnWrapperStyle={styles.gridRow}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-      >
-        {isLoading ? (
-          <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
-        ) : null}
-
-        {isError ? (
-          <Text style={styles.error}>{t("mobile.profilePublicUi.loadError")}</Text>
-        ) : null}
-
-        <View style={styles.profileCard}>
-          {seller.avatar ? (
-            <Image source={{ uri: seller.avatar }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatar, styles.avatarFallback]}>
-              <Ionicons name="person" size={40} color={colors.iconMuted} />
-            </View>
-          )}
-          <Text style={styles.name}>{seller.name || seedName}</Text>
-          {seller.typeCompte ? (
-            <View style={styles.badgeRow}>
-              <View
-                style={[
-                  styles.typeBadge,
-                  (seller.typeCompte === "PRO" ||
-                    seller.typeCompte === "PROFESSIONNEL") &&
-                    styles.typeBadgePro,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.typeBadgeText,
-                    (seller.typeCompte === "PRO" ||
-                      seller.typeCompte === "PROFESSIONNEL") &&
-                      styles.typeBadgeTextPro,
-                  ]}
-                >
-                  {seller.typeCompte === "PRO" ||
-                  seller.typeCompte === "PROFESSIONNEL"
-                    ? t("profileUi.accountTypePro")
-                    : t("profileUi.accountTypeParticulier")}
-                </Text>
-              </View>
-            </View>
-          ) : null}
-          {seller.ville ? (
-            <Text style={styles.meta}>
-              <Ionicons name="location-outline" size={14} color={colors.textMuted} />{" "}
-              {seller.ville}
-            </Text>
-          ) : null}
-          <Text style={styles.adsCount}>
-            {t("profilePublicUi.adsOnline", { count: adsTotal })}
-          </Text>
-          {seller.bio ? <Text style={styles.bio}>{seller.bio}</Text> : null}
-
-          <TouchableOpacity
-            style={[styles.followBtn, following && styles.followBtnActive]}
-            disabled={toggleFollow.isPending}
-            onPress={handleFollow}
-          >
-            <Ionicons
-              name={following ? "heart" : "heart-outline"}
-              size={16}
-              color={following ? colors.white : colors.primary}
+        ListHeaderComponent={listHeader}
+        onEndReached={onEndReached}
+        onEndReachedThreshold={0.4}
+        ListFooterComponent={
+          isFetchingNextPage ? (
+            <ActivityIndicator
+              color={colors.primary}
+              style={{ marginVertical: 16 }}
             />
-            <Text
-              style={[styles.followText, following && styles.followTextActive]}
-            >
-              {following ? t("profilePublicUi.following") : t("profilePublicUi.follow")}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <Text style={styles.sectionTitle}>{t("profilePublicUi.adsTab")}</Text>
-
-        {adsLoading ? (
-          <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />
-        ) : null}
-
-        {adsError ? (
-          <Text style={styles.error}>{t("categoryUi.loadListingsError")}</Text>
-        ) : null}
-
-        {!adsLoading && products.length === 0 ? (
-          <Text style={styles.empty}>{t("mobile.profilePublicUi.emptyAds")}</Text>
-        ) : (
-          <View style={styles.grid}>
-            {products.map((item) => (
-              <SellerAdCard
-                key={String(item.id)}
-                item={item}
-                priceOnRequestLabel={t("adDetailV2.priceOnRequest")}
-                onPress={() =>
-                  navigation.push("ProductDetail", {
-                    annonceId: item.id,
-                    product: item,
-                  })
-                }
-              />
-            ))}
-          </View>
+          ) : null
+        }
+        renderItem={({ item }) => (
+          <SellerAdCard
+            item={item}
+            priceOnRequestLabel={t("adDetailV2.priceOnRequest")}
+            onPress={() =>
+              navigation.push("ProductDetail", {
+                annonceId: item.id,
+                product: item,
+              })
+            }
+          />
         )}
-      </ScrollView>
+      />
     </SafeAreaView>
   );
 }
@@ -250,82 +274,70 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: colors.textHeading,
   },
-  content: { paddingBottom: 120 },
+  content: {
+    paddingHorizontal: H_PAD,
+    paddingBottom: 40,
+  },
   error: {
+    color: "#D32F2F",
     textAlign: "center",
-    color: colors.primary,
-    marginTop: 24,
-    paddingHorizontal: 20,
+    marginTop: 16,
+    fontSize: 14,
   },
   empty: {
-    textAlign: "center",
     color: colors.textMuted,
-    marginTop: 24,
-    paddingHorizontal: 20,
+    textAlign: "center",
+    marginVertical: 24,
+    fontSize: 14,
   },
   profileCard: {
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 8,
+    paddingVertical: 24,
+    gap: 8,
   },
   avatar: {
     width: 88,
     height: 88,
     borderRadius: 44,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: "#F0F2F5",
   },
   avatarFallback: {
     alignItems: "center",
     justifyContent: "center",
   },
   name: {
-    marginTop: 14,
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "700",
     color: colors.textHeading,
-    textAlign: "center",
+    marginTop: 8,
   },
-  badgeRow: { marginTop: 8 },
+  badgeRow: { flexDirection: "row", marginTop: 4 },
   typeBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
     backgroundColor: colors.surfaceMuted,
   },
-  typeBadgePro: { backgroundColor: colors.brandLight },
-  typeBadgeText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: colors.textMuted,
-  },
-  typeBadgeTextPro: { color: colors.primary },
-  meta: {
-    marginTop: 8,
-    fontSize: 14,
-    color: colors.textMuted,
-  },
-  adsCount: {
-    marginTop: 6,
-    fontSize: 14,
-    fontWeight: "600",
-    color: colors.textHeading,
-  },
+  typeBadgePro: { backgroundColor: colors.navy },
+  typeBadgeText: { fontSize: 12, fontWeight: "600", color: colors.textMuted },
+  typeBadgeTextPro: { color: colors.white },
+  meta: { fontSize: 13, color: colors.textMuted },
+  adsCount: { fontSize: 13, color: colors.textMuted, fontWeight: "500" },
   bio: {
-    marginTop: 12,
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.textHeading,
+    fontSize: 13,
+    color: colors.textDark,
     textAlign: "center",
+    paddingHorizontal: 12,
+    lineHeight: 18,
   },
   followBtn: {
-    marginTop: 16,
+    marginTop: 8,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 10,
+    gap: 6,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: colors.primary,
   },
@@ -333,29 +345,22 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-  followText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: colors.primary,
-  },
+  followText: { fontSize: 14, fontWeight: "600", color: colors.primary },
   followTextActive: { color: colors.white },
   sectionTitle: {
-    marginTop: 20,
-    marginBottom: 12,
-    paddingHorizontal: H_PAD,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "700",
     color: colors.textHeading,
+    marginBottom: 12,
+    marginTop: 8,
   },
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    paddingHorizontal: H_PAD,
-    gap: CARD_GAP,
+  gridRow: {
+    justifyContent: "space-between",
+    marginBottom: CARD_GAP,
   },
   adCard: {
     width: CARD_W,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   adImage: {
     width: "100%",
@@ -364,17 +369,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
   },
   adTitle: {
-    marginTop: 8,
     fontSize: 13,
     fontWeight: "600",
     color: colors.textHeading,
-    lineHeight: 17,
+    marginTop: 8,
   },
   adPrice: {
-    marginTop: 4,
     fontSize: 14,
     fontWeight: "700",
     color: colors.primary,
+    marginTop: 2,
   },
   adMeta: {
     flexDirection: "row",
@@ -382,14 +386,6 @@ const styles = StyleSheet.create({
     gap: 4,
     marginTop: 4,
   },
-  adMetaText: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  adLoc: {
-    flex: 1,
-    fontSize: 11,
-    color: colors.textMuted,
-    marginLeft: 4,
-  },
+  adMetaText: { fontSize: 11, color: colors.textMuted },
+  adLoc: { flex: 1, fontSize: 11, color: colors.textMuted },
 });

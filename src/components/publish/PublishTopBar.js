@@ -14,7 +14,7 @@ export default function PublishTopBar({ title, onBack, onClose }) {
           style={styles.iconBtn}
           hitSlop={8}
           accessibilityRole="button"
-          accessibilityLabel={t("common.back")}
+          accessibilityLabel={t("mobile.common.back")}
         >
           <Ionicons name="arrow-back" size={16} color={colors.textHeading} />
         </TouchableOpacity>
@@ -27,7 +27,7 @@ export default function PublishTopBar({ title, onBack, onClose }) {
         style={styles.closeBtn}
         hitSlop={8}
         accessibilityRole="button"
-        accessibilityLabel={t("common.close")}
+        accessibilityLabel={t("mobile.common.close")}
       >
         <Ionicons name="close" size={14} color={colors.textHeading} />
       </TouchableOpacity>

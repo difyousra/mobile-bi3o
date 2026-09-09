@@ -49,7 +49,8 @@
     "loginFailed": "تعذّر تسجيل الدخول.",
     "profileLoadFailed": "تم تسجيل الدخول لكن تعذّر تحميل الملف الشخصي.",
     "oauthProfileFailed": "نجحت المصادقة لكن الملف الشخصي غير متاح.",
-    "forgotPasswordSent": "إذا وُجد حساب، تم إرسال بريد إلكتروني."
+    "forgotPasswordSent": "إذا وُجد حساب، تم إرسال بريد إلكتروني.",
+    "continueWithGoogle": "المتابعة مع Google"
   },
   "common": {
     "cancel": "إلغاء",
@@ -86,7 +87,7 @@
     "saveKeywordRequired": "أدخل كلمة مفتاحية قبل الحفظ.",
     "saveSuccessTitle": "تم حفظ البحث",
     "saveSuccessBody": "متوفر في المفضلة ← عمليات البحث.",
-    "saveError": "فشل الحفظ (تحقق من عقد POST /me/recherches).",
+    "saveError": "تعذّر حفظ هذا البحث. حاول مرة أخرى.",
     "loadError": "خطأ في البحث. حاول مرة أخرى.",
     "emptyHint": "اختر فئة أو ابدأ بحثاً.",
     "emptyTitle": "لم يتم العثور على نتائج.",
@@ -108,7 +109,9 @@
     "searchCategoryPlaceholder": "البحث عن فئة",
     "noCategoryFound": "لم يتم العثور على فئة.",
     "featuredBadge": "مميز",
-    "viewListingCta": "عرض الإعلان ←"
+    "viewListingCta": "عرض الإعلان ←",
+    "conversationPlaceholder": "ابحث عن محادثة…",
+    "placeholder": "ابحث على Bi3oo…"
   },
   "settings": {
     "privacy": {
@@ -166,7 +169,7 @@
     "logoutConfirmTitle": "تسجيل الخروج",
     "logoutConfirmBody": "هل تريد تسجيل الخروج؟",
     "logoutAction": "تسجيل خروجي",
-    "walletBrandSuffix": "Wallet",
+    "walletBrandSuffix": "المحفظة",
     "sessionInvalid": "جلسة غير صالحة.",
     "profileSaved": "تم حفظ المعلومات.",
     "profileSaveError": "تعذّر حفظ الملف الشخصي.",
@@ -176,7 +179,7 @@
     "tabActive": "نشطة",
     "tabPaused": "متوقفة",
     "tabSold": "مباعة",
-    "loadError": "تعذّر تحميل إعلاناتك (JWT مطلوب).",
+    "loadError": "تعذّر تحميل إعلاناتك. حاول مرة أخرى.",
     "globalPerformance": "الأداء العام",
     "views": "المشاهدات",
     "favorites": "المفضلة",
@@ -187,7 +190,8 @@
     "suspendBody": "هل تريد إيقاف هذا الإعلان مؤقتاً؟",
     "deleteTitle": "حذف",
     "confirm": "تأكيد",
-    "defaultTitle": "إعلان"
+    "defaultTitle": "إعلان",
+    "viewListing": "عرض الإعلان"
   },
   "favorites": {
     "tabs": {
@@ -195,7 +199,7 @@
       "searches": "عمليات البحث",
       "sellers": "البائعون"
     },
-    "loadError": "تعذّر تحميل المفضلة (JWT مطلوب).",
+    "loadError": "تعذّر تحميل المفضلة. حاول مرة أخرى.",
     "searchesLoadError": "تعذّر تحميل عمليات البحث المحفوظة.",
     "searchesEmpty": "لا توجد عمليات بحث محفوظة.\nفي البحث، أدخل كلمة مفتاحية ثم اضغط « حفظ ».",
     "sellersLoadError": "تعذّر تحميل البائعين المتابَعين.",
@@ -216,11 +220,11 @@
   },
   "messages": {
     "title": "الرسائل",
-    "loadError": "تعذّر تحميل المحادثات (JWT مطلوب).",
+    "loadError": "تعذّر تحميل المحادثات. حاول مرة أخرى.",
     "newChatTitle": "محادثة جديدة",
     "newChatBody": "افتح إعلاناً واضغط « اتصل » لبدء محادثة.",
     "filtersDevTitle": "الفلاتر",
-    "filtersDevBody": "فلاتر الرسائل غير موثّقة في الـ API بعد.",
+    "filtersDevBody": "فلاتر الرسائل قادمة قريباً.",
     "emptyTitle": "لنتحدث",
     "emptySubtitle": "تحتاج مساعدة بخصوص طلب أو منتج؟ ابدأ محادثة هنا.",
     "sendFailedTitle": "تعذّر الإرسال",
@@ -254,7 +258,32 @@
     "cameraPermission": "اسمح بالوصول إلى الكاميرا.",
     "playA11y": "تشغيل",
     "pauseA11y": "إيقاف مؤقت",
-    "today": "اليوم"
+    "today": "اليوم",
+    "aboutSeller": "حول {{name}}",
+    "aboutBuyer": "حول {{name}}",
+    "memberSinceLine": "عضو منذ {{date}}",
+    "memberSinceUnknown": "عضو Bi3oo",
+    "trustLine": "تبادل آمن عبر مراسلة Bi3oo",
+    "blockUser": "حظر المستخدم",
+    "reportUser": "الإبلاغ عن المستخدم",
+    "deleteConversation": "حذف المحادثة",
+    "personalData": "البيانات الشخصية",
+    "blockConfirmTitle": "حظر هذا المستخدم؟",
+    "blockConfirmBody": "لن يتمكن {{name}} من مراسلتك. ستختفي المحادثة من قائمتك.",
+    "blockedTitle": "تم حظر المستخدم",
+    "blockedBody": "لن تتلقى رسائله بعد الآن.",
+    "blockedSendBody": "لقد حظرت هذا المستخدم. ألغِ الحظر لمتابعة المحادثة.",
+    "blockUnavailable": "تعذّر حظر هذا المستخدم.",
+    "reportModalTitle": "الإبلاغ عن المستخدم",
+    "reportNoListing": "لا يوجد إعلان مرتبط للإبلاغ. افتح الإعلان من المحادثة.",
+    "deleteConfirmTitle": "حذف المحادثة؟",
+    "deleteConfirmBody": "ستُأرشف المحادثة وتُزال من قائمتك.",
+    "deletedTitle": "تم حذف المحادثة",
+    "deletedBody": "تمت أرشفة المحادثة.",
+    "personalDataName": "الاسم",
+    "personalDataCity": "المدينة",
+    "personalDataMember": "عضو منذ",
+    "personalDataListing": "الإعلان"
   },
   "home": {
     "listingsSection": "الإعلانات",
@@ -275,7 +304,7 @@
     "titleRequiredTitle": "العنوان مطلوب",
     "titleRequiredBody": "أضف عنواناً لإعلانك.",
     "categoryRequiredTitle": "الفئة مطلوبة",
-    "categoryRequiredBody": "اختر فئة فرعية (API التصنيف).",
+    "categoryRequiredBody": "اختر فئة فرعية للمتابعة.",
     "required": "إلزامي",
     "photoProTitle": "صور احترافية",
     "photoProBody": "خدمة تصوير احترافية — قريباً.",
@@ -287,19 +316,19 @@
     "chooseSubcategory": "اختيار فئة فرعية",
     "searchCategory": "البحث عن فئة…",
     "searchSubcategory": "البحث عن فئة فرعية…",
-    "taxonomyError": "تعذّر تحميل التصنيفات.",
+    "taxonomyError": "تعذّر تحميل الفئات.",
     "noCategoryFound": "لم يتم العثور على فئة.",
     "noSubcategoryFound": "لا توجد فئة فرعية لهذه الفئة.",
     "adTypeRecommended": "موصى به",
     "unknownStep": "خطوة غير معروفة",
-    "moderating": "التحقق من الاعتدال والنشر…",
+    "moderating": "جارٍ التحقق والنشر…",
     "publishedAlertTitle": "تم نشر الإعلان",
-    "publishedAlertBody": "تم نشر إعلانك (المعرّف {{id}}).",
+    "publishedAlertBody": "تم نشر إعلانك بنجاح.",
     "publishErrorDefault": "تعذّر النشر. تحقق من الحقول والاتصال.",
-    "moderationRejectedTitle": "رفض الاعتدال",
+    "moderationRejectedTitle": "تم رفض الإعلان",
     "moderationRejectedBody": "{{message}}\n\nعدّل العنوان أو الوصف ثم أعد النشر.",
     "editTextAction": "تعديل النص",
-    "publishErrorTitle": "خطأ في النشر",
+    "publishErrorTitle": "تعذّر النشر",
     "locationNoSuggestions": "لا توجد اقتراحات",
     "loadingAttributes": "جاري تحميل السمات…",
     "requiredFieldsMarked": "الحقول المعلّمة * إلزامية.",
@@ -313,8 +342,8 @@
     "validate": "تأكيد",
     "privateAddress": "العنوان (خاص)",
     "privateAddressPh": "الشارع، الحي، معلم...",
-    "privateAddressHint": "عنوانك الدقيق يبقى خاصاً. تُستخدم الولاية والرمز البريدي فقط للنشر.",
-    "subcategoryMissing": "الفئة الفرعية {{type}} غير موجودة.",
+    "privateAddressHint": "عنوانك الدقيق يبقى خاصاً. تظهر البلدية والرمز البريدي فقط في الإعلان.",
+    "subcategoryMissing": "الفئة الفرعية غير موجودة.",
     "priceLabelOptional": "سعر السلعة (اختياري)",
     "priceLabel": "سعر السلعة",
     "pricePhOptional": "اتركه فارغاً إن لم ينطبق",
@@ -462,7 +491,12 @@
       "couleur": "اللون",
       "etat_vehicule": "حالة المركبة",
       "etat": "الحالة"
-    }
+    },
+    "addPhotoTitle": "إضافة صورة",
+    "takePhoto": "التقاط صورة",
+    "chooseFromGallery": "اختيار من المعرض",
+    "cameraPermission": "اسمح بالوصول إلى الكاميرا لتصوير منتجك.",
+    "photosHint": "أضف حتى {{max}} صور لبيع أفضل."
   },
   "map": {
     "unavailableTitle": "الخريطة غير متاحة",
@@ -551,7 +585,12 @@
     "maxLabel": "الحد الأقصى",
     "minDa": "الحد الأدنى (دج)",
     "maxDa": "الحد الأقصى (دج)",
-    "allOption": "الكل"
+    "allOption": "الكل",
+    "sellerTypeSection": "نوع البائع",
+    "sellerParticulier": "فرد",
+    "sellerProfessionnel": "محترف",
+    "locationSection": "الموقع",
+    "clearLocation": "مسح الموقع"
   },
   "notifications": {
     "markAllShort": "قراءة الكل",
@@ -596,7 +635,8 @@
     "txTypeRewards": "مكافآت",
     "txTypePurchase": "شراء",
     "txTypeRefunds": "استرداد",
-    "txTypeTopUp": "شحن"
+    "txTypeTopUp": "شحن",
+    "txTypeOther": "عملية"
   },
   "profileUi": {
     "relayPromo": "وصّل طرودك الصغيرة مقابل 0,99 € طوال عطلة نهاية الأسبوع مع Yassir Relay.",
@@ -611,7 +651,7 @@
   "reservations": {
     "cardTitle": "حجز #{{id}}",
     "listingLine": "إعلان {{id}} · {{status}}",
-    "loadError": "تعذّر التحميل (JWT مطلوب).",
+    "loadError": "تعذّر تحميل حجوزاتك. حاول مرة أخرى.",
     "empty": "لا توجد حجوزات.",
     "statusConfirmed": "مؤكدة",
     "statusCancelled": "ملغاة",

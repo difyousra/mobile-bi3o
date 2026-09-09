@@ -20,7 +20,7 @@ import ExperienceRatingCard from "./ExperienceRatingCard";
 import MarketplaceProductCard from "../home/MarketplaceProductCard";
 import { useFavorites } from "../../context/FavoritesContext";
 import {
-  useFollowedSellers,
+  useInfiniteFollowedSellers,
   useSavedSearches,
   useDeleteSavedSearch,
   useUnreadNotificationsCount,
@@ -78,6 +78,10 @@ export default function FavoritesContent() {
     isLoading,
     isError,
     refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isRefetching,
   } = useFavorites();
   const {
     data: savedSearchesData,
@@ -89,12 +93,15 @@ export default function FavoritesContent() {
   const deleteSearch = useDeleteSavedSearch();
   const { data: unreadCount = 0 } = useUnreadNotificationsCount();
   const {
-    data: followedSellersPage,
+    sellers: followedSellers,
     isLoading: sellersLoading,
     isError: sellersError,
     refetch: refetchSellers,
     isFetching: sellersFetching,
-  } = useFollowedSellers();
+    isFetchingNextPage: sellersFetchingNext,
+    hasNextPage: sellersHasNext,
+    fetchNextPage: fetchNextSellers,
+  } = useInfiniteFollowedSellers(24);
 
   const [activeTab, setActiveTab] = useState("annonces");
   const [searchQuery, setSearchQuery] = useState("");
@@ -108,8 +115,8 @@ export default function FavoritesContent() {
 
   const savedSearches = asArray(savedSearchesData);
   const sellers = useMemo(
-    () => asArray(followedSellersPage).filter((s) => sellerIdOf(s) != null),
-    [followedSellersPage]
+    () => asArray(followedSellers).filter((s) => sellerIdOf(s) != null),
+    [followedSellers]
   );
 
   const go = useCallback(
@@ -208,10 +215,35 @@ export default function FavoritesContent() {
 
   const refreshing =
     activeTab === "annonces"
-      ? Boolean(isLoading)
+      ? Boolean(isRefetching && !isFetchingNextPage)
       : activeTab === "recherches"
         ? Boolean(searchesLoading || searchesFetching)
-        : Boolean(sellersLoading || sellersFetching);
+        : Boolean(sellersFetching && !sellersFetchingNext);
+
+  const onEndReachedProducts = useCallback(() => {
+    if (isLoading || isFetchingNextPage || !hasNextPage) return;
+    // Ne pas paginer pendant une recherche locale (liste filtrée).
+    if (searchQuery.trim()) return;
+    fetchNextPage?.();
+  }, [
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    searchQuery,
+  ]);
+
+  const onEndReachedSellers = useCallback(() => {
+    if (sellersLoading || sellersFetchingNext || !sellersHasNext) return;
+    if (searchQuery.trim()) return;
+    fetchNextSellers?.();
+  }, [
+    sellersLoading,
+    sellersFetchingNext,
+    sellersHasNext,
+    fetchNextSellers,
+    searchQuery,
+  ]);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -267,6 +299,8 @@ export default function FavoritesContent() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
+          onEndReached={onEndReachedProducts}
+          onEndReachedThreshold={0.4}
           ListHeaderComponent={
             <>
               {isLoading && visibleProducts.length === 0 ? (
@@ -293,18 +327,26 @@ export default function FavoritesContent() {
             </>
           }
           ListFooterComponent={
-            visibleProducts.length > 0 ? (
-              <ExperienceRatingCard
-                rating={rating}
-                onRate={(value) => {
-                  setRating(value);
-                  showDevMessage(
-                    t("mobile.favorites.ratingThanks"),
-                    t("mobile.favorites.ratingMessage", { value })
-                  );
-                }}
-              />
-            ) : null
+            <>
+              {isFetchingNextPage ? (
+                <ActivityIndicator
+                  color={colors.primary}
+                  style={{ marginVertical: 16 }}
+                />
+              ) : null}
+              {visibleProducts.length > 0 ? (
+                <ExperienceRatingCard
+                  rating={rating}
+                  onRate={(value) => {
+                    setRating(value);
+                    showDevMessage(
+                      t("mobile.favorites.ratingThanks"),
+                      t("mobile.favorites.ratingMessage", { value })
+                    );
+                  }}
+                />
+              ) : null}
+            </>
           }
           renderItem={({ item }) => (
             <MarketplaceProductCard
@@ -402,8 +444,11 @@ export default function FavoritesContent() {
       ) : null}
 
       {activeTab === "vendeurs" ? (
-        <ScrollView
+        <FlatList
           style={styles.flex}
+          data={filteredSellers}
+          keyExtractor={(item, index) => String(sellerIdOf(item) ?? index)}
+          showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             styles.list,
             { paddingBottom: tabBarInset },
@@ -413,37 +458,50 @@ export default function FavoritesContent() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
-        >
-          {sellersLoading && filteredSellers.length === 0 ? (
-            <ActivityIndicator color={colors.primary} style={styles.loader} />
-          ) : null}
-          {sellersError ? (
-            <TouchableOpacity onPress={() => refetchSellers?.()}>
-              <Text style={styles.error}>
-                {t("mobile.favorites.sellersLoadError")}
-              </Text>
-              <Text style={styles.retry}>{t("mobile.common.retry")}</Text>
-            </TouchableOpacity>
-          ) : null}
-          {!sellersLoading && !sellersError && filteredSellers.length === 0 ? (
-            <Text style={styles.empty}>
-              {t("mobile.favorites.sellersEmpty")}
-            </Text>
-          ) : null}
-          {filteredSellers.length > 0 ? (
-            <Text style={styles.sectionCount}>
-              {t("mobile.favorites.resultsCount", {
-                count: filteredSellers.length,
-              })}
-            </Text>
-          ) : null}
-          {filteredSellers.map((item) => {
+          onEndReached={onEndReachedSellers}
+          onEndReachedThreshold={0.4}
+          ListHeaderComponent={
+            <>
+              {sellersLoading && filteredSellers.length === 0 ? (
+                <ActivityIndicator color={colors.primary} style={styles.loader} />
+              ) : null}
+              {sellersError ? (
+                <TouchableOpacity onPress={() => refetchSellers?.()}>
+                  <Text style={styles.error}>
+                    {t("mobile.favorites.sellersLoadError")}
+                  </Text>
+                  <Text style={styles.retry}>{t("mobile.common.retry")}</Text>
+                </TouchableOpacity>
+              ) : null}
+              {!sellersLoading && !sellersError && filteredSellers.length === 0 ? (
+                <Text style={styles.empty}>
+                  {t("mobile.favorites.sellersEmpty")}
+                </Text>
+              ) : null}
+              {filteredSellers.length > 0 ? (
+                <Text style={styles.sectionCount}>
+                  {t("mobile.favorites.resultsCount", {
+                    count: filteredSellers.length,
+                  })}
+                </Text>
+              ) : null}
+            </>
+          }
+          ListFooterComponent={
+            sellersFetchingNext ? (
+              <ActivityIndicator
+                color={colors.primary}
+                style={{ marginVertical: 16 }}
+              />
+            ) : null
+          }
+          renderItem={({ item }) => {
             const id = sellerIdOf(item);
             const name = sellerDisplayName(item, t);
             const avatar = resolveMediaUrl(item?.photoUrl) || "";
             const listings = Number(item?.adsCount ?? 0) || 0;
             return (
-              <View key={String(id)} style={styles.row}>
+              <View style={styles.row}>
                 <TouchableOpacity
                   style={styles.rowMain}
                   activeOpacity={0.85}
@@ -486,8 +544,8 @@ export default function FavoritesContent() {
                 </TouchableOpacity>
               </View>
             );
-          })}
-        </ScrollView>
+          }}
+        />
       ) : null}
     </SafeAreaView>
   );

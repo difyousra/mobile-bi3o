@@ -7,6 +7,7 @@ import {
   Image,
   StyleSheet,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -39,7 +40,7 @@ import TopUpModal from "./TopUpModal";
 const MENU_ITEM_DEFS = [
   {
     id: "password",
-    labelKey: "settings.security.changePassword",
+    labelKey: "mobile.settings.security.changePassword",
     icon: "key-outline",
     route: "ChangePassword",
   },
@@ -185,28 +186,25 @@ export default function AccountContent() {
     }
   };
 
-  const handleAvatarPress = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      alertDialog(
-        t("mobile.account.galleryPermissionTitle"),
-        t("mobile.account.galleryPermission")
-      );
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      quality: 0.8,
-      allowsEditing: true,
-      aspect: [1, 1],
-    });
-    if (result.canceled || !result.assets?.[0]) return;
-    const asset = result.assets[0];
+  const uploadPickedAsset = async (asset) => {
+    if (!asset?.uri) return;
+    const mimeType = asset.mimeType ?? "image/jpeg";
+    const ext =
+      mimeType.includes("png")
+        ? "png"
+        : mimeType.includes("webp")
+          ? "webp"
+          : "jpg";
+    const fileName =
+      asset.fileName && String(asset.fileName).includes(".")
+        ? asset.fileName
+        : `avatar.${ext}`;
+
     try {
       const uploaded = await uploadAvatar.mutateAsync({
         uri: asset.uri,
-        mimeType: asset.mimeType ?? "image/jpeg",
-        fileName: asset.fileName ?? "avatar.jpg",
+        mimeType,
+        fileName,
       });
       const photoAbsolute =
         uploaded?.photoUrlAbsolute ??
@@ -231,6 +229,70 @@ export default function AccountContent() {
         error?.message ?? t("mobile.account.avatarUploadError")
       );
     }
+  };
+
+  const pickAvatarFromGallery = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      alertDialog(
+        t("mobile.account.galleryPermissionTitle"),
+        t("mobile.account.galleryPermission")
+      );
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      quality: 0.8,
+      allowsEditing: true,
+      aspect: [1, 1],
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    await uploadPickedAsset(result.assets[0]);
+  };
+
+  const pickAvatarFromCamera = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      alertDialog(
+        t("mobile.account.galleryPermissionTitle"),
+        t("mobile.publish.cameraPermission", {
+          defaultValue: t("mobile.messages.cameraPermission"),
+        })
+      );
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ["images"],
+      quality: 0.8,
+      allowsEditing: true,
+      aspect: [1, 1],
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    await uploadPickedAsset(result.assets[0]);
+  };
+
+  const handleAvatarPress = () => {
+    // Sur web mobile, Alert propose aussi caméra / galerie (input capture).
+    Alert.alert(
+      t("mobile.account.avatarTitle"),
+      undefined,
+      [
+        {
+          text: t("mobile.publish.takePhoto", {
+            defaultValue: t("mobile.messages.camera"),
+          }),
+          onPress: () => pickAvatarFromCamera(),
+        },
+        {
+          text: t("mobile.publish.chooseFromGallery", {
+            defaultValue: t("mobile.messages.gallery"),
+          }),
+          onPress: () => pickAvatarFromGallery(),
+        },
+        { text: t("mobile.common.cancel"), style: "cancel" },
+      ],
+      { cancelable: true }
+    );
   };
 
   const handleLogout = () => {

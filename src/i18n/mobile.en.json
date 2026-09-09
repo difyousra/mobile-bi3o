@@ -49,7 +49,8 @@
     "loginFailed": "Sign-in failed.",
     "profileLoadFailed": "Signed in but could not load your profile.",
     "oauthProfileFailed": "OAuth exchange succeeded but profile is unavailable.",
-    "forgotPasswordSent": "If an account exists, an email has been sent."
+    "forgotPasswordSent": "If an account exists, an email has been sent.",
+    "continueWithGoogle": "Continue with Google"
   },
   "common": {
     "cancel": "Cancel",
@@ -86,7 +87,7 @@
     "saveKeywordRequired": "Enter a keyword before saving.",
     "saveSuccessTitle": "Search saved",
     "saveSuccessBody": "Available in Favorites → My searches.",
-    "saveError": "Save failed (check POST /me/recherches contract).",
+    "saveError": "Could not save this search. Please try again.",
     "loadError": "Search error. Please try again.",
     "emptyHint": "Pick a category or start a search.",
     "emptyTitle": "No results found.",
@@ -108,7 +109,9 @@
     "searchCategoryPlaceholder": "Search a category",
     "noCategoryFound": "No category found.",
     "featuredBadge": "Featured",
-    "viewListingCta": "View listing →"
+    "viewListingCta": "View listing →",
+    "conversationPlaceholder": "Search a conversation…",
+    "placeholder": "Search on Bi3oo…"
   },
   "settings": {
     "privacy": {
@@ -176,7 +179,7 @@
     "tabActive": "Active",
     "tabPaused": "Paused",
     "tabSold": "Sold",
-    "loadError": "Could not load your listings (JWT required).",
+    "loadError": "Could not load your listings. Please try again.",
     "globalPerformance": "Overall performance",
     "views": "Views",
     "favorites": "Favorites",
@@ -187,7 +190,8 @@
     "suspendBody": "Pause this listing?",
     "deleteTitle": "Delete",
     "confirm": "Confirm",
-    "defaultTitle": "Listing"
+    "defaultTitle": "Listing",
+    "viewListing": "View listing"
   },
   "favorites": {
     "tabs": {
@@ -195,7 +199,7 @@
       "searches": "Saved searches",
       "sellers": "Saved sellers"
     },
-    "loadError": "Could not load favorites (JWT required).",
+    "loadError": "Could not load favorites. Please try again.",
     "searchesLoadError": "Could not load your saved searches.",
     "searchesEmpty": "No saved searches yet.\nIn Search, enter a keyword then tap Save.",
     "sellersLoadError": "Could not load followed sellers.",
@@ -216,11 +220,11 @@
   },
   "messages": {
     "title": "Messages",
-    "loadError": "Could not load conversations (JWT required).",
+    "loadError": "Could not load conversations. Please try again.",
     "newChatTitle": "New conversation",
     "newChatBody": "Open a listing and tap Contact to start a thread.",
     "filtersDevTitle": "Filters",
-    "filtersDevBody": "Message filters are not documented on the API yet.",
+    "filtersDevBody": "Message filters are coming soon.",
     "emptyTitle": "Let's talk",
     "emptySubtitle": "Need help with an order or product? Start a conversation here.",
     "sendFailedTitle": "Send failed",
@@ -254,7 +258,32 @@
     "cameraPermission": "Allow access to the camera.",
     "playA11y": "Play",
     "pauseA11y": "Pause",
-    "today": "Today"
+    "today": "Today",
+    "aboutSeller": "About {{name}}",
+    "aboutBuyer": "About {{name}}",
+    "memberSinceLine": "Member since {{date}}",
+    "memberSinceUnknown": "Bi3oo member",
+    "trustLine": "Secure exchanges via Bi3oo messaging",
+    "blockUser": "Block user",
+    "reportUser": "Report user",
+    "deleteConversation": "Delete conversation",
+    "personalData": "Personal data",
+    "blockConfirmTitle": "Block this user?",
+    "blockConfirmBody": "{{name}} will no longer be able to message you. The conversation will leave your inbox.",
+    "blockedTitle": "User blocked",
+    "blockedBody": "You will no longer receive their messages.",
+    "blockedSendBody": "You blocked this user. Unblock them to continue chatting.",
+    "blockUnavailable": "Unable to block this user.",
+    "reportModalTitle": "Report user",
+    "reportNoListing": "No linked listing to report. Open the listing from the thread.",
+    "deleteConfirmTitle": "Delete conversation?",
+    "deleteConfirmBody": "The conversation will be archived and removed from your list.",
+    "deletedTitle": "Conversation deleted",
+    "deletedBody": "The conversation has been archived.",
+    "personalDataName": "Name",
+    "personalDataCity": "City",
+    "personalDataMember": "Member since",
+    "personalDataListing": "Listing"
   },
   "home": {
     "listingsSection": "Listings",
@@ -275,7 +304,7 @@
     "titleRequiredTitle": "Title required",
     "titleRequiredBody": "Add a title for your listing.",
     "categoryRequiredTitle": "Category required",
-    "categoryRequiredBody": "Select a subcategory (taxonomy API).",
+    "categoryRequiredBody": "Choose a subcategory to continue.",
     "required": "Required",
     "photoProTitle": "Pro photos",
     "photoProBody": "Professional photo service — coming soon.",
@@ -287,19 +316,19 @@
     "chooseSubcategory": "Choose a subcategory",
     "searchCategory": "Search a category…",
     "searchSubcategory": "Search a subcategory…",
-    "taxonomyError": "Unable to load taxonomy.",
+    "taxonomyError": "Could not load categories.",
     "noCategoryFound": "No category found.",
     "noSubcategoryFound": "No subcategory for this category.",
     "adTypeRecommended": "RECOMMENDED",
-    "unknownStep": "Unknown step",
-    "moderating": "Moderation check & publishing…",
+    "unknownStep": "Unrecognized step",
+    "moderating": "Checking and publishing…",
     "publishedAlertTitle": "Listing published",
-    "publishedAlertBody": "Your listing was published (ID {{id}}).",
+    "publishedAlertBody": "Your listing was published successfully.",
     "publishErrorDefault": "Could not publish. Check the fields and your connection.",
-    "moderationRejectedTitle": "Moderation rejected",
+    "moderationRejectedTitle": "Listing rejected",
     "moderationRejectedBody": "{{message}}\n\nEdit the title or description, then publish again.",
     "editTextAction": "Edit text",
-    "publishErrorTitle": "Publish error",
+    "publishErrorTitle": "Could not publish",
     "locationNoSuggestions": "No suggestions",
     "loadingAttributes": "Loading attributes…",
     "requiredFieldsMarked": "Fields marked * are required.",
@@ -313,8 +342,8 @@
     "validate": "Confirm",
     "privateAddress": "Address (private)",
     "privateAddressPh": "Street, area, landmark...",
-    "privateAddressHint": "Your exact address stays private. Only wilaya and postal code are used for publishing.",
-    "subcategoryMissing": "{{type}} subcategory not found.",
+    "privateAddressHint": "Your exact address stays private. Only the municipality and postal code appear on the listing.",
+    "subcategoryMissing": "Subcategory not found.",
     "priceLabelOptional": "Item price (optional)",
     "priceLabel": "Item price",
     "pricePhOptional": "Leave empty if not applicable",
@@ -449,7 +478,7 @@
       "mode_de_chauffage": "Heating mode",
       "classe_energie": "Energy class",
       "ges": "GHG",
-      "papiers": "Documents",
+      "papiers": "Document type",
       "honoraires_a_la_charge_de": "Fees paid by",
       "type_activite": "Activity type",
       "immatriculation": "Registration number",
@@ -462,7 +491,12 @@
       "couleur": "Colour",
       "etat_vehicule": "Vehicle condition",
       "etat": "Condition"
-    }
+    },
+    "addPhotoTitle": "Add a photo",
+    "takePhoto": "Take a photo",
+    "chooseFromGallery": "Choose from gallery",
+    "cameraPermission": "Allow camera access to photograph your item.",
+    "photosHint": "Add up to {{max}} photos to sell faster."
   },
   "map": {
     "unavailableTitle": "Map unavailable",
@@ -551,7 +585,12 @@
     "maxLabel": "Max",
     "minDa": "Min (Da)",
     "maxDa": "Max (Da)",
-    "allOption": "All"
+    "allOption": "All",
+    "sellerTypeSection": "Seller type",
+    "sellerParticulier": "Individual",
+    "sellerProfessionnel": "Professional",
+    "locationSection": "Location",
+    "clearLocation": "Clear location"
   },
   "notifications": {
     "markAllShort": "Mark all read",
@@ -596,7 +635,8 @@
     "txTypeRewards": "Rewards",
     "txTypePurchase": "Purchase",
     "txTypeRefunds": "Refund",
-    "txTypeTopUp": "Top up"
+    "txTypeTopUp": "Top up",
+    "txTypeOther": "Transaction"
   },
   "profileUi": {
     "relayPromo": "Get your small parcels delivered for €0.99 all weekend with Yassir Relay.",
@@ -611,7 +651,7 @@
   "reservations": {
     "cardTitle": "Booking #{{id}}",
     "listingLine": "Listing {{id}} · {{status}}",
-    "loadError": "Could not load (JWT required).",
+    "loadError": "Could not load your reservations. Please try again.",
     "empty": "No bookings.",
     "statusConfirmed": "Confirmed",
     "statusCancelled": "Cancelled",

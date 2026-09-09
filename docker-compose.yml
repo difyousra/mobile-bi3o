@@ -1,0 +1,18 @@
+services:
+  mobile:
+    build: .
+    container_name: bi3oo-mobile
+    ports:
+      - "8081:8081"
+    environment:
+      CI: "1"
+      EXPO_NO_TELEMETRY: "1"
+      EXPO_DEVTOOLS_LISTEN_ADDRESS: "0.0.0.0"
+      CHOKIDAR_USEPOLLING: "1"
+      EXPO_PUBLIC_API_URL: ${EXPO_PUBLIC_API_URL:-https://bi3oo.com/api}
+      EXPO_PUBLIC_WS_URL: ${EXPO_PUBLIC_WS_URL:-wss://bi3oo.com/ws}
+      # IP/hostname public du serveur (QR / liens Metro). À adapter si besoin.
+      REACT_NATIVE_PACKAGER_HOSTNAME: ${REACT_NATIVE_PACKAGER_HOSTNAME:-168.231.76.45}
+    restart: unless-stopped
+    stdin_open: true
+    tty: true

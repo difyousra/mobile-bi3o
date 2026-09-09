@@ -13,11 +13,15 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
 import PriceConversionRow from "../common/PriceConversionRow";
+import {
+  ListingDeliveryChip,
+  ListingLocationPill,
+} from "../common/ListingCardBadges";
 import { sellerInitials } from "../../utils/formatListingDisplay";
 import { useAppLanguage } from "../../i18n/LanguageProvider";
 
 const FALLBACK_IMAGE =
-  "https://new.bi3oo.com/uploads/1_vehicules/1_voitures/ann_31/2025/09/pexels-trksami-20277838_19e3a356740e426398e293fc5ac0ef2b.jpg";
+  "https://bi3oo.com/uploads/1_vehicules/1_voitures/ann_31/2025/09/pexels-trksami-20277838_19e3a356740e426398e293fc5ac0ef2b.jpg";
 
 function ListingImage({ uri, style }) {
   const [src, setSrc] = useState(uri || FALLBACK_IMAGE);
@@ -103,13 +107,16 @@ export default function ListingCard({
           </View>
         ) : null}
 
+        <ListingLocationPill location={listing.location} />
+        <ListingDeliveryChip available={listing.livraisonDisponible} />
+
         {attrsLine ? (
           <Text style={styles.attrs} numberOfLines={1}>
             {attrsLine}
           </Text>
         ) : null}
 
-        {(sellerName || listing.location) && (
+        {sellerName ? (
           <View style={styles.sellerRow}>
             <View style={styles.avatar}>
               {listing.sellerPhotoUrl ? (
@@ -124,19 +131,12 @@ export default function ListingCard({
               )}
             </View>
             <View style={styles.sellerText}>
-              {sellerName ? (
-                <Text style={styles.sellerName} numberOfLines={1}>
-                  {sellerName}
-                </Text>
-              ) : null}
-              {listing.location ? (
-                <Text style={styles.sellerLocation} numberOfLines={1}>
-                  {listing.location}
-                </Text>
-              ) : null}
+              <Text style={styles.sellerName} numberOfLines={1}>
+                {sellerName}
+              </Text>
             </View>
           </View>
-        )}
+        ) : null}
       </View>
 
       {showDivider && !compact ? <View style={styles.divider} /> : null}
@@ -172,10 +172,9 @@ export function ListingMapCard({
           {listing.title}
         </Text>
         {listing.location ? (
-          <Text style={styles.miniLocation} numberOfLines={1}>
-            {listing.location}
-          </Text>
+          <ListingLocationPill location={listing.location} compact />
         ) : null}
+        <ListingDeliveryChip available={listing.livraisonDisponible} compact />
         {selected ? (
           <Text style={styles.miniCta}>{t("mobile.search.viewListingCta")}</Text>
         ) : null}

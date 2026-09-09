@@ -272,12 +272,27 @@ const COMMON_RESIDENTIAL_FIELDS = {
   },
   papiers: {
     name: "papiers",
-    label: "Papiers",
+    label: "Type de document",
     type: T.TEXT,
     control: "choice-chips",
     chipVariant: "filled",
     preferTaxoAttrId: true,
-    taxoAliases: ["papier"],
+    taxoAliases: [
+      "papier",
+      "type_de_document",
+      "type_document",
+      "documents",
+      "document",
+    ],
+    /** Fallback si la taxo ne renvoie pas encore les valeurs. */
+    staticOptions: [
+      "Acte de propriété",
+      "Livre foncier",
+      "Plan cadastral",
+      "Permis de construire",
+      "Attestation de conformité",
+      "Promesse de vente",
+    ],
   },
 };
 
@@ -489,6 +504,13 @@ const locationFields = [
     "autre",
   ]),
   whenTypeBien(COMMON_RESIDENTIAL_FIELDS.ges, ["maison", "appartement", "autre"]),
+  whenTypeBien(COMMON_RESIDENTIAL_FIELDS.papiers, [
+    "maison",
+    "appartement",
+    "terrain",
+    "parking",
+    "autre",
+  ]),
 ];
 
 const colocationFields = [
@@ -722,12 +744,26 @@ const bureauFields = [
   },
   {
     name: "papiers",
-    label: "Papiers",
+    label: "Type de document",
     type: T.TEXT,
     control: "choice-chips",
     chipVariant: "filled",
     preferTaxoAttrId: true,
-    taxoAliases: ["papier"],
+    taxoAliases: [
+      "papier",
+      "type_de_document",
+      "type_document",
+      "documents",
+      "document",
+    ],
+    staticOptions: [
+      "Acte de propriété",
+      "Livre foncier",
+      "Plan cadastral",
+      "Permis de construire",
+      "Attestation de conformité",
+      "Promesse de vente",
+    ],
     showWhen: { field: "type_transaction", values: ["vente", "location"] },
   },
   {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
   FlatList,
@@ -13,10 +13,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import ChatHeader from "./ChatHeader";
 import ProductContextBar from "./ProductContextBar";
+import AboutSellerCard from "./AboutSellerCard";
+import ChatOverflowMenu from "./ChatOverflowMenu";
+import ChatReportModal from "./ChatReportModal";
 import MessageBubble, { DateSeparator } from "./MessageBubble";
 import ChatInput from "./ChatInput";
 import MessagesEmptyState from "./MessagesEmptyState";
 import { useAuth } from "../../context/AuthContext";
+import { useMessages } from "../../context/MessagesContext";
 import {
   useArchiveConversation,
   useConversationMessages,
@@ -28,6 +32,7 @@ import { useVoiceRecorder } from "../../hooks/useVoiceRecorder";
 import { colors } from "../../theme/colors";
 import { formatPrice } from "../../utils/productMapper";
 import { useAppLanguage } from "../../i18n/LanguageProvider";
+import { blockUser, isUserBlocked } from "../../utils/blockedUsers";
 
 export default function ChatContent({
   conversation,
@@ -37,6 +42,7 @@ export default function ChatContent({
 }) {
   const { t } = useAppLanguage();
   const { user } = useAuth();
+  const { refreshBlocked } = useMessages();
   const currentUserId = user?.id ?? null;
   const id = conversationId ?? conversation.id;
 
@@ -49,9 +55,49 @@ export default function ChatContent({
   const voice = useVoiceRecorder();
 
   const [draft, setDraft] = useState("");
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+
+  const sellerId = conversation?.sellerId;
+  const annonceId = conversation?.annonceId ?? conversation?.product?.id;
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!sellerId) {
+        if (!cancelled) setBlocked(false);
+        return;
+      }
+      const yes = await isUserBlocked(sellerId);
+      if (!cancelled) setBlocked(yes);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sellerId]);
+
+  const aboutHeader = useMemo(
+    () => (
+      <View>
+        <AboutSellerCard
+          name={conversation?.sellerName}
+          ville={conversation?.sellerVille}
+          memberSince={conversation?.sellerMemberSince}
+          isSeller={conversation?.otherUserIsSeller !== false}
+        />
+        <DateSeparator />
+      </View>
+    ),
+    [
+      conversation?.sellerName,
+      conversation?.sellerVille,
+      conversation?.sellerMemberSince,
+      conversation?.otherUserIsSeller,
+    ]
+  );
 
   const handleSellerPress = () => {
-    const sellerId = conversation?.sellerId;
     if (!sellerId || !navigation) return;
     navigation.navigate("SellerProfile", {
       sellerId: Number(sellerId),
@@ -60,7 +106,17 @@ export default function ChatContent({
     });
   };
 
+  const ensureNotBlocked = useCallback(() => {
+    if (!blocked) return true;
+    Alert.alert(
+      t("mobile.messages.blockedTitle"),
+      t("mobile.messages.blockedSendBody")
+    );
+    return false;
+  }, [blocked, t]);
+
   const handleSend = async () => {
+    if (!ensureNotBlocked()) return;
     const text = draft.trim();
     if (!text || sendMutation.isPending) return;
     setDraft("");
@@ -76,7 +132,6 @@ export default function ChatContent({
   };
 
   const handleViewProduct = () => {
-    const annonceId = conversation.annonceId ?? conversation.product?.id;
     if (!annonceId || !navigation) return;
     navigation.navigate("ProductDetail", {
       annonceId,
@@ -90,31 +145,96 @@ export default function ChatContent({
     });
   };
 
-  const handleMenuPress = () => {
-    Alert.alert(t("mobile.messages.optionsTitle"), undefined, [
-      {
-        text: t("mobile.messages.archive"),
-        onPress: () =>
-          archiveMutation.mutate(id, {
-            onSuccess: () => {
-              Alert.alert(
-                t("mobile.messages.archivedTitle"),
-                t("mobile.messages.archivedBody")
-              );
-              onBack?.();
-            },
-            onError: (e) =>
-              Alert.alert(
-                t("mobile.common.error"),
-                e?.message ?? t("mobile.messages.archiveError")
-              ),
-          }),
-      },
-      { text: t("mobile.common.cancel"), style: "cancel" },
-    ]);
+  const handleBlock = () => {
+    if (!sellerId) {
+      Alert.alert(t("mobile.common.error"), t("mobile.messages.blockUnavailable"));
+      return;
+    }
+    Alert.alert(
+      t("mobile.messages.blockConfirmTitle"),
+      t("mobile.messages.blockConfirmBody", {
+        name: conversation.sellerName || "",
+      }),
+      [
+        { text: t("mobile.common.cancel"), style: "cancel" },
+        {
+          text: t("mobile.messages.blockUser"),
+          style: "destructive",
+          onPress: async () => {
+            await blockUser(sellerId);
+            setBlocked(true);
+            await refreshBlocked?.();
+            Alert.alert(
+              t("mobile.messages.blockedTitle"),
+              t("mobile.messages.blockedBody")
+            );
+            onBack?.();
+          },
+        },
+      ]
+    );
+  };
+
+  const handleReport = () => {
+    if (!annonceId) {
+      Alert.alert(
+        t("mobile.messages.reportUser"),
+        t("mobile.messages.reportNoListing")
+      );
+      return;
+    }
+    setReportVisible(true);
+  };
+
+  const handleDeleteConversation = () => {
+    Alert.alert(
+      t("mobile.messages.deleteConfirmTitle"),
+      t("mobile.messages.deleteConfirmBody"),
+      [
+        { text: t("mobile.common.cancel"), style: "cancel" },
+        {
+          text: t("mobile.messages.deleteConversation"),
+          style: "destructive",
+          onPress: () =>
+            archiveMutation.mutate(id, {
+              onSuccess: () => {
+                Alert.alert(
+                  t("mobile.messages.deletedTitle"),
+                  t("mobile.messages.deletedBody")
+                );
+                onBack?.();
+              },
+              onError: (e) =>
+                Alert.alert(
+                  t("mobile.common.error"),
+                  e?.message ?? t("mobile.messages.archiveError")
+                ),
+            }),
+        },
+      ]
+    );
+  };
+
+  const handlePersonalData = () => {
+    const lines = [
+      `${t("mobile.messages.personalDataName")}: ${
+        conversation.sellerName || "—"
+      }`,
+      `${t("mobile.messages.personalDataCity")}: ${
+        conversation.sellerVille || "—"
+      }`,
+      `${t("mobile.messages.personalDataMember")}: ${
+        conversation.sellerMemberSince || "—"
+      }`,
+      `${t("mobile.messages.personalDataListing")}: ${
+        conversation.product?.title || "—"
+      }`,
+    ];
+    Alert.alert(t("mobile.messages.personalData"), lines.join("\n"));
   };
 
   const uploadPickedImage = async (asset) => {
+    if (!ensureNotBlocked()) return;
     if (!asset?.uri) return;
     try {
       await imageMutation.mutateAsync({
@@ -165,6 +285,7 @@ export default function ChatContent({
   };
 
   const handleAttachPress = () => {
+    if (!ensureNotBlocked()) return;
     Alert.alert(t("mobile.messages.sendPhotoTitle"), undefined, [
       { text: t("mobile.messages.gallery"), onPress: () => pickFromGallery() },
       { text: t("mobile.messages.camera"), onPress: () => pickFromCamera() },
@@ -173,6 +294,7 @@ export default function ChatContent({
   };
 
   const handleMicPress = async () => {
+    if (!ensureNotBlocked()) return;
     const result = await voice.start();
     if (!result?.ok) {
       const msg =
@@ -210,8 +332,8 @@ export default function ChatContent({
         sellerAvatar={conversation.sellerAvatar}
         lastSeen={conversation.lastSeen}
         onBackPress={onBack}
-        onMenuPress={handleMenuPress}
-        onSellerPress={conversation?.sellerId ? handleSellerPress : undefined}
+        onMenuPress={() => setMenuVisible(true)}
+        onSellerPress={sellerId ? handleSellerPress : undefined}
       />
 
       <ProductContextBar
@@ -245,14 +367,17 @@ export default function ChatContent({
         ) : null}
 
         {isEmpty ? (
-          <MessagesEmptyState />
+          <View style={styles.emptyWrap}>
+            {aboutHeader}
+            <MessagesEmptyState />
+          </View>
         ) : (
           <FlatList
             data={messages}
             keyExtractor={(item) => String(item.id)}
             contentContainerStyle={styles.messageList}
             showsVerticalScrollIndicator={false}
-            ListHeaderComponent={<DateSeparator />}
+            ListHeaderComponent={aboutHeader}
             renderItem={({ item }) => <MessageBubble message={item} />}
           />
         )}
@@ -270,6 +395,21 @@ export default function ChatContent({
           sendingMedia={imageMutation.isPending || audioMutation.isPending}
         />
       </KeyboardAvoidingView>
+
+      <ChatOverflowMenu
+        visible={menuVisible}
+        onClose={() => setMenuVisible(false)}
+        onBlock={handleBlock}
+        onReport={handleReport}
+        onDelete={handleDeleteConversation}
+        onPersonalData={handlePersonalData}
+      />
+
+      <ChatReportModal
+        visible={reportVisible}
+        annonceId={annonceId}
+        onClose={() => setReportVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -286,6 +426,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 16,
+  },
+  emptyWrap: {
+    flex: 1,
+    paddingHorizontal: 16,
   },
   error: {
     textAlign: "center",

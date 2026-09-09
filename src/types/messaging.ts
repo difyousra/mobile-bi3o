@@ -28,6 +28,8 @@ export type ConversationDto = {
   otherUserPhotoUrl?: string;
   otherUserVille?: string;
   otherUserLastActivityAt?: string;
+  otherUserCreatedAt?: string;
+  otherUserIsSeller?: boolean;
 
   /** Nombre de messages non lus (backend). */
   unreadCount?: number;
@@ -75,6 +77,9 @@ export type UiConversation = {
   sellerId?: number;
   sellerName: string;
   sellerAvatar: string;
+  sellerVille?: string;
+  sellerMemberSince?: string;
+  otherUserIsSeller?: boolean;
   lastSeen: string;
   unreadCount?: number;
   product: {

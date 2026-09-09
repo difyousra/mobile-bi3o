@@ -3,6 +3,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
 import SellerTypeBadge from "../common/SellerTypeBadge";
 import PriceConversionRow from "../common/PriceConversionRow";
+import {
+  ListingDeliveryChip,
+  ListingLocationPill,
+} from "../common/ListingCardBadges";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const H_PAD = 16;
@@ -69,6 +73,11 @@ export default function MarketplaceProductCard({
           {product.model}
         </Text>
       ) : null}
+
+      <View style={styles.meta}>
+        <ListingLocationPill location={product.location} compact />
+        <ListingDeliveryChip available={product.livraisonDisponible} compact />
+      </View>
     </TouchableOpacity>
   );
 }
@@ -136,5 +145,9 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: colors.textMuted,
     marginTop: 2,
+  },
+  meta: {
+    marginTop: 6,
+    gap: 4,
   },
 });

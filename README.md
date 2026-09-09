@@ -25,8 +25,9 @@ npx expo start --tunnel --web --port 8081
 - **Web (navigateur)** : `http://<IP-serveur>:8081`  
   Exemple préprod : http://168.231.76.45:8081
 - **Tunnel Expo** : URL `*.exp.direct` (Expo Go sur téléphone)
-- **API** : `EXPO_PUBLIC_API_URL` (défaut `https://new.bi3oo.com/api`)
+- **API** : `EXPO_PUBLIC_API_URL` (défaut `https://bi3oo.com/api`, backend `/opt/monprojet/prod`)
+- **WS** : `EXPO_PUBLIC_WS_URL` (défaut `wss://bi3oo.com/ws`)
 
 ```bash
-EXPO_PUBLIC_API_URL=https://new.bi3oo.com/api npx expo start --tunnel --web --port 8081
+EXPO_PUBLIC_API_URL=https://bi3oo.com/api EXPO_PUBLIC_WS_URL=wss://bi3oo.com/ws npx expo start --web --port 8081 --host lan
 ```

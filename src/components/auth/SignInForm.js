@@ -77,7 +77,7 @@ export default function SignInForm({
           contentContainerStyle={styles.scrollContent}
         >
           <SocialButton
-            label={`${t("authLogin.submit")} Google`}
+            label={t("mobile.auth.continueWithGoogle")}
             onPress={onGooglePress}
             loading={googleLoading}
             disabled={isSubmitting}

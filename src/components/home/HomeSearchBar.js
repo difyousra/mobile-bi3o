@@ -2,6 +2,7 @@ import { View, TextInput, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
 import { useAppLanguage } from "../../i18n/LanguageProvider";
+import VoiceSearchButton from "../search/VoiceSearchButton";
 
 export default function HomeSearchBar({
   value,
@@ -9,9 +10,22 @@ export default function HomeSearchBar({
   onFilterPress,
   placeholder,
   onSubmitEditing,
+  onVoiceFinalResult,
   showFilterButton = true,
+  showVoiceSearch = true,
 }) {
   const { t } = useAppLanguage();
+
+  const handleVoiceFinal = (text) => {
+    const trimmed = String(text || "").trim();
+    if (!trimmed) return;
+    onChangeText?.(trimmed);
+    if (onVoiceFinalResult) {
+      onVoiceFinalResult(trimmed);
+      return;
+    }
+    onSubmitEditing?.({ nativeEvent: { text: trimmed } });
+  };
 
   return (
     <View style={styles.row}>
@@ -19,13 +33,23 @@ export default function HomeSearchBar({
         <Ionicons name="search-outline" size={18} color={colors.iconMuted} />
         <TextInput
           style={styles.input}
-          placeholder={placeholder ?? t("mobile.search.placeholder")}
+          placeholder={placeholder ?? t("mobile.search.placeholder", {
+            defaultValue: t("search.placeholder", {
+              defaultValue: t("nav.searchPlaceholder"),
+            }),
+          })}
           placeholderTextColor={colors.placeholder}
           value={value}
           onChangeText={onChangeText}
           returnKeyType="search"
           onSubmitEditing={onSubmitEditing}
         />
+        {showVoiceSearch ? (
+          <VoiceSearchButton
+            onTranscript={onChangeText}
+            onFinalResult={handleVoiceFinal}
+          />
+        ) : null}
       </View>
 
       {showFilterButton && onFilterPress ? (

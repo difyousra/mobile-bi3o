@@ -11,12 +11,14 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import {
-  findWilayaById,
   formatAnnonceLocationLine,
   formatCommuneSearchLine,
+  getCommuneDisplayName,
   getWilayaDisplayName,
+  resolveLocationReference,
   searchCommunes,
 } from "../../utils/algeriaLocation";
+import EmbeddedMap from "../map/EmbeddedMap";
 import { colors } from "../../theme/colors";
 import { useAppLanguage } from "../../i18n/LanguageProvider";
 
@@ -34,7 +36,14 @@ export default function LocationPickerField({
   );
 
   const locationLabel = formatAnnonceLocationLine(postalCode, city);
-  const wilaya = findWilayaById(city);
+  const locationRef = useMemo(
+    () => resolveLocationReference(postalCode, city),
+    [postalCode, city]
+  );
+  const { commune, wilaya, coordinates } = locationRef;
+  const hasSelection = Boolean(commune || wilaya);
+  const mapLabel =
+    getCommuneDisplayName(commune) || getWilayaDisplayName(wilaya) || "";
   const locationPlaceholder = t("categoryUi.locationSearchPlaceholder");
 
   const applyCommune = (row) => {
@@ -65,7 +74,7 @@ export default function LocationPickerField({
         </Text>
       </TouchableOpacity>
 
-      {locationLabel ? (
+      {hasSelection ? (
         <View style={styles.summaryCard}>
           <View style={styles.summaryIcon}>
             <Ionicons name="location-outline" size={18} color={colors.primary} />
@@ -82,14 +91,28 @@ export default function LocationPickerField({
             <Ionicons name="close-circle" size={20} color={colors.iconMuted} />
           </TouchableOpacity>
         </View>
-      ) : (
-        <View style={styles.mapPlaceholder}>
-          <Ionicons name="map-outline" size={24} color={colors.iconMuted} />
-          <Text style={styles.mapPlaceholderText}>
-            {t("createAdWizard.location.subtitle")}
-          </Text>
-        </View>
-      )}
+      ) : null}
+
+      <View style={styles.mapWrap}>
+        <EmbeddedMap
+          lat={coordinates.lat}
+          lng={coordinates.lng}
+          label={mapLabel}
+          showMarker={hasSelection}
+          showOpenButton={false}
+          interactive
+          height={280}
+          latitudeDelta={hasSelection ? 0.12 : 0.45}
+          longitudeDelta={hasSelection ? 0.12 : 0.45}
+        />
+        {!hasSelection ? (
+          <View style={styles.mapHint} pointerEvents="none">
+            <Text style={styles.mapHintText}>
+              {t("createAdWizard.location.subtitle")}
+            </Text>
+          </View>
+        ) : null}
+      </View>
 
       <Modal visible={open} animationType="slide" transparent onRequestClose={() => setOpen(false)}>
         <Pressable style={styles.modalOverlay} onPress={() => setOpen(false)}>
@@ -172,18 +195,21 @@ const styles = StyleSheet.create({
   summaryBody: { flex: 1, gap: 2 },
   summaryTitle: { fontSize: 14, fontWeight: "700", color: colors.textHeading },
   summarySubtitle: { fontSize: 12, color: colors.textMuted },
-  mapPlaceholder: {
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    borderStyle: "dashed",
-    borderRadius: 14,
-    backgroundColor: colors.surfaceMuted,
-    padding: 16,
-    alignItems: "center",
-    gap: 8,
+  mapWrap: {
+    position: "relative",
   },
-  mapPlaceholderText: {
-    fontSize: 13,
+  mapHint: {
+    position: "absolute",
+    left: 12,
+    right: 12,
+    bottom: 12,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  mapHintText: {
+    fontSize: 12,
     color: colors.textMuted,
     textAlign: "center",
   },

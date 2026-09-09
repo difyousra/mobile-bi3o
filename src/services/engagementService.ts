@@ -309,6 +309,22 @@ export async function fetchFollowedSellers(params?: {
   for (const s of all) byId.set(s.id, s);
   const content = [...byId.values()];
 
+  if (singlePage && lastPageMeta) {
+    const pageNumber = Number(lastPageMeta.number ?? params?.page ?? 0);
+    return {
+      content,
+      number: pageNumber,
+      size: Number(lastPageMeta.size) || pageSize,
+      totalElements: Number(lastPageMeta.totalElements) || content.length,
+      totalPages: Math.max(1, Number(lastPageMeta.totalPages) || 1),
+      first: lastPageMeta.first ?? pageNumber === 0,
+      last:
+        lastPageMeta.last === true ||
+        pageNumber + 1 >= Math.max(1, Number(lastPageMeta.totalPages) || 1) ||
+        content.length === 0,
+    } as FollowedSellersPage;
+  }
+
   return {
     content,
     number: 0,

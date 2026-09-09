@@ -194,7 +194,7 @@ export default function NotificationsScreen({ navigation }) {
         [
           { text: t("mobile.common.cancel"), style: "cancel" },
           {
-            text: t("mobile.listings.confirm"),
+            text: t("mobile.myListings.confirm"),
             style: action === "reject" ? "destructive" : "default",
             onPress: () =>
               reservationAction.mutate({

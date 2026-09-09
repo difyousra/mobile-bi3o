@@ -37,6 +37,7 @@ import { isFilterFieldVisible } from "../../features/filters/filterSchemaRuntime
 import { buildSchemaSearchPayload, countActiveSchemaFilters } from "../../features/filters/buildSchemaSearchPayload";
 import { useAppLanguage } from "../../i18n/LanguageProvider";
 import { subcategoryNodeLabel } from "../../i18n/taxonomyLabels";
+import LocationFilterSheet from "../../components/search/LocationFilterSheet";
 
 /* ─── Composants de rendu de champ ─────────────────────────────────────────── */
 
@@ -63,7 +64,7 @@ function RangeField({ field, filters, onChange }) {
           style={fStyles.rangeInput}
           value={String(filters[maxKey] || '')}
           onChangeText={(v) => onChange({ [maxKey]: v })}
-          placeholder="∞"
+          placeholder="00"
           placeholderTextColor={colors.placeholder}
           keyboardType="numeric"
         />
@@ -505,12 +506,14 @@ export default function SearchFiltersScreen({ navigation, route }) {
   // Filtres généraux
   const [priceMin, setPriceMin] = useState(initial.priceMin ?? '');
   const [priceMax, setPriceMax] = useState(initial.priceMax ?? '');
-  const [annonceType, setAnnonceType] = useState(initial.annonceType ?? '');
+  const [annonceType, setAnnonceType] = useState(initial.annonceType ?? initial.type ?? '');
+  const [vendeurType, setVendeurType] = useState(initial.vendeurType ?? '');
 
   // Filtres dynamiques (immobilier, véhicule, électronique…) — objet plat
   const [dynFilters, setDynFilters] = useState(initial.dynFilters ?? {});
 
   const [catPickerVisible, setCatPickerVisible] = useState(false);
+  const [locationSheetVisible, setLocationSheetVisible] = useState(false);
   const { chips, isLoading: taxoLoading } = useCategoryChips();
   const { data: sousCategories = [], isLoading: sousLoading } = useSousCategories();
 
@@ -578,6 +581,11 @@ export default function SearchFiltersScreen({ navigation, route }) {
     return null;
   }, [categorieId, sousCategorieId, categories, sousCategories, t]);
 
+  const locationLabel =
+    !location || location === "Toute l'Algérie"
+      ? t("listings.nationwide", { defaultValue: "Toute l'Algérie" })
+      : location;
+
   const handleReset = () => {
     setLocation("Toute l'Algérie");
     setCategorieId(null);
@@ -585,6 +593,7 @@ export default function SearchFiltersScreen({ navigation, route }) {
     setPriceMin('');
     setPriceMax('');
     setAnnonceType('');
+    setVendeurType('');
     setDynFilters({});
   };
 
@@ -602,6 +611,7 @@ export default function SearchFiltersScreen({ navigation, route }) {
           categorieId,
           sousCategorieId,
           annonceType,
+          vendeurType: vendeurType || null,
           attributs: apiPayload.attributs ?? [],
           prixMin: apiPayload.prixMin ?? (priceMin ? Number(priceMin) : null),
           prixMax: apiPayload.prixMax ?? (priceMax ? Number(priceMax) : null),
@@ -649,6 +659,13 @@ export default function SearchFiltersScreen({ navigation, route }) {
         currentSousCategorieId={sousCategorieId}
       />
 
+      <LocationFilterSheet
+        visible={locationSheetVisible}
+        selected={location}
+        onSelect={(label) => setLocation(label)}
+        onClose={() => setLocationSheetVisible(false)}
+      />
+
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
         {/* Catégorie — bouton picker 2 étapes */}
@@ -680,6 +697,47 @@ export default function SearchFiltersScreen({ navigation, route }) {
           </TouchableOpacity>
         ) : null}
 
+        {/* Localisation */}
+        <Text style={styles.sectionTitle}>
+          {t("mobile.filters.locationSection", {
+            defaultValue: t("createAdWizard.steps.location", {
+              defaultValue: "Localisation",
+            }),
+          })}
+        </Text>
+        <TouchableOpacity
+          style={styles.pickerBtn}
+          onPress={() => setLocationSheetVisible(true)}
+        >
+          <Ionicons name="location-outline" size={18} color={colors.navy} />
+          <View style={{ flex: 1 }}>
+            <Text
+              style={
+                location && location !== "Toute l'Algérie"
+                  ? styles.pickerBtnValue
+                  : styles.pickerBtnPlaceholder
+              }
+              numberOfLines={1}
+            >
+              {locationLabel}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </TouchableOpacity>
+        {location && location !== "Toute l'Algérie" ? (
+          <TouchableOpacity
+            style={styles.clearCatBtn}
+            onPress={() => setLocation("Toute l'Algérie")}
+          >
+            <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+            <Text style={styles.clearCatText}>
+              {t("mobile.filters.clearLocation", {
+                defaultValue: "Effacer la localisation",
+              })}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
+
         {/* Type d'annonce */}
         <Text style={styles.sectionTitle}>{t("mobile.filters.adTypeSection")}</Text>
         <View style={fStyles.btnRow}>
@@ -694,6 +752,34 @@ export default function SearchFiltersScreen({ navigation, route }) {
               onPress={() => setAnnonceType(value)}
             >
               <Text style={[fStyles.btnText, annonceType === value && fStyles.btnTextActive]}>{label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Type de vendeur — toutes catégories */}
+        <Text style={styles.sectionTitle}>
+          {t("mobile.filters.sellerTypeSection")}
+        </Text>
+        <View style={fStyles.btnRow}>
+          {[
+            { value: '', label: t("mobile.filters.allTypes") },
+            {
+              value: 'particulier',
+              label: t("mobile.filters.sellerParticulier"),
+            },
+            {
+              value: 'professionnel',
+              label: t("mobile.filters.sellerProfessionnel"),
+            },
+          ].map(({ value, label }) => (
+            <TouchableOpacity
+              key={`vendeur-${value || 'all'}`}
+              style={[fStyles.btn, vendeurType === value && fStyles.btnActive]}
+              onPress={() => setVendeurType(value)}
+            >
+              <Text style={[fStyles.btnText, vendeurType === value && fStyles.btnTextActive]}>
+                {label}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -720,7 +806,7 @@ export default function SearchFiltersScreen({ navigation, route }) {
                   style={fStyles.rangeInput}
                   value={priceMax}
                   onChangeText={setPriceMax}
-                  placeholder="∞"
+                  placeholder="00"
                   placeholderTextColor={colors.placeholder}
                   keyboardType="numeric"
                 />
@@ -773,7 +859,7 @@ const styles = StyleSheet.create({
     marginBottom: 10, marginTop: 16,
   },
   pickerBtn: {
-    flexDirection: 'row', alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center', gap: 10,
     borderWidth: 1, borderColor: colors.border, borderRadius: 12,
     paddingHorizontal: 16, paddingVertical: 14,
     backgroundColor: colors.white,

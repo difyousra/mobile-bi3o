@@ -1,6 +1,7 @@
 /**
  * Carte embarquée — iOS & Android (react-native-maps).
  */
+import { useEffect, useRef } from "react";
 import { View, StyleSheet, TouchableOpacity, Text, Platform, Linking } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
@@ -20,14 +21,35 @@ try {
   mapsAvailable = false;
 }
 
-export default function EmbeddedMap({ lat, lng, label, onOpenMap }) {
+export default function EmbeddedMap({
+  lat,
+  lng,
+  label,
+  onOpenMap,
+  showMarker = true,
+  showOpenButton = true,
+  interactive = false,
+  height = 180,
+  latitudeDelta = 0.08,
+  longitudeDelta = 0.08,
+}) {
   const { t } = useAppLanguage();
+  const mapRef = useRef(null);
   const region = {
     latitude: lat,
     longitude: lng,
-    latitudeDelta: 0.08,
-    longitudeDelta: 0.08,
+    latitudeDelta,
+    longitudeDelta,
   };
+
+  useEffect(() => {
+    if (!mapsAvailable || !mapRef.current) return;
+    try {
+      mapRef.current.animateToRegion(region, 350);
+    } catch {
+      /* ignore */
+    }
+  }, [lat, lng, latitudeDelta, longitudeDelta]);
 
   const openExternal = () => {
     if (onOpenMap) {
@@ -43,7 +65,11 @@ export default function EmbeddedMap({ lat, lng, label, onOpenMap }) {
 
   if (!mapsAvailable) {
     return (
-      <TouchableOpacity style={styles.container} onPress={openExternal} activeOpacity={0.9}>
+      <TouchableOpacity
+        style={[styles.container, { height }]}
+        onPress={showOpenButton ? openExternal : undefined}
+        activeOpacity={0.9}
+      >
         <View style={styles.fallbackBody}>
           <Ionicons name="map-outline" size={28} color={colors.primary} />
           <Text style={styles.fallbackText}>
@@ -55,25 +81,30 @@ export default function EmbeddedMap({ lat, lng, label, onOpenMap }) {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { height }]}>
       <MapView
+        ref={mapRef}
         style={styles.map}
-        region={region}
-        scrollEnabled={false}
-        zoomEnabled={false}
+        initialRegion={region}
+        scrollEnabled={interactive}
+        zoomEnabled={interactive}
         pitchEnabled={false}
         rotateEnabled={false}
         toolbarEnabled={false}
       >
-        <Marker coordinate={{ latitude: lat, longitude: lng }} title={label} />
+        {showMarker ? (
+          <Marker coordinate={{ latitude: lat, longitude: lng }} title={label || undefined} />
+        ) : null}
       </MapView>
-      <TouchableOpacity style={styles.overlay} onPress={openExternal} activeOpacity={0.9}>
-        <View style={styles.pill}>
-          <Ionicons name="location" size={14} color={colors.primary} />
-          <Text style={styles.pillText}>{label}</Text>
-          <Ionicons name="open-outline" size={12} color={colors.primary} />
-        </View>
-      </TouchableOpacity>
+      {showOpenButton && label ? (
+        <TouchableOpacity style={styles.overlay} onPress={openExternal} activeOpacity={0.9}>
+          <View style={styles.pill}>
+            <Ionicons name="location" size={14} color={colors.primary} />
+            <Text style={styles.pillText}>{label}</Text>
+            <Ionicons name="open-outline" size={12} color={colors.primary} />
+          </View>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }

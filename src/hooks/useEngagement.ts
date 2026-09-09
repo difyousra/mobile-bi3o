@@ -3,6 +3,7 @@ import {
   useQuery,
   useQueryClient,
   useInfiniteQuery,
+  type InfiniteData,
 } from "@tanstack/react-query";
 import { queryKeys } from "../api/queryKeys";
 import * as engagement from "../services/engagementService";
@@ -12,10 +13,27 @@ import { resolveExchangeRates } from "../services/exchangeService";
 import { useAuth } from "../context/AuthContext";
 import { useExchangeRate } from "./useCatalog";
 import type { AdCard } from "../types/catalog";
-import type { FavoritePage } from "../types/engagement";
+import type { FavoritePage, FollowedSellersPage } from "../types/engagement";
 
 function toId(id: number | string): string {
   return String(id);
+}
+
+function nextPageParam(last: {
+  last?: boolean;
+  number?: number;
+  totalPages?: number;
+  content?: unknown[];
+} | null | undefined) {
+  if (!last) return undefined;
+  if (last.last === true) return undefined;
+  const number = last.number ?? 0;
+  const totalPages = last.totalPages;
+  if (typeof totalPages === "number" && number + 1 >= totalPages) {
+    return undefined;
+  }
+  if ((last.content?.length ?? 0) === 0) return undefined;
+  return number + 1;
 }
 
 export function useFavoritesPage(page = 0, size = 24) {
@@ -37,6 +55,48 @@ export function useFavoritesPage(page = 0, size = 24) {
   return { ...query, products, favoriteIds, pageData: query.data };
 }
 
+/** Infinite scroll favoris — même pattern que l’accueil. */
+export function useInfiniteFavorites(size = 24) {
+  const { isAuthenticated } = useAuth();
+  const eurToDzd = resolveExchangeRates(useExchangeRate().data).eurToDzd;
+
+  const query = useInfiniteQuery({
+    queryKey: queryKeys.favoritesInfinite(size),
+    queryFn: ({ pageParam }) =>
+      engagement.fetchFavorites({ page: pageParam, size }),
+    initialPageParam: 0,
+    getNextPageParam: nextPageParam,
+    staleTime: 60_000,
+    enabled: isAuthenticated,
+  });
+
+  const ads =
+    query.data?.pages.flatMap((page) => page.content ?? []) ?? [];
+  const products = ads.map((ad) => mapAdCardToUi(ad, { eurToDzd }));
+  const favoriteIds = new Set(products.map((p) => toId(p.id)));
+  const firstPage = query.data?.pages?.[0];
+  const lastPage = query.data?.pages?.[query.data.pages.length - 1];
+
+  return {
+    ...query,
+    products,
+    favoriteIds,
+    ads,
+    pageData: firstPage
+      ? {
+          ...lastPage!,
+          content: ads,
+          totalElements: firstPage.totalElements ?? ads.length,
+          totalPages: firstPage.totalPages ?? lastPage?.totalPages,
+          number: lastPage?.number ?? 0,
+          size: firstPage.size ?? size,
+          first: true,
+          last: lastPage?.last ?? true,
+        }
+      : undefined,
+  };
+}
+
 export function useToggleFavorite() {
   const queryClient = useQueryClient();
 
@@ -56,31 +116,48 @@ export function useToggleFavorite() {
     },
     onMutate: async ({ annonceId, currentlyFavorite }) => {
       await queryClient.cancelQueries({ queryKey: ["me", "favoris"] });
-      const previous = queryClient.getQueriesData<FavoritePage>({
+      const previous = queryClient.getQueriesData({
         queryKey: ["me", "favoris"],
       });
 
-      queryClient.setQueriesData<FavoritePage>(
-        { queryKey: ["me", "favoris"] },
-        (old) => {
-          if (!old) return old;
-          const idNum = Number(annonceId);
-          if (currentlyFavorite) {
-            return {
-              ...old,
-              content: old.content.filter((ad) => ad.id !== idNum),
-              totalElements: Math.max(0, old.totalElements - 1),
-            };
-          }
-          const stub: AdCard = {
-            id: idNum,
-            titre: "Annonce",
-          };
+      const idNum = Number(annonceId);
+
+      const patchPage = (old: FavoritePage | undefined): FavoritePage | undefined => {
+        if (!old) return old;
+        if (currentlyFavorite) {
           return {
             ...old,
-            content: [stub, ...old.content.filter((ad) => ad.id !== idNum)],
-            totalElements: old.totalElements + 1,
+            content: old.content.filter((ad) => ad.id !== idNum),
+            totalElements: Math.max(0, (old.totalElements ?? 0) - 1),
           };
+        }
+        const stub: AdCard = { id: idNum, titre: "Annonce" };
+        return {
+          ...old,
+          content: [stub, ...old.content.filter((ad) => ad.id !== idNum)],
+          totalElements: (old.totalElements ?? 0) + 1,
+        };
+      };
+
+      queryClient.setQueriesData(
+        { queryKey: ["me", "favoris"] },
+        (old: FavoritePage | InfiniteData<FavoritePage> | undefined) => {
+          if (!old) return old;
+          if ("pages" in old && Array.isArray(old.pages)) {
+            return {
+              ...old,
+              pages: old.pages.map((page, index) => {
+                if (currentlyFavorite) return patchPage(page)!;
+                // Nouvel ajout : uniquement sur la 1re page
+                if (index === 0) return patchPage(page)!;
+                return {
+                  ...page,
+                  content: page.content.filter((ad) => ad.id !== idNum),
+                };
+              }),
+            } as InfiniteData<FavoritePage>;
+          }
+          return patchPage(old as FavoritePage);
         }
       );
 
@@ -245,6 +322,55 @@ export function useFollowedSellers() {
     staleTime: 30_000,
     enabled: isAuthenticated,
   });
+}
+
+/** Infinite scroll — Mes abonnés. */
+export function useInfiniteFollowedSellers(size = 24) {
+  const { isAuthenticated } = useAuth();
+
+  const query = useInfiniteQuery({
+    queryKey: queryKeys.followedSellersInfinite(size),
+    queryFn: async ({ pageParam }) => {
+      const page = await engagement.fetchFollowedSellers({
+        page: pageParam,
+        size,
+      });
+      // fetchFollowedSellers peut typiquement renvoyer un Page ; normaliser.
+      if (Array.isArray(page)) {
+        return {
+          content: page,
+          number: pageParam,
+          size,
+          totalElements: page.length,
+          totalPages: 1,
+          first: true,
+          last: true,
+        } as Exclude<FollowedSellersPage, unknown[]>;
+      }
+      return page as Exclude<FollowedSellersPage, unknown[]>;
+    },
+    initialPageParam: 0,
+    getNextPageParam: nextPageParam,
+    staleTime: 30_000,
+    enabled: isAuthenticated,
+  });
+
+  const sellers =
+    query.data?.pages.flatMap((page) => page?.content ?? []) ?? [];
+  const firstPage = query.data?.pages?.[0];
+  const lastPage = query.data?.pages?.[query.data.pages.length - 1];
+
+  return {
+    ...query,
+    sellers,
+    pageData: firstPage
+      ? {
+          ...lastPage!,
+          content: sellers,
+          totalElements: firstPage.totalElements ?? sellers.length,
+        }
+      : undefined,
+  };
 }
 
 export function useSavedSearches() {

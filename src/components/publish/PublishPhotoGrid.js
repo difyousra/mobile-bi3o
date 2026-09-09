@@ -30,7 +30,16 @@ export default function PublishPhotoGrid({ value = {}, onChange }) {
     onChange?.(next);
   };
 
-  const handleAdd = async (slot) => {
+  const applyAsset = (slot, asset) => {
+    if (!asset) return;
+    update(slot.id, {
+      uri: asset.uri,
+      mimeType: asset.mimeType ?? "image/jpeg",
+      fileName: asset.fileName ?? `${slot.id}.jpg`,
+    });
+  };
+
+  const pickFromGallery = async (slot) => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       Alert.alert(
@@ -47,13 +56,51 @@ export default function PublishPhotoGrid({ value = {}, onChange }) {
     });
 
     if (result.canceled || !result.assets?.[0]) return;
+    applyAsset(slot, result.assets[0]);
+  };
 
-    const asset = result.assets[0];
-    update(slot.id, {
-      uri: asset.uri,
-      mimeType: asset.mimeType ?? "image/jpeg",
-      fileName: asset.fileName ?? `${slot.id}.jpg`,
+  const pickFromCamera = async (slot) => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(
+        t("mobile.account.galleryPermissionTitle"),
+        t("mobile.publish.cameraPermission", {
+          defaultValue: t("mobile.messages.cameraPermission"),
+        })
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ["images"],
+      quality: 0.8,
+      allowsEditing: true,
     });
+
+    if (result.canceled || !result.assets?.[0]) return;
+    applyAsset(slot, result.assets[0]);
+  };
+
+  const handleAdd = (slot) => {
+    Alert.alert(
+      t("mobile.publish.addPhotoTitle", { defaultValue: "Ajouter une photo" }),
+      undefined,
+      [
+        {
+          text: t("mobile.publish.takePhoto", {
+            defaultValue: t("mobile.messages.camera"),
+          }),
+          onPress: () => pickFromCamera(slot),
+        },
+        {
+          text: t("mobile.publish.chooseFromGallery", {
+            defaultValue: t("mobile.messages.gallery"),
+          }),
+          onPress: () => pickFromGallery(slot),
+        },
+        { text: t("mobile.common.cancel"), style: "cancel" },
+      ]
+    );
   };
 
   const handleRemove = (id) => {

@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { View, TouchableOpacity, StyleSheet, Platform } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CommonActions } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -122,13 +122,15 @@ export default function FloatingTabBar({ navigationRef, navState }) {
         {TAB_ROUTES.map((name) => {
           const isFocused = activeTab === name;
 
+          const label = t(TAB_LABEL_KEYS[name] || name);
+
           if (name === "Publish") {
             return (
               <TouchableOpacity
                 key={name}
                 accessibilityRole="button"
                 accessibilityState={isFocused ? { selected: true } : {}}
-                accessibilityLabel={t(TAB_LABEL_KEYS.Publish)}
+                accessibilityLabel={label}
                 onPress={() => goTab(name)}
                 style={styles.publishWrap}
                 activeOpacity={0.9}
@@ -136,6 +138,12 @@ export default function FloatingTabBar({ navigationRef, navState }) {
                 <View style={[styles.publishButton, isFocused && styles.publishButtonActive]}>
                   <Ionicons name="sparkles" size={26} color={colors.white} />
                 </View>
+                <Text
+                  style={[styles.label, isFocused && styles.labelActive]}
+                  numberOfLines={1}
+                >
+                  {label}
+                </Text>
               </TouchableOpacity>
             );
           }
@@ -147,7 +155,7 @@ export default function FloatingTabBar({ navigationRef, navState }) {
               key={name}
               accessibilityRole="button"
               accessibilityState={isFocused ? { selected: true } : {}}
-              accessibilityLabel={t(TAB_LABEL_KEYS[name] || name)}
+              accessibilityLabel={label}
               onPress={() => goTab(name)}
               style={styles.tab}
               activeOpacity={0.7}
@@ -155,10 +163,16 @@ export default function FloatingTabBar({ navigationRef, navState }) {
               <View style={[styles.iconWrap, isFocused && styles.iconWrapActive]}>
                 <Ionicons
                   name={iconName}
-                  size={24}
+                  size={22}
                   color={isFocused ? colors.navy : colors.textMuted}
                 />
               </View>
+              <Text
+                style={[styles.label, isFocused && styles.labelActive]}
+                numberOfLines={1}
+              >
+                {label}
+              </Text>
             </TouchableOpacity>
           );
         })}
@@ -203,11 +217,12 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 4,
+    paddingVertical: 2,
+    gap: 2,
   },
   iconWrap: {
-    width: 44,
-    height: 44,
+    width: 36,
+    height: 32,
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
@@ -215,14 +230,25 @@ const styles = StyleSheet.create({
   iconWrapActive: {
     backgroundColor: "rgba(18, 25, 38, 0.03)",
   },
+  label: {
+    fontSize: 10,
+    fontWeight: "500",
+    color: colors.textMuted,
+    textAlign: "center",
+  },
+  labelActive: {
+    color: colors.navy,
+    fontWeight: "600",
+  },
   publishWrap: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    gap: 2,
   },
   publishButton: {
-    width: 49,
-    height: 49,
+    width: 44,
+    height: 44,
     borderRadius: 77,
     backgroundColor: colors.primary,
     alignItems: "center",

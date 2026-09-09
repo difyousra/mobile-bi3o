@@ -1,4 +1,5 @@
 import { resolveMediaUrl } from "../utils/mediaUrl";
+import { formatMemberSinceDate } from "../utils/blockedUsers";
 import type {
   ConversationDto,
   MessageDto,
@@ -172,11 +173,21 @@ export function mapConversationToUi(
     | string
     | undefined;
 
+  const sellerVille = String(c.otherUserVille ?? "").trim() || undefined;
+  const memberSinceRaw =
+    (c.otherUserCreatedAt as string | undefined) ?? undefined;
+  const sellerMemberSince = formatMemberSinceDate(memberSinceRaw) ?? undefined;
+  const otherUserIsSeller =
+    typeof c.otherUserIsSeller === "boolean" ? c.otherUserIsSeller : true;
+
   return {
     id: c.id,
     sellerId,
     sellerName: interlocutorName(c),
     sellerAvatar: avatar,
+    sellerVille,
+    sellerMemberSince,
+    otherUserIsSeller,
     lastSeen: lastAt
       ? `Dernière activité ${formatTime(lastAt)}`
       : "Messagerie Bi3oo",

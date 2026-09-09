@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import {
   View,
   Text,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   Image,
   StyleSheet,
@@ -16,25 +16,20 @@ import { colors } from "../../theme/colors";
 import { formatPrice } from "../../utils/productMapper";
 import { resolveMediaUrl } from "../../utils/mediaUrl";
 import {
-  useMyManagedAds,
-  usePauseAnnonce,
-  useReactivateAnnonce,
+  useInfiniteMyManagedAds,
   useDeleteAnnonce,
 } from "../../hooks/usePublish";
 import { useAppLanguage } from "../../i18n/LanguageProvider";
 
-// Contrat UI <-> API :
-// - Backend renvoie status textuels (ACTIVE/PAUSED/ARCHIVE...) qui sont normalisés dans normalizeStatus()
-// - Donc les onglets doivent correspondre aux valeurs normalisées : active / paused / sold
-const LISTING_TAB_IDS = ["active", "paused", "sold"];
+const PAGE_SIZE = 20;
 
-function normalizeStatus(item) {
+function isDraftStatus(item) {
   const raw = String(item.status ?? item.statut ?? "ACTIVE").toUpperCase();
-  if (raw.includes("PAUSE") || raw.includes("SUSPEND")) return "paused";
-  if (raw.includes("VEND") || raw.includes("SOLD") || raw.includes("ARCHIVE")) {
-    return "sold";
-  }
-  return "active";
+  return (
+    raw.includes("DRAFT") ||
+    raw.includes("BROUILLON") ||
+    raw.includes("PENDING")
+  );
 }
 
 function mapManagedItem(item, defaultTitle) {
@@ -59,54 +54,47 @@ function mapManagedItem(item, defaultTitle) {
     favoris: Number(item.favorisCount ?? 0),
     messages: Number(item.messagesCount ?? item.messages ?? 0),
     whatsapp: Number(item.whatsappClicks ?? 0),
-    status: normalizeStatus(item),
   };
 }
 
 export default function MyListingsScreen({ navigation }) {
   const { t } = useAppLanguage();
-  const [activeTab, setActiveTab] = useState("active");
-  const { data, isLoading, isError, refetch, isRefetching } = useMyManagedAds(
-    0,
-    50
-  );
-  const pauseMutation = usePauseAnnonce();
-  const reactivateMutation = useReactivateAnnonce();
+  const {
+    items: rawItems,
+    isLoading,
+    isError,
+    refetch,
+    isRefetching,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteMyManagedAds(PAGE_SIZE);
   const deleteMutation = useDeleteAnnonce();
 
   const defaultTitle = t("mobile.myListings.defaultTitle");
 
-  const listingTabs = useMemo(
+  const listings = useMemo(
     () =>
-      LISTING_TAB_IDS.map((id) => ({
-        id,
-        label: t(`mobile.myListings.tab${id.charAt(0).toUpperCase()}${id.slice(1)}`),
-      })),
-    [t]
+      rawItems
+        .filter((item) => !isDraftStatus(item))
+        .map((item) => mapManagedItem(item, defaultTitle)),
+    [rawItems, defaultTitle]
   );
 
-  const listings = useMemo(() => {
-    const all = (data?.content ?? []).map((item) =>
-      mapManagedItem(item, defaultTitle)
-    );
-    return all.filter((item) => item.status === activeTab);
-  }, [data, activeTab, defaultTitle]);
-
-  const totals = useMemo(() => {
-    const all = (data?.content ?? []).map((item) =>
-      mapManagedItem(item, defaultTitle)
-    );
-    return all.reduce(
-      (acc, item) => ({
-        views: acc.views + item.views,
-        favoris: acc.favoris + item.favoris,
-        messages: acc.messages + item.messages,
-        whatsapp: acc.whatsapp + item.whatsapp,
-        count: acc.count + 1,
-      }),
-      { views: 0, favoris: 0, messages: 0, whatsapp: 0, count: 0 }
-    );
-  }, [data, defaultTitle]);
+  const totals = useMemo(
+    () =>
+      listings.reduce(
+        (acc, item) => ({
+          views: acc.views + item.views,
+          favoris: acc.favoris + item.favoris,
+          messages: acc.messages + item.messages,
+          whatsapp: acc.whatsapp + item.whatsapp,
+          count: acc.count + 1,
+        }),
+        { views: 0, favoris: 0, messages: 0, whatsapp: 0, count: 0 }
+      ),
+    [listings]
+  );
 
   const confirmAction = (title, message, onConfirm) => {
     Alert.alert(title, message, [
@@ -119,22 +107,42 @@ export default function MyListingsScreen({ navigation }) {
     ]);
   };
 
-  return (
-    <SafeAreaView style={styles.safe} edges={["top"]}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={22} color={colors.textHeading} />
-        </TouchableOpacity>
-        <Text style={styles.title}>{t("layout.myAds")}</Text>
-        <View style={{ width: 22 }} />
-      </View>
+  const openListing = useCallback(
+    (item) => {
+      navigation.navigate("ProductDetail", {
+        annonceId: item.id,
+        product: {
+          id: item.id,
+          title: item.title,
+          image: item.image,
+          priceDa: item.price,
+          priceEuro: item.price,
+        },
+      });
+    },
+    [navigation]
+  );
 
-      <ScrollView
-        contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
-        }
-      >
+  const onEndReached = useCallback(() => {
+    if (isLoading || isFetchingNextPage || !hasNextPage) return;
+    fetchNextPage();
+  }, [isLoading, isFetchingNextPage, hasNextPage, fetchNextPage]);
+
+  useEffect(() => {
+    if (isLoading || isFetchingNextPage || !hasNextPage) return;
+    if (listings.length >= 8) return;
+    fetchNextPage();
+  }, [
+    listings.length,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  ]);
+
+  const listHeader = useMemo(
+    () => (
+      <View>
         <View style={styles.ctaCard}>
           <Text style={styles.ctaTitle}>{t("profileUi.sellFasterTitle")}</Text>
           <Text style={styles.ctaSub}>{t("profileUi.sellFasterDesc")}</Text>
@@ -190,25 +198,6 @@ export default function MyListingsScreen({ navigation }) {
           </View>
         ) : null}
 
-        <View style={styles.tabs}>
-          {listingTabs.map((tab) => (
-            <TouchableOpacity
-              key={tab.id}
-              style={[styles.tab, activeTab === tab.id && styles.tabActive]}
-              onPress={() => setActiveTab(tab.id)}
-            >
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === tab.id && styles.tabTextActive,
-                ]}
-              >
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
         {isLoading ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} />
         ) : null}
@@ -217,94 +206,105 @@ export default function MyListingsScreen({ navigation }) {
           <Text style={styles.empty}>{t("mobile.myListings.loadError")}</Text>
         ) : null}
 
-        {!isLoading && listings.length === 0 ? (
+        {!isLoading && !isError && listings.length === 0 ? (
           <Text style={styles.empty}>{t("profileUi.emptyCategory")}</Text>
-        ) : (
-          listings.map((item) => (
-            <View key={item.id} style={styles.card}>
-              <TouchableOpacity
-                onPress={() =>
-                  navigation.navigate("ProductDetail", {
-                    annonceId: item.id,
-                    product: {
-                      id: item.id,
-                      title: item.title,
-                      image: item.image,
-                      priceDa: item.price,
-                      priceEuro: item.price,
-                    },
-                  })
-                }
-              >
-                <Image source={{ uri: item.image }} style={styles.image} />
-              </TouchableOpacity>
-              <View style={styles.cardBody}>
-                <Text style={styles.cardTitle}>{item.title}</Text>
-                <Text style={styles.cardPrice}>{formatPrice(item.price)}</Text>
-                <View style={styles.stats}>
-                  <View style={styles.statItem}>
-                    <Ionicons name="eye-outline" size={14} color={colors.textMuted} />
-                    <Text style={styles.stat}>{item.views}</Text>
-                  </View>
-                  <View style={styles.statItem}>
-                    <Ionicons name="heart-outline" size={14} color={colors.textMuted} />
-                    <Text style={styles.stat}>{item.favoris}</Text>
-                  </View>
-                  <View style={styles.statItem}>
-                    <Ionicons name="chatbubble-outline" size={14} color={colors.textMuted} />
-                    <Text style={styles.stat}>{item.messages}</Text>
-                  </View>
-                  <View style={styles.statItem}>
-                    <Ionicons name="logo-whatsapp" size={14} color={colors.textMuted} />
-                    <Text style={styles.stat}>{item.whatsapp}</Text>
-                  </View>
-                </View>
-                <View style={styles.actions}>
-                  {item.status === "active" ? (
-                    <TouchableOpacity
-                      style={styles.actionBtn}
-                      onPress={() =>
-                        confirmAction(
-                          t("mobile.myListings.suspendTitle"),
-                          t("mobile.myListings.suspendBody"),
-                          () => pauseMutation.mutate(item.id)
-                        )
-                      }
-                    >
-                      <Text style={styles.actionText}>
-                        {t("mobile.myListings.pause")}
-                      </Text>
-                    </TouchableOpacity>
-                  ) : item.status === "paused" ? (
-                    <TouchableOpacity
-                      style={styles.actionBtn}
-                      onPress={() => reactivateMutation.mutate(item.id)}
-                    >
-                      <Text style={styles.actionText}>
-                        {t("mobile.myListings.reactivate")}
-                      </Text>
-                    </TouchableOpacity>
-                  ) : null}
-                  <TouchableOpacity
-                    style={styles.actionBtn}
-                    onPress={() =>
-                        confirmAction(
-                          t("mobile.myListings.deleteTitle"),
-                          t("profileUi.confirmDelete"),
-                          () => deleteMutation.mutate(item.id)
-                        )
-                      }
-                    >
-                      <Text style={[styles.actionText, styles.danger]}>
-                        {t("mobile.common.delete")}
-                      </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
+        ) : null}
+      </View>
+    ),
+    [t, navigation, totals, isLoading, isError, listings.length]
+  );
+
+  const renderItem = useCallback(
+    ({ item }) => (
+      <View style={styles.card}>
+        <TouchableOpacity onPress={() => openListing(item)}>
+          <Image source={{ uri: item.image }} style={styles.image} />
+        </TouchableOpacity>
+        <View style={styles.cardBody}>
+          <Text style={styles.cardTitle}>{item.title}</Text>
+          <Text style={styles.cardPrice}>{formatPrice(item.price)}</Text>
+          <View style={styles.stats}>
+            <View style={styles.statItem}>
+              <Ionicons name="eye-outline" size={14} color={colors.textMuted} />
+              <Text style={styles.stat}>{item.views}</Text>
             </View>
-          ))
-        )}
-      </ScrollView>
+            <View style={styles.statItem}>
+              <Ionicons name="heart-outline" size={14} color={colors.textMuted} />
+              <Text style={styles.stat}>{item.favoris}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Ionicons name="chatbubble-outline" size={14} color={colors.textMuted} />
+              <Text style={styles.stat}>{item.messages}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Ionicons name="logo-whatsapp" size={14} color={colors.textMuted} />
+              <Text style={styles.stat}>{item.whatsapp}</Text>
+            </View>
+          </View>
+          <View style={styles.actions}>
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.viewBtn]}
+              onPress={() => openListing(item)}
+            >
+              <Text style={[styles.actionText, styles.viewBtnText]}>
+                {t("mobile.myListings.viewListing")}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionBtn}
+              onPress={() =>
+                confirmAction(
+                  t("mobile.myListings.deleteTitle"),
+                  t("profileUi.confirmDelete"),
+                  () => deleteMutation.mutate(item.id)
+                )
+              }
+            >
+              <Text style={[styles.actionText, styles.danger]}>
+                {t("mobile.common.delete")}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    ),
+    [openListing, t, deleteMutation]
+  );
+
+  return (
+    <SafeAreaView style={styles.safe} edges={["top"]}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={22} color={colors.textHeading} />
+        </TouchableOpacity>
+        <Text style={styles.title}>{t("layout.myAds")}</Text>
+        <View style={{ width: 22 }} />
+      </View>
+
+      <FlatList
+        data={listings}
+        keyExtractor={(item) => String(item.id)}
+        renderItem={renderItem}
+        ListHeaderComponent={listHeader}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching && !isFetchingNextPage}
+            onRefresh={refetch}
+          />
+        }
+        onEndReached={onEndReached}
+        onEndReachedThreshold={0.4}
+        ListFooterComponent={
+          isFetchingNextPage ? (
+            <ActivityIndicator
+              color={colors.primary}
+              style={{ marginVertical: 16 }}
+            />
+          ) : null
+        }
+      />
     </SafeAreaView>
   );
 }
@@ -392,29 +392,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textMuted,
   },
-  tabs: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 16,
-  },
-  tab: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: colors.surfaceMuted,
-  },
-  tabActive: {
-    backgroundColor: colors.navy,
-  },
-  tabText: {
-    fontSize: 14,
-    color: colors.textMuted,
-    fontWeight: "500",
-  },
-  tabTextActive: {
-    color: colors.white,
-    fontWeight: "600",
-  },
   empty: {
     textAlign: "center",
     color: colors.textMuted,
@@ -475,10 +452,17 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     alignItems: "center",
   },
+  viewBtn: {
+    borderColor: colors.navy,
+    backgroundColor: colors.navy,
+  },
   actionText: {
     fontSize: 13,
     fontWeight: "600",
     color: colors.textHeading,
+  },
+  viewBtnText: {
+    color: colors.white,
   },
   danger: {
     color: colors.primary,

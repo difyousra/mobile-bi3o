@@ -110,6 +110,10 @@ export async function searchAllAttributes(
   if (body.prixMin != null) payload.prixMin = body.prixMin;
   if (body.prixMax != null) payload.prixMax = body.prixMax;
   if (body.type) payload.type = body.type;
+  if (body.vendeurType) payload.vendeurType = body.vendeurType;
+  if (Array.isArray(body.vendeurTypes) && body.vendeurTypes.length > 0) {
+    payload.vendeurTypes = body.vendeurTypes;
+  }
   if (body.disponibiliteDateArrivee) {
     payload.disponibiliteDateArrivee = body.disponibiliteDateArrivee;
   }

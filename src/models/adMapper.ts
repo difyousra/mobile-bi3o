@@ -57,7 +57,7 @@ export type UiProduct = {
 };
 
 const PLACEHOLDER_IMAGE =
-  "https://new.bi3oo.com/uploads/1_vehicules/1_voitures/ann_31/2025/09/pexels-trksami-20277838_19e3a356740e426398e293fc5ac0ef2b.jpg";
+  "https://bi3oo.com/uploads/1_vehicules/1_voitures/ann_31/2025/09/pexels-trksami-20277838_19e3a356740e426398e293fc5ac0ef2b.jpg";
 
 /** Livraison / contact — on les exclut des attributs affichés comme le web */
 const LIVRAISON_NOM_PATTERNS = [
@@ -160,6 +160,7 @@ export function mapAdCardToUi(
     favorisCount: Number(ad.favorisCount ?? 0),
     views: Number((ad as { views?: number }).views ?? 0) || undefined,
     attributs: [],
+    livraisonDisponible: isAnnonceLivraisonDisponible(ad),
     categorieId: ad.categorieId,
     sousCategorieId: ad.sousCategorieId,
     rating: 0,
@@ -175,7 +176,8 @@ export function mapPublicAdToUi(
 ): UiProduct {
   const base = mapAdCardToUi(ad, options);
 
-  // Photos : photoUrls[] prioritaire (API v56), sinon photos[], sinon coverUrl
+  // Photos : coverUrl (logo Bi3oo) en premier, puis le reste sans doublon
+  const cover = resolveMediaUrl(ad.coverUrl);
   const resolvedFromPhotoUrls = (ad.photoUrls ?? [])
     .map((u) => resolveMediaUrl(u))
     .filter((u): u is string => Boolean(u));
@@ -185,12 +187,15 @@ export function mapPublicAdToUi(
       ?.map((p) => resolveMediaUrl(p.url ?? p.photoUrl ?? p.chemin))
       .filter((u): u is string => Boolean(u)) ?? [];
 
+  const merged = [
+    ...(cover ? [cover] : []),
+    ...resolvedFromPhotoUrls,
+    ...resolvedFromPhotos,
+  ];
   const photoUrls =
-    resolvedFromPhotoUrls.length > 0
-      ? resolvedFromPhotoUrls
-      : resolvedFromPhotos.length > 0
-        ? resolvedFromPhotos
-        : base.photos;
+    merged.length > 0
+      ? [...new Set(merged)]
+      : base.photos;
 
   const sellerName =
     ad.vendeur ??
@@ -323,6 +328,7 @@ export function mapAdCardToListing(
   codePostal?: string;
   categorieId?: number;
   sousCategorieId?: number;
+  livraisonDisponible?: boolean;
 } {
   const ui = mapAdCardToUi(ad, options);
   const isPro = Boolean(ad.vendeurEstPro ?? ui.vendeurEstPro);
@@ -358,6 +364,7 @@ export function mapAdCardToListing(
     codePostal: ad.codePostal,
     categorieId: ad.categorieId,
     sousCategorieId: ad.sousCategorieId,
+    livraisonDisponible: ui.livraisonDisponible,
     tag: {
       label: isPro ? "Pro" : "Particulier",
       type: isPro ? "pro" : "particulier",

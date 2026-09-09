@@ -19,6 +19,10 @@ export type AdCard = {
   vendeurEstPro?: boolean;
   favorisCount?: number;
   views?: number;
+  /** Présent sur certaines réponses liste (web : chip livraison). */
+  livraisonDisponible?: boolean;
+  attributLivraison?: boolean;
+  valeurs?: AnnonceValeur[];
   photos?: Array<{
     id?: number;
     url?: string;
@@ -108,6 +112,9 @@ export type SearchAllAttributesRequest = {
   prixMin?: number;
   prixMax?: number;
   type?: string;
+  /** particulier | professionnel — AnnonceSearchRequest */
+  vendeurType?: string;
+  vendeurTypes?: string[];
   disponibiliteDateArrivee?: string;
   disponibiliteDateDepart?: string;
   attributs?: Array<{

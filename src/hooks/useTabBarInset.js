@@ -1,10 +1,10 @@
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 /**
- * Hauteur approximative de la « pill » (icônes + padding), hors safe-area.
- * Aligné sur FloatingTabBar (publish 49 + paddings ≈ 65).
+ * Hauteur approximative de la « pill » (icônes + labels + padding), hors safe-area.
+ * Aligné sur FloatingTabBar (publish 44 + label ≈ 78).
  */
-export const TAB_BAR_PILL_HEIGHT = 65;
+export const TAB_BAR_PILL_HEIGHT = 78;
 
 /**
  * Marge bas recommandée sous le contenu scrollable

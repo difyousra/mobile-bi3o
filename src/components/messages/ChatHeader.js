@@ -22,7 +22,7 @@ export default function ChatHeader({
         activeOpacity={0.8}
         onPress={onBackPress}
         accessibilityRole="button"
-        accessibilityLabel={t("common.back")}
+        accessibilityLabel={t("mobile.common.back")}
       >
         <Ionicons name="arrow-back" size={22} color={colors.white} />
       </TouchableOpacity>

@@ -28,7 +28,7 @@ import {
 } from "../../data/searchFilters";
 import { useFavorites } from "../../context/FavoritesContext";
 import {
-  useSearchAds,
+  useInfiniteSearchAds,
   useExchangeRate,
   useSuggestions,
   useCategoryChips,
@@ -83,7 +83,6 @@ export default function SearchContent({
   const [categoriesSheetVisible, setCategoriesSheetVisible] = useState(false);
   const [subSheetVisible, setSubSheetVisible] = useState(false);
   const [sheetCategory, setSheetCategory] = useState(null);
-  const [pageSize, setPageSize] = useState(24);
 
   // Pour les résultats “catégorie-only” on veut réagir instantanément.
   const debouncedQuery = useDebouncedValue(
@@ -132,24 +131,29 @@ export default function SearchContent({
   const prixMin = filters.prixMin ? Number(filters.prixMin) : null;
   const prixMax = filters.prixMax ? Number(filters.prixMax) : null;
   const annonceType = filters.type ?? null;
+  const vendeurType = filters.vendeurType ? String(filters.vendeurType) : null;
   const disponibiliteDateArrivee = filters.disponibiliteDateArrivee ?? null;
   const disponibiliteDateDepart = filters.disponibiliteDateDepart ?? null;
 
-  const { pageData, isLoading, isError, isFetching } = useSearchAds(
-    debouncedQuery,
-    0,
-    pageSize,
-    {
-      categorieId,
-      sousCategorieId,
-      attributs,
-      prixMin,
-      prixMax,
-      type: annonceType,
-      disponibiliteDateArrivee,
-      disponibiliteDateDepart,
-    }
-  );
+  const {
+    pageData,
+    isLoading,
+    isError,
+    isFetching,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteSearchAds(debouncedQuery, 24, {
+    categorieId,
+    sousCategorieId,
+    attributs,
+    prixMin,
+    prixMax,
+    type: annonceType,
+    vendeurType,
+    disponibiliteDateArrivee,
+    disponibiliteDateDepart,
+  });
 
   const { data: suggestionsRaw } = useSuggestions(debouncedQuery, 6);
   const suggestions = useMemo(
@@ -166,21 +170,6 @@ export default function SearchContent({
       setFilters({ ...DEFAULT_SEARCH_FILTERS, ...initialFilters });
     }
   }, [initialFilters]);
-
-  // “Pagination” mobile : quand les critères changent, on repart de 24.
-  useEffect(() => {
-    setPageSize(24);
-  }, [
-    debouncedQuery,
-    filters.categorieId,
-    filters.sousCategorieId,
-    filters.location,
-    filters.prixMin,
-    filters.prixMax,
-    filters.type,
-    filters.disponibiliteDateArrivee,
-    filters.disponibiliteDateDepart,
-  ]);
 
   const activeFilters =
     countActiveFilters(filters) + (attributs.length > 0 ? 1 : 0);
@@ -394,6 +383,7 @@ export default function SearchContent({
           prixMin: filters.prixMin ?? filters.priceMin ?? null,
           prixMax: filters.prixMax ?? filters.priceMax ?? null,
           type: filters.type ?? null,
+          vendeurType: filters.vendeurType ?? null,
           attributs: filters.attributs ?? [],
         },
       });
@@ -538,13 +528,10 @@ export default function SearchContent({
           contentContainerStyle={[styles.list, { paddingBottom: tabBarInset }]}
           keyboardShouldPersistTaps="handled"
           onEndReached={() => {
-            if (isLoading || isFetching) return;
-            if (!pageData) return;
-            const total = pageData.totalElements ?? 0;
-            if (listings.length >= total) return;
-            setPageSize((s) => s + 24);
+            if (isLoading || isFetchingNextPage || !hasNextPage) return;
+            fetchNextPage();
           }}
-          onEndReachedThreshold={0.7}
+          onEndReachedThreshold={0.4}
           ListHeaderComponent={renderListHeader()}
           ListEmptyComponent={
             !isLoading && !isFetching && !hasActiveSearch ? (
@@ -561,7 +548,9 @@ export default function SearchContent({
             />
           )}
           ListFooterComponent={
-            isFetching && listings.length > 0 ? (
+            isFetchingNextPage ? (
+              <ActivityIndicator color={colors.primary} style={{ marginVertical: 16 }} />
+            ) : isFetching && listings.length === 0 ? (
               <ActivityIndicator color={colors.primary} style={{ marginVertical: 16 }} />
             ) : null
           }
